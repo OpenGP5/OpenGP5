@@ -1,0 +1,8 @@
+.DS_Store
+__pycache__/
+*.o
+fw-build/andes/
+fw-build/arm/
+build/
+platform/nds32/out/
+firmware/
