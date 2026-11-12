@@ -46,17 +46,25 @@ itself, writes, and waits for the pedal to come back (about 40 s). Keep it conne
 
 ## 4. Recovery, and going back to Valeton's firmware
 
-The pedal's factory loader cannot be overwritten over USB, so a bad flash is always recoverable:
+The pedal's factory loader cannot be overwritten over USB, so in the usual case a bad flash is
+recoverable:
 
 1. Unplug the pedal. Hold the **foot switch** and the **PARA knob** pressed, plug it back in. The screen
    stays dark: that is update mode.
 2. Flash again: your previous image, or Valeton's firmware.
 
-To go back to Valeton's firmware, download the GP-5 update from Valeton and flash all of it:
+To go back to Valeton's firmware, download the GP-5 update from Valeton and flash all of it with this
+tool (Valeton's own updater, Valeton Suite, is not reliable for this):
 
 ```
 python3 tools/gp5tool.py flash <Valeton GP-5 firmware .bin> --sections all
 ```
+
+> [!WARNING]
+> **In some circumstances USB recovery is not enough** (for example a pedal whose DSP updater stalls, see
+> Known limits). Recovering those needs an FT232H USB adapter wired to the pedal's internal debug pads,
+> which takes some soldering experience. Only flash if you are comfortable with the possibility of a
+> bricked pedal.
 
 ## 5. Write your own
 

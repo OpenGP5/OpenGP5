@@ -101,8 +101,14 @@ Walkthrough: **[Your first effect](docs/platform/first-effect.md)**.
 
 > [!WARNING]
 > Not affiliated with or endorsed by Valeton. Flashing your own firmware is at your own risk.
-> The pedal's factory loader can't be overwritten over USB, so a bad flash is always recoverable: unplug,
-> hold the foot switch and the PARA knob, plug back in, and flash again (or put Valeton's firmware back).
+>
+> The pedal's factory loader can't be overwritten over USB, so usually a bad flash is recoverable: unplug,
+> hold the foot switch and the PARA knob, plug back in, and flash again (or put Valeton's firmware back
+> with `gp5tool.py`).
+>
+> **In some circumstances, recovery needs an FT232H USB adapter wired to the pedal's internal debug
+> pads, which takes some soldering experience.** Valeton's own updater (Valeton Suite) is not a reliable
+> way back. Don't flash this firmware unless you are comfortable with the possibility of a bricked pedal.
 
 ## Licence
 
