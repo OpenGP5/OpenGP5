@@ -41,8 +41,27 @@ our two sections (`dsp`, `app`); Valeton's other sections on the pedal are not t
 - `dsp/` — audio processor (Cortex-M4F): start-up, audio in/out (64-sample blocks, 44.1 kHz), link
   responder, output level, cycle counters, resident tick patcher.
 
-Limits today: one screen font and no drawing helpers beyond `gp5_blit` / `gp5_text`; LED colours are
-dim red / mint, or a firmware's own colour (`fw_active` returns `GP5_LED(r, g, b)`). The control-processor build uses only our own code: start-up,
+What a firmware can use besides settings and the screen (all in `nds32/gp5_firmware.h`):
+
+- **Storage that survives power-off and firmware updates:** `gp5_store_save(id, data, len)` /
+  `gp5_store_load(id, buf, max)`, up to 1 KB per firmware, tagged with the firmware's own id. It lives in an
+  8 KB area of the control processor's flash that no update writes (`0x160000`, `docs/platform/hardware.md`);
+  records carry a CRC and alternate between two sectors, so a power cut while saving keeps the previous save
+  (`nds32/gp5_store.c`, tested in `nds32/test/store_test.c`). The flash driver (`nds32/hal/flash.c`) refuses
+  every address outside that area.
+- **LED colour:** `fw_active` returns 0 (dim red), 1 (mint) or `GP5_LED(r, g, b)`.
+- **Switch releases:** optional `fw_para_release` / `fw_foot_release` (the platform has empty defaults), for
+  taps versus holds. The edges are not debounced; time them with `fw_knob`'s 10 ms.
+- **Large, smooth text:** `gp5_text` is the platform's 5x7 font; `tools/make_font.py` turns any TrueType font
+  into anti-aliased glyph tables for `gp5_blit` (keep the font's licence notice it writes).
+
+On the DSP, code runs from flash: a large per-sample loop can be several times slower than the same code in
+RAM. Put hot code in a `.data` section to run it from RAM (Dreamcatcher's `DC_HOT` macros, `dsp/dream.h`).
+
+A complete example in its own repository: [Dreamcatcher](https://github.com/OpenGP5/Dreamcatcher) (presets,
+anti-aliased text, its own LED colour, OpenGP5 as a submodule).
+
+The control-processor build uses only our own code: start-up,
 drivers (`nds32/hal/`) and USB, nothing compiled, included or linked from the vendor SDK. The image
 holds only the two sections we build; flashing it leaves Valeton's other sections on the pedal as they are.
 Flashing and recovery: `GETTING-STARTED.md` (public tree) / `release/GETTING-STARTED.md`.

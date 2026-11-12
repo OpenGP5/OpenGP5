@@ -30,8 +30,13 @@ frame again.
 | `7E 01` | `7E 01 <counters> <last frame>` | DSP link counters: frames, errors, ACKs, NAKs since start-up |
 | `7E 03 <off u16> <bytes…>` | `7E 03 <ok>` | stage up to 60 bytes of a DSP link payload at `off` |
 | `7E 04 <len u16> <wait>` | `7E 04 <status> <n> <reply…>` | send the staged payload to the DSP and wait up to `wait` × 10 ms; status 1 = reply frame, `0x14` = ACK, `0x13` = NAK, 0 = no answer |
+| `7E 05 <addr u32> <count>` | `7E 05 <ok> <bytes…>` | read up to 64 bytes of the control processor's flash (below 2 MB, memory-mapped; reads only) |
+| `7E 06` | `7E 06 1 <JEDEC id u32> <status u32>` | the flash chip's id and status register 1 |
+| `7E 09 <addr u32> <count>` | `7E 09 <ok> <bytes…>` | the same as `7E 05`, read with the flash controller's read command (a driver check) |
+| `7E 07 <addr u32>` | `7E 07 <ok>` | erase a 4 KB sector of the platform's store (any other address is refused) |
+| `7E 08 <addr u32> <bytes…>` | `7E 08 <ok>` | program up to 56 bytes (a multiple of 4) in the platform's store |
 
-`tools/gp5_link.py` wraps `7E 00`, `7E 01` and `7E 03` / `7E 04`.
+`tools/gp5_link.py` wraps `7E 00`, `7E 01`, `7E 03` / `7E 04` and `7E 05` (`flash-read`).
 
 Valeton's own firmware and the factory loader answer the state query `12 30` with `11 30 01 00`
 (Valeton's app) or `11 30 01 01` (update mode); the open firmware does not answer it. `gp5tool.py status`

@@ -6,8 +6,9 @@ No compilers needed. Read the [Safety](README.md#safety) warning first.
 
 **In your browser (easiest):** open the [web flasher](https://opengp5.github.io/OpenGP5/flasher/) in Chrome, Edge or Opera on a computer
 (Safari can't talk to MIDI devices; Firefox asks for a permission first). Plug the pedal in, click
-Connect, allow MIDI access, pick a firmware, tick the box and click Flash. It can also flash a `.bin` file
-you have, including Valeton's firmware.
+Connect, allow MIDI access, pick Dreamcatcher or upload a `.bin` file (an image from the
+[releases](https://github.com/OpenGP5/OpenGP5/releases) such as the tremolo, one you built, or Valeton's firmware), tick the box
+and click Flash.
 
 **From the command line:**
 

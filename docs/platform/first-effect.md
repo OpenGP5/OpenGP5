@@ -102,7 +102,8 @@ If anything goes wrong on the pedal: unplug, hold Foot + PARA, plug in, flash a 
 cp -r firmwares/tremolo firmwares/my-effect
 ```
 
-Change `fw_process`, give your settings ids, show them on the screen. Ideas that fit easily: a drive
+Change `fw_process`, give your settings ids, show them on the screen. To keep settings across power-off,
+save them with `gp5_store_save` (`platform/README.md`). Ideas that fit easily: a drive
 (`tanhf`), a filter (a biquad is 5 multiplies per sample), an echo (`GP5_LARGE` buffer), a chorus (a short
 delay whose length follows a slow `sinf`). `firmwares/granular-delay` shows a large effect with 13 settings
 and a graphic screen.

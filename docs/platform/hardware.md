@@ -7,8 +7,13 @@ Measured on a GP-5 with main board `GP-5_MB_V01_241115`. The platform code is th
 
 - **Clocks:** 24 MHz crystal; main PLL 288 MHz = system clock; audio PLL 240 MHz feeds USB (÷4) and
   UART0 (`platform/nds32/hal/clock.c`).
-- **Flash:** `0x0`–`0xFFFF` factory loader (USB update mode, Foot + PARA recovery; not writable over
-  USB). `0x10000` the app (section `0x62`, at most 1,440 KB). `0x190000` Valeton's presets.
+- **Flash:** 2 MB SPI flash (JEDEC id `85 60 15`, no blocks write-protected). `0x0`–`0xFFFF` factory loader
+  (USB update mode, Foot + PARA recovery; not writable over USB). `0x10000` the app (section `0x62`, at
+  most 1,440 KB; an update erases only the length it writes; Valeton's V1.0.6 app ends at `0x13E168`).
+  **`0x160000`–`0x161FFF` the platform's store** (`gp5_store_*`, two 4 KB sectors). `0x170000` a
+  100-byte table and `0x171000`–`0x189FFF` Valeton's working preset store (written by Valeton's app);
+  `0x190000` Valeton's factory presets (section `0x65`). Measured on the test unit with `gp5_link.py
+  flash-read`.
 - **RAM:** `0x20000000`–`0x20047FFF`. The app's stack is `0x20003000`–`0x20004000`, its data and bss
   start at `0x20004000` (`platform/nds32/start/app.ld`).
 - **What the factory loader checks before it starts the app:** the first 41 words of the image are jumps

@@ -51,7 +51,8 @@ with the same maths, on your computer.
 ## Quick start
 
 **Try it without installing anything:** open the **[web flasher](https://opengp5.github.io/OpenGP5/flasher/)** in Chrome, Edge or Opera on a
-computer, plug the pedal in, pick a firmware and flash. (Read [Safety](#safety) first.)
+computer, plug the pedal in, pick [Dreamcatcher](https://github.com/OpenGP5/Dreamcatcher) or upload a `.bin` (one from
+the [releases](https://github.com/OpenGP5/OpenGP5/releases), one you built, or Valeton's) and flash. (Read [Safety](#safety) first.)
 
 **Build your own:**
 
@@ -69,8 +70,9 @@ Requirements per system, recovery and going back to Valeton's firmware: **[GETTI
 |---|---|
 | **Platform** (`platform/`) | Runs on both chips. Control processor: start-up, drivers, USB-MIDI, colour screen, foot switch, knobs, LEDs, the link to the DSP. DSP: start-up, audio in / out, floating-point maths, the link back. |
 | **Firmwares** (`firmwares/`) | `tremolo`, the worked example (start here) · `passthrough`, the smallest · `granular-delay`, a granular delay and micro-looper with 13 settings and its own screen. |
+| **Built on OpenGP5** | [Dreamcatcher](https://github.com/OpenGP5/Dreamcatcher), an ambient texture firmware in its own repository: micro-looper, chance-driven glitch delay, presets, purple screen. |
 | **Flasher** (`tools/gp5tool.py`) | Flashes your build or Valeton's own firmware over USB-MIDI, on macOS, Linux and Windows. |
-| **Off-pedal tools** | `run_effect.py` runs your audio code on a WAV file; `dsp_emu_check.py` boots the built DSP firmware in an emulator. |
+| **Off-pedal tools** | `run_effect.py` runs your audio code on a WAV file; `dsp_emu_check.py` boots the built DSP firmware in an emulator; `make_font.py` turns a TrueType font into smooth screen text. |
 
 None of it comes from the chip vendor or from Valeton: no vendor SDK code, headers or libraries, and no
 Valeton code or data. It was written from what the hardware does. The same source builds byte-identical
