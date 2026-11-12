@@ -35,7 +35,7 @@ def main():
     ap = argparse.ArgumentParser(); ap.add_argument("stock", metavar="[BASE] OUT"); ap.add_argument("out", nargs="?")
     ap.add_argument("--src", default="hello.c", help="firmware source in this directory")
     ap.add_argument("-D", dest="defines", action="append", default=[], help="extra -D for the firmware")
-    ap.add_argument("--firmware", help="name under firmwares/: builds its dsp/firmware.h in (needs responder.c "
+    ap.add_argument("--firmware", help="name under firmwares/ or a firmware folder: builds its dsp/firmware.h in (needs responder.c "
                                        "with -D AUDIO_PASSTHROUGH -D AUDIO_LEVEL)")
     a = ap.parse_args()
     base, out = (a.stock, a.out) if a.out else (None, a.stock)
@@ -44,7 +44,8 @@ def main():
         elf = d / "hello.elf"
         fw = []
         if a.firmware:
-            inc = ROOT / "firmwares" / a.firmware / "dsp"
+            inc = Path(a.firmware).resolve() / "dsp"
+            if not (inc / "firmware.h").is_file(): inc = ROOT / "firmwares" / a.firmware / "dsp"
             assert (inc / "firmware.h").is_file(), f"no {inc}/firmware.h"
             fw = [f"-I{inc}", f"-I{HERE}", "-DGP5_FIRMWARE"]
         srcs = [str(HERE / a.src)] + ([str(HERE / "gp5_math.c")] if a.src == "responder.c" else [])

@@ -11,7 +11,7 @@ set -eu
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 export PATH=$ROOT/fw-build/andes/v3s/nds32le-elf-mculib-v3s/bin:$PATH
 APP=$ROOT/platform/nds32
-FW=$ROOT/firmwares/${GP5_FIRMWARE:-granular-delay}/nds32     # the firmware's own UI / control code
+FW=${GP5_FIRMWARE_DIR:-$ROOT/firmwares/${GP5_FIRMWARE:-granular-delay}}/nds32     # the firmware's own UI / control code
 O=$APP/out; mkdir -p "$O"; cd "$O"; rm -f ./*.o app.elf app.bin app.dis app.sym app.map app.ld init-default.c
 INC="-I$APP -I$FW"
 CF="-std=gnu99 -DUI_PANEL -mcpu=d1088-spu -mext-dsp -mext-zol -mcmodel=medium -Os -g -Wall -fmessage-length=0 -fsingle-precision-constant -ffunction-sections -fdata-sections $INC"

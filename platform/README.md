@@ -4,7 +4,9 @@ The part every firmware shares. A firmware author does not edit anything here.
 
 ## Writing a firmware
 
-A firmware is a folder under `firmwares/` with two halves, one per processor:
+A firmware is a folder with two halves, one per processor; it lives under `firmwares/` or in its own
+repository (then give `platform/build_firmware.sh` and `tools/run_effect.py` its path instead of a name,
+and keep OpenGP5 as a git submodule of it):
 
 ```
 firmwares/<name>/dsp/firmware.h      audio: fw_init, fw_process, fw_command       (interface: platform/dsp/gp5_dsp.h)

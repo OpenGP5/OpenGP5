@@ -3,7 +3,7 @@
 
   python3 tools/run_effect.py <firmware> in.wav out.wav [--set ID=VALUE ...] [--cmd HEX ...] [--tone]
 
-<firmware> is a folder under firmwares/. The DSP half (dsp/firmware.h) is compiled for the computer with the
+<firmware> is a folder under firmwares/, or the path of a firmware folder elsewhere. The DSP half (dsp/firmware.h) is compiled for the computer with the
 platform's own maths functions, so it computes what the pedal computes (the pedal adds the volume knob).
   --set ID=VALUE   a setting, sent as the control half would: link command 0x7F10 [id][value]
                    (VALUE is an integer; for a float setting write its bits, e.g. 0x3f000000 = 0.5)
@@ -50,7 +50,8 @@ def main():
     ap.add_argument("--cmd", action="append", default=[], metavar="HEX")
     ap.add_argument("--tone", action="store_true")
     a = ap.parse_args()
-    fw = ROOT / "firmwares" / a.firmware / "dsp"
+    fw = pathlib.Path(a.firmware).resolve() / "dsp"
+    if not (fw / "firmware.h").is_file(): fw = ROOT / "firmwares" / a.firmware / "dsp"
     if not (fw / "firmware.h").is_file(): sys.exit(f"no {fw}/firmware.h")
     cmds = []
     for s in a.set:
