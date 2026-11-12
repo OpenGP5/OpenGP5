@@ -11,6 +11,7 @@
 </p>
 
 <p align="center">
+  <a href="https://opengp5.github.io/OpenGP5/flasher/"><b>Flash from your browser</b></a> ·
   <a href="GETTING-STARTED.md"><b>Getting started</b></a> ·
   <a href="docs/platform/first-effect.md"><b>Your first effect</b></a> ·
   <a href="docs/platform/protocols.md">Protocols</a> ·
@@ -48,6 +49,11 @@ Hear it before you flash it: `python3 tools/run_effect.py tremolo guitar.wav out
 with the same maths, on your computer.
 
 ## Quick start
+
+**Try it without installing anything:** open the **[web flasher](https://opengp5.github.io/OpenGP5/flasher/)** in Chrome, Edge or Opera on a
+computer, plug the pedal in, pick a firmware and flash. (Read [Safety](#safety) first.)
+
+**Build your own:**
 
 ```bash
 release/setup-toolchain.sh                    # both compilers, pinned and checksum-checked (~190 MB)

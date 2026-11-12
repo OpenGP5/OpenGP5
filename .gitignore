@@ -5,4 +5,4 @@ fw-build/andes/
 fw-build/arm/
 build/
 platform/nds32/out/
-firmware/
+/firmware/

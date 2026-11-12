@@ -1,0 +1,23 @@
+[
+ {
+  "file": "GP-5_tremolo.bin",
+  "title": "Tremolo",
+  "description": "Big knob = depth, PARA = rate, foot switch = on / off.",
+  "version": "v0.1.0-alpha",
+  "sha256": "7fef3f5073cc84755ca0b730c01d827786d2655d8ca49f788c21c1dbe0eb329b"
+ },
+ {
+  "file": "GP-5_granular-delay.bin",
+  "title": "Granular delay / micro-looper",
+  "description": "13 settings: PARA chooses, big knob sets, foot switch freezes a loop.",
+  "version": "v0.1.0-alpha",
+  "sha256": "523253d58cc0a2de9b2d347c973e6e3ab287b3327cce2808414ac140f5b0b396"
+ },
+ {
+  "file": "GP-5_passthrough.bin",
+  "title": "Passthrough",
+  "description": "The guitar straight through, big knob = volume.",
+  "version": "v0.1.0-alpha",
+  "sha256": "ccb4afe2548ff10d604f153a1b4a60c267dd61c410d4a8557de13b734aaa53fd"
+ }
+]

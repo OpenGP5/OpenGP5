@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenGP5 Web Flasher</title>
+<meta name="description" content="Flash OpenGP5 or Valeton firmware onto a Valeton GP-5 from your browser, over USB.">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #080606; --surface: #0f1517; --surface-2: #142023; --line: #1c2c2d; --text: #f4f1f4; --muted: #93a7a7;
+    --teal: #3cc0c0; --teal-soft: #8fd6d2; --on-teal: #041616; --contour: #0a1a1b;
+    --red-bg: #2b0d0f; --red-border: #e5484d; --red-text: #ffb8b8; --red-icon: #ff6369;
+    --yellow-bg: #2a2209; --yellow-border: #d9a520; --yellow-text: #f6da8f;
+    --good: #6fdcae; --bad: #ff9a9a; --radius: 16px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; color: var(--text); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+         background: var(--bg) repeating-radial-gradient(ellipse at 85% -10%, transparent 0 22px, var(--contour) 22px 25px) fixed; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
+  .banner { display: block; width: 100%; height: auto; margin: 8px 0 4px; }
+  .kicker { text-transform: uppercase; letter-spacing: 0.22em; color: var(--teal); font-size: 15px; font-weight: 700; margin: 18px 2px 2px; }
+  .lede { color: var(--muted); margin: 0 2px 16px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; margin: 14px 0; }
+  .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--teal-soft); font-weight: 600;
+             margin: 0 0 12px; display: flex; gap: 10px; align-items: center; }
+  .step { display: inline-flex; width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--teal); color: var(--teal);
+          align-items: center; justify-content: center; font-size: 13px; letter-spacing: 0; font-weight: 700; flex: none; }
+  .alert { display: flex; gap: 12px; align-items: center; border-radius: var(--radius); padding: 12px 16px; margin: 0 0 14px; border: 1px solid; }
+  .alert svg { width: 26px; height: 26px; flex: none; }
+  .alert.red { background: var(--red-bg); border-color: var(--red-border); color: var(--red-text); }
+  .alert.red svg { color: var(--red-icon); }
+  .alert.yellow { background: var(--yellow-bg); border-color: var(--yellow-border); color: var(--yellow-text); }
+  .alert p { margin: 0; }
+  button { font: inherit; font-weight: 600; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2);
+           color: var(--text); padding: 9px 18px; cursor: pointer; }
+  button.primary { background: var(--teal); color: var(--on-teal); border-color: var(--teal); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .status { color: var(--muted); }
+  .status b { color: var(--text); }
+  .choices { display: grid; gap: 8px; margin: 0 0 10px; }
+  .choice { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; }
+  .choice:has(input:checked) { border-color: var(--teal); background: var(--surface-2); }
+  .choice small { display: block; color: var(--muted); }
+  input[type="radio"], input[type="checkbox"] { accent-color: var(--teal); }
+  .drop { border: 1.5px dashed var(--line); border-radius: 12px; padding: 14px; text-align: center; color: var(--muted); }
+  .drop.over { border-color: var(--teal); color: var(--text); }
+  .drop label { color: var(--teal); cursor: pointer; text-decoration: underline; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 10px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 500; }
+  label.agree { display: flex; gap: 10px; align-items: flex-start; margin: 4px 0 12px; }
+  progress { width: 100%; height: 10px; accent-color: var(--teal); }
+  .log { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: #0a0f10; border: 1px solid var(--line);
+         border-radius: 10px; padding: 10px 12px; max-height: 220px; overflow: auto; white-space: pre-wrap; margin-top: 10px; color: #c9d6d6; }
+  .result { font-weight: 600; margin-top: 10px; }
+  .result.good { color: var(--good); } .result.bad { color: var(--bad); }
+  .small { font-size: 14px; color: var(--muted); margin: 10px 0 0; }
+  footer { color: var(--muted); font-size: 14px; margin-top: 18px; }
+  a { color: var(--teal); }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.92em; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <img class="banner" src="assets/opengp5-header.png" alt="OpenGP5: an open firmware platform for the Valeton GP-5 guitar pedal" width="1758" height="475">
+  <p class="kicker">Web flasher</p>
+  <p class="lede">Put OpenGP5, or Valeton's own firmware, on your GP-5 over USB. Nothing to install.</p>
+
+  <!-- icon: Material Icons "warning" (round), Apache License 2.0 -->
+  <div class="alert red" role="alert">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4.47 21h15.06c1.54 0 2.5-1.67 1.73-3L13.73 4.99c-.77-1.33-2.69-1.33-3.46 0L2.74 18c-.77 1.33.19 3 1.73 3M12 14c-.55 0-1-.45-1-1v-2c0-.55.45-1 1-1s1 .45 1 1v2c0 .55-.45 1-1 1m1 4h-2v-2h2z"/></svg>
+    <p><b>Alpha</b> &mdash; only flash if you are comfortable with the possibility of bricking your pedal.</p>
+  </div>
+
+  <div class="alert red" id="nomidi" hidden>
+    <p><b>This browser can't talk to USB-MIDI devices.</b> Use Chrome, Edge or Opera on a desktop computer.
+       Safari doesn't support it; in Firefox, allow the MIDI permission when asked.</p>
+  </div>
+
+  <section class="card">
+    <h2><span class="step">1</span>Connect the pedal</h2>
+    <p class="status" id="status">Plug the pedal in with USB, then connect. The browser will ask to allow MIDI access.</p>
+    <div class="row">
+      <button class="primary" id="connect">Connect</button>
+      <button id="recheck" hidden>Check again</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span class="step">2</span>Choose firmware</h2>
+    <div class="choices" id="releases"></div>
+    <div class="drop" id="drop">Or drop a firmware file here (<code>.bin</code>, including Valeton's), or
+      <label>choose one<input type="file" id="file" accept=".bin" hidden></label>
+    </div>
+    <div id="imageinfo" hidden>
+      <table><thead><tr><th>Part</th><th>Size</th><th>Contents</th><th>Write</th></tr></thead><tbody id="sections"></tbody></table>
+    </div>
+    <div class="alert red" id="imageerror" hidden></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="step">3</span>Flash</h2>
+    <label class="agree"><input type="checkbox" id="agree"> <span>I understand the risk. I'll keep the pedal connected and
+      powered, and this tab open, until it's done (about 40 seconds for OpenGP5, a few minutes for Valeton's firmware).</span></label>
+    <p class="status" id="ready">Choose a firmware above.</p>
+    <button class="primary" id="flash" disabled>Flash</button>
+    <div id="progresswrap" hidden>
+      <p class="status" id="progresslabel" style="margin: 12px 0 4px;"></p>
+      <progress id="progress" max="1" value="0"></progress>
+    </div>
+    <div class="result" id="result" hidden></div>
+    <div class="log" id="log" hidden></div>
+    <p class="small">If a flash goes wrong: unplug, hold the foot switch and the PARA knob, plug back in, and flash again.
+      Some cases need more: see <a href="https://github.com/OpenGP5/OpenGP5#safety">Safety</a>.</p>
+  </section>
+
+  <div class="alert yellow">
+    <p>OpenGP5 is not affiliated with or endorsed by Valeton. "Valeton" and "GP-5" are Valeton's trademarks, used only to
+       say which pedal this works with.</p>
+  </div>
+
+  <footer>
+    Same protocol and checks as <code>tools/gp5tool.py</code>; nothing leaves your computer except what goes to the pedal.
+    Source, documentation and recovery: <a href="https://github.com/OpenGP5/OpenGP5">github.com/OpenGP5/OpenGP5</a>.
+  </footer>
+</main>
+
+<script type="module">
+import * as F from "./gp5flash.js";
+import { webMidiPorts } from "./webmidi.js";
+
+const $ = (id) => document.getElementById(id);
+let ports = null, image = null, busy = false, pick = 0;   // pick: the latest choice; older downloads are ignored
+
+const log = (s) => { $("log").hidden = false; $("log").textContent += s + "\n"; $("log").scrollTop = 1e9; };
+const kb = (n) => (n >= 1024 ? `${(n / 1024).toFixed(n >= 10240 ? 0 : 1)} KB` : `${n} B`);
+const MODE_TEXT = {
+  [F.MODE_OPEN]: "running <b>OpenGP5</b>",
+  [F.MODE_STOCK]: "running <b>Valeton's firmware</b>",
+  [F.MODE_LOADER]: "in <b>update mode</b> (dark screen)",
+  [F.MODE_SILENT]: "connected, but its firmware doesn't answer (this happens when the two halves don't belong together; flashing still works)",
+};
+
+if (!navigator.requestMIDIAccess) { $("nomidi").hidden = false; $("connect").disabled = true; }
+
+async function refresh() {
+  $("status").textContent = "Looking for the pedal…";
+  try {
+    const [name, mode] = await F.status(ports);
+    $("status").innerHTML = name ? `Found the GP-5, ${MODE_TEXT[mode] || mode}.` : "No GP-5 found. Check the USB cable and that the pedal is switched on.";
+  } catch (e) { $("status").textContent = `Couldn't read the pedal: ${e.message}`; }
+  update();
+}
+
+// index.html?simulate[=open|stock|loader]: a simulated pedal instead of USB (for trying the page; nothing is sent)
+const simulate = new URLSearchParams(location.search).get("simulate");
+async function simulatedPorts() {
+  const { FakePedal } = await import("./test/fakepedal.mjs");
+  const mode = { open: F.MODE_OPEN, loader: F.MODE_LOADER }[simulate] || F.MODE_STOCK;
+  const pedal = new FakePedal(mode);
+  Object.assign(F.Timing, { beginSettle: 800, settle: 300 });
+  return { names: () => pedal.names(),
+           async open(name) { const l = await pedal.open(name);
+             return { ...l, recv: async (t) => { await new Promise((r) => setTimeout(r, 2)); return l.recv(t); } }; } };
+}
+if (simulate !== null) { document.title += " (simulation)"; $("status").textContent = "Simulation: no USB is used. " + $("status").textContent; }
+
+$("connect").onclick = async () => {
+  try {
+    ports = simulate !== null ? await simulatedPorts() : await webMidiPorts();
+    $("connect").hidden = true; $("recheck").hidden = false;
+    await refresh();
+  } catch (e) {
+    $("status").textContent = e.name === "SecurityError" || e.name === "NotAllowedError"
+      ? "MIDI access was not allowed. Allow it in the browser's site settings and try again." : e.message;
+  }
+};
+$("recheck").onclick = () => !busy && refresh();
+
+// ---- firmware choice
+function showImage(name, bytes) {
+  $("imageerror").hidden = true; $("imageinfo").hidden = true; image = null;
+  try {
+    const { sections, lines } = F.inspect(bytes);
+    image = { name, sections, chosen: new Set(sections.map(([t]) => t)) };
+    $("sections").innerHTML = "";
+    for (const l of lines) {
+      const tr = document.createElement("tr");
+      const what = { app: "control processor", dsp: "audio processor", "dsp-data": "audio data", models: "amp models", presets: "presets" }[l.name];
+      tr.innerHTML = `<td>${l.name}</td><td>${kb(l.bytes)}</td><td>${what}${l.stock ? " (Valeton V1.0.6)" : ""}</td>` +
+                     `<td><input type="checkbox" checked data-type="${l.type}"></td>`;
+      tr.querySelector("input").onchange = (ev) => { ev.target.checked ? image.chosen.add(l.type) : image.chosen.delete(l.type); update(); };
+      $("sections").appendChild(tr);
+    }
+    $("imageinfo").hidden = false;
+  } catch (e) {
+    $("imageerror").textContent = `${name}: ${e.message}`; $("imageerror").hidden = false;
+  }
+  update();
+}
+
+async function loadReleases() {
+  try {
+    const list = await (await fetch("firmware/manifest.json", { cache: "no-cache" })).json();
+    for (const fw of list) {
+      const el = document.createElement("label");
+      el.className = "choice";
+      el.innerHTML = `<input type="radio" name="fw"><span><b>${fw.title}</b><small>${fw.description} · ${fw.version}</small></span>`;
+      el.querySelector("input").onchange = async () => {
+        const mine = ++pick;
+        image = null; $("imageinfo").hidden = true; update();
+        const bytes = new Uint8Array(await (await fetch(`firmware/${fw.file}`, { cache: "no-cache" })).arrayBuffer());
+        if (mine !== pick) return;                            // another choice was made meanwhile
+        const sum = [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map((b) => b.toString(16).padStart(2, "0")).join("");
+        if (sum !== fw.sha256) { $("imageerror").textContent = `${fw.file}: the download doesn't match its checksum. Reload and try again.`; $("imageerror").hidden = false; image = null; update(); return; }
+        showImage(fw.file, bytes);
+      };
+      $("releases").appendChild(el);
+    }
+  } catch { /* no bundled firmware next to this page: own files only */ }
+}
+loadReleases();
+
+async function takeFile(file) {
+  if (!file) return;
+  const mine = ++pick;
+  for (const r of document.querySelectorAll('input[name="fw"]')) r.checked = false;
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (mine === pick) showImage(file.name, bytes);
+}
+$("file").onchange = (ev) => takeFile(ev.target.files[0]);
+$("drop").ondragover = (ev) => { ev.preventDefault(); $("drop").classList.add("over"); };
+$("drop").ondragleave = () => $("drop").classList.remove("over");
+$("drop").ondrop = (ev) => { ev.preventDefault(); $("drop").classList.remove("over"); takeFile(ev.dataTransfer.files[0]); };
+$("agree").onchange = update;
+
+function update() {
+  $("flash").disabled = busy || !ports || !image || !image.chosen.size || !$("agree").checked;
+  $("ready").innerHTML = image ? `Will write <b>${image.name}</b>: ${image.sections.filter(([t]) => image.chosen.has(t)).map(([t]) => F.NAMES[t]).join(", ") || "nothing (tick a part)"}.`
+                               : "Choose a firmware above.";
+}
+
+// ---- flash
+window.addEventListener("beforeunload", (ev) => { if (busy) { ev.preventDefault(); ev.returnValue = ""; } });
+
+$("flash").onclick = async () => {
+  busy = true; update();
+  $("log").textContent = ""; $("result").hidden = true; $("progresswrap").hidden = false; $("progress").value = 0;
+  let wake = null;
+  try { wake = await navigator.wakeLock?.request("screen"); } catch { /* not available: fine */ }
+  const chosen = image.sections.filter(([t]) => image.chosen.has(t));
+  const totalPackets = chosen.reduce((s, [, d]) => s + Math.ceil((d.length + 2) / F.CHUNK), 0);
+  const doneBefore = {}; let acc = 0;
+  for (const [t, d] of chosen) { doneBefore[F.NAMES[t]] = acc; acc += Math.ceil((d.length + 2) / F.CHUNK); }
+  log(`${image.name}: writing ${chosen.map(([t]) => F.NAMES[t]).join(", ")}`);
+  $("progresslabel").textContent = "Starting…";
+  const t0 = performance.now();
+  try {
+    const mode = await F.flash(ports, chosen, (s) => { log(s); $("progresslabel").textContent = s.split("\n")[0]; },
+      (name, i, n) => { $("progress").value = (doneBefore[name] + i) / totalPackets; $("progresslabel").textContent = `Writing ${name}: ${Math.round(100 * i / n)} %`; });
+    const secs = Math.round((performance.now() - t0) / 1000);
+    $("progress").value = 1;
+    const ok = mode === F.MODE_OPEN || mode === F.MODE_STOCK;
+    $("result").className = "result " + (ok ? "good" : "bad");
+    $("result").textContent = ok ? `Done in ${secs} s. The pedal is back, running the ${mode === F.MODE_OPEN ? "OpenGP5" : "Valeton"} firmware.`
+      : mode === F.MODE_SILENT ? `Written in ${secs} s. The pedal restarted, but its firmware doesn't answer: if the screen stays dark, flash the matching other part next.`
+      : `Written in ${secs} s, but the pedal ${mode === F.MODE_LOADER ? "is still in update mode" : "hasn't come back yet"}. Unplug it, wait a few seconds and plug it in again.`;
+  } catch (e) {
+    log(e.message);
+    $("result").className = "result bad"; $("result").textContent = e.message.split("\n")[0];
+  } finally {
+    $("result").hidden = false;
+    busy = false; update();
+    try { await wake?.release(); } catch { /* fine */ }
+    await refresh();
+  }
+};
+</script>
+</body>
+</html>
