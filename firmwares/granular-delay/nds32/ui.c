@@ -17,7 +17,7 @@
 #define C_TRACK  UI_RGB(28, 38, 50)
 #define C_ON     UI_RGB(46, 230, 166)     /* mint: effect on */
 #define C_ICE    UI_RGB(110, 200, 255)    /* loop frozen */
-#define C_LIVE   UI_RGB(255, 200, 87)     /* amber: following the big knob */
+#define C_LIVE   UI_RGB(255, 200, 87)     /* amber: following the volume knob */
 
 #define BAND_MAX 25
 static uint16_t band[UI_W * BAND_MAX];

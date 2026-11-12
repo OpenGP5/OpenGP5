@@ -8,8 +8,8 @@
  *
  *   header   effect name, FRZ badge while the loop is frozen, ON / OFF badge
  *   name     the chosen setting
- *   value    its value, large; amber while it follows the big knob
- *   bar      where the value is in its range; a small marker shows where the big knob stands while the
+ *   value    its value, large; amber while it follows the volume knob
+ *   bar      where the value is in its range; a small marker shows where the volume knob stands while the
  *            setting is still waiting for it
  *   footer   one dot per setting, the chosen one wider
  */
@@ -20,7 +20,7 @@ typedef struct {
     const char *name;      /* chosen setting, up to 6 characters */
     char value[8];         /* its value as text, up to 6 characters */
     uint8_t frac;          /* value position in its range, 0..255 */
-    uint8_t knob;          /* big knob position, 0..255 */
+    uint8_t knob;          /* volume knob position, 0..255 */
     uint8_t live;          /* the setting follows the knob */
     uint8_t on, frozen;
     uint8_t sel, count;    /* chosen setting / number of settings */

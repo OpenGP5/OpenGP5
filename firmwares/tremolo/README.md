@@ -5,7 +5,7 @@ Float maths and `sinf` on the DSP, ordinary variables, three settings passed fro
 
 | control | does |
 |---|---|
-| big knob | depth: none … the volume dips to silence |
+| volume knob | depth: none … the volume dips to silence |
 | turn PARA | rate, 0.25 Hz per click, 0.5 … 15 Hz |
 | foot switch | tremolo on / off (LEDs mint = on, dim red = off) |
 

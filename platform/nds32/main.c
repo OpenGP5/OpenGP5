@@ -5,7 +5,7 @@
  * the LEDs, USB-MIDI (usb_midi.c) and the link to the DSP (dsp_link.c), then loops:
  *   - answers USB requests (proto.c: restart into update mode, DSP link bridge);
  *   - waits for the DSP's version answer, sends it the output level (dsp_ctl.c) and calls fw_dsp_ready();
- *   - reads the foot switch, the PARA knob (turn + push) and the big knob, and calls the firmware's
+ *   - reads the foot switch, the PARA knob (turn + push) and the volume knob, and calls the firmware's
  *     fw_foot / fw_para_turn / fw_para_push / fw_knob (gp5_firmware.h);
  *   - sends the settings the firmware hands over (fw_take) to the DSP as link command 0x7F10;
  *   - redraws the screen through fw_draw.

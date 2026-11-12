@@ -8,7 +8,7 @@
  *
  *   turn PARA      choose the setting (MIX, DELAY, GRAIN, SPEED, SPRAY, FEEDBK, CHAOS, CLOCK, LOOP,
  *                  LP SPD, LP LVL, LEVEL)
- *   big knob       changes the chosen setting over its whole range - but only once the knob is
+ *   volume knob    changes the chosen setting over its whole range - but only once the knob is
  *                  actually turned. Choosing another setting never changes anything by itself: the
  *                  setting keeps its value until the knob moves, then it follows the knob.
  *   press Foot     freeze / unfreeze the loop (switches the effect on if it was off)

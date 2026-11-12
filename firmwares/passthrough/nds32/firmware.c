@@ -1,5 +1,5 @@
 /* Passthrough: the smallest control-processor firmware. Copy this folder to start your own
- * (interface: platform/nds32/gp5_firmware.h). The big knob is the volume; nothing else does anything. */
+ * (interface: platform/nds32/gp5_firmware.h). The volume knob sets the level; nothing else does anything. */
 #include "gp5_firmware.h"
 
 static unsigned level, shown = 1000;

@@ -1,7 +1,7 @@
 # Your first effect
 
 This walks through `firmwares/tremolo`, a complete firmware of about 140 lines: the guitar's volume rises
-and falls with a sine wave, the big knob sets how deep, the PARA knob sets how fast, the foot switch turns it
+and falls with a sine wave, the volume knob sets how deep, the PARA knob sets how fast, the foot switch turns it
 on and off. Read it next to the two files; then copy the folder and change it.
 
 ## 1. A firmware has two halves

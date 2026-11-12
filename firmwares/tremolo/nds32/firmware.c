@@ -1,7 +1,7 @@
 /* Tremolo, control half (interface: platform/nds32/gp5_firmware.h).
- *   big knob   depth
- *   PARA turn  rate, 0.25 Hz per click (0.5 .. 15 Hz)
- *   foot       tremolo on / off (the LEDs show it)
+ *   volume knob  depth
+ *   PARA turn    rate, 0.25 Hz per click (0.5 .. 15 Hz)
+ *   foot         tremolo on / off (the LEDs show it)
  * Each change is queued and handed to the platform in fw_take(), which sends it to the DSP half. */
 #include "gp5_firmware.h"
 

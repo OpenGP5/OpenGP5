@@ -34,7 +34,7 @@ our two sections (`dsp`, `app`); Valeton's other sections on the pedal are not t
 
 ## What is in here
 
-- `nds32/` — control processor (BP1048, NDS32): start-up, display driver, foot switch, PARA knob, big knob,
+- `nds32/` — control processor (BP1048, NDS32): start-up, display driver, foot switch, PARA knob, volume knob,
   LEDs, USB-MIDI, hand-over to the factory loader (`11 6F`), link to the DSP, start-up sync.
 - `dsp/` — audio processor (Cortex-M4F): start-up, audio in/out (64-sample blocks, 44.1 kHz), link
   responder, output level, cycle counters, resident tick patcher.

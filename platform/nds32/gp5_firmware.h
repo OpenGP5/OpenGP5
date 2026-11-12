@@ -19,7 +19,7 @@ void fw_init(void);
 void fw_foot(void);                       /* foot switch pressed */
 void fw_para_push(void);                  /* PARA knob pushed */
 void fw_para_turn(int detents);           /* PARA knob turned, +/- clicks */
-void fw_knob(unsigned knob);              /* big knob, 0..255, about every 10 ms */
+void fw_knob(unsigned knob);              /* volume knob, 0..255, about every 10 ms */
 unsigned fw_level(void);                  /* output level for the DSP, 0..255 */
 void fw_dsp_ready(void);                  /* the DSP (re)started with its defaults: queue every setting again */
 int fw_take(uint32_t *id, uint32_t *value);   /* next setting for the DSP, sent as link command 0x7F10

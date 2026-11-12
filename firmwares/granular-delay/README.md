@@ -9,7 +9,7 @@ switch freezes a loop that keeps playing under whatever you play next.
 | control | does |
 |---|---|
 | turn PARA | choose a setting (shown on the screen) |
-| big knob | changes the chosen setting over its whole range, once turned a little |
+| volume knob | changes the chosen setting over its whole range, once turned a little |
 | foot switch | freeze / unfreeze the loop (also switches the effect on) |
 | push PARA | effect on / off (off also lets go of the loop) |
 

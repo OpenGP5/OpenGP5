@@ -24,7 +24,7 @@ Measured on a GP-5 with main board `GP-5_MB_V01_241115`. The platform code is th
 | A7 / A9 / A16 | screen: data/command, chip select, reset (SPI master port 0 for the data) |
 | A10 | screen backlight (timer 5 PWM) |
 | A17 | foot switch (low = pressed) |
-| A28 | big knob (ADC channel 9) |
+| A28 | volume knob (ADC channel 9) |
 | A29 / A30 / A31 | effect LEDs blue / red / green (shared by all three LEDs, high = on) |
 | B2 / B3 | PARA knob turning (quadrature, both high at a detent) |
 | B6 | PARA knob push (low = pressed) |
