@@ -15,6 +15,7 @@
 /* ui.c C_ON = sRGB (46,230,166), linearised and rounded to 32 slots. Physical
  * colour matching still needs a look at the pedal: LED efficiencies differ. */
 #define LED_MINT LED_RGB(1, 25, 12)
+#define LED_CUSTOM 0x01000000u          /* fw_active() chose the colour: GP5_LED(r, g, b) in gp5_firmware.h */
 
 typedef struct {
     uint32_t colour;
@@ -23,10 +24,11 @@ typedef struct {
 
 /* Called only by the timer ISR. Latch all channels together at a frame boundary
  * so a state change cannot splice two colours into the same brightness frame. */
-static inline uint32_t led_pwm_next(led_pwm_t *p, unsigned effect_on)
+static inline uint32_t led_pwm_next(led_pwm_t *p, uint32_t effect_on)
 {
     uint32_t pins = 0;
-    if (!p->phase) p->colour = effect_on ? LED_MINT : LED_OFF_RED;
+    if (!p->phase)
+        p->colour = (effect_on & LED_CUSTOM) ? effect_on & 0xFFFFFFu : effect_on ? LED_MINT : LED_OFF_RED;
     if (p->phase < (p->colour & 255u)) pins |= LED_R;
     if (p->phase < ((p->colour >> 8) & 255u)) pins |= LED_G;
     if (p->phase < ((p->colour >> 16) & 255u)) pins |= LED_B;

@@ -67,7 +67,7 @@ The platform calls these from its main loop (none of them may wait):
 | `fw_dsp_ready` | the DSP (re)started | mark every setting as changed, so all are sent |
 | `fw_setting_count` | start-up | 3: the LEDs start once ids 0..2 have arrived |
 | `fw_draw(knob, force)` | every pass | four text lines with `gp5_text(line, "13 characters")` |
-| `fw_active` | always | LED colour: mint when on, dim red when off |
+| `fw_active` | always | LED colour: mint when on, dim red when off (or your own: `return GP5_LED(10, 4, 32);`) |
 
 The pattern to copy: keep the settings in an array, set a bit when one changes, and let `fw_take` hand the
 changed ones over.

@@ -43,6 +43,19 @@ int main(void)
         }
     }
 
+    /* A firmware's own colour (GP5_LED, bit 24 set): each line lit for exactly its slots; 32 = always. */
+    {
+        led_pwm_t c = {0};
+        uint32_t want = 0x01000000u | 10u | (4u << 8) | (32u << 16);
+        unsigned r = 0, g = 0, b = 0;
+        for (i = 0; i < LED_PWM_STEPS; i++) {
+            uint32_t pins = led_pwm_next(&c, want);
+            r += !!(pins & LED_R); g += !!(pins & LED_G); b += !!(pins & LED_B);
+        }
+        assert(r == 10 && g == 4 && b == 32);
+        check_frame(&c, 2);      /* other non-zero values stay mint, as before */
+    }
+
     /* Real pedal controls: off -> on -> frozen -> released -> off; freezing
      * from off also turns the effect on. Frozen stays mint. */
     fx_ui_init();
@@ -59,6 +72,6 @@ int main(void)
     assert(fx_ui_on() && fx_ui_frozen()); check_frame(&p, fx_ui_on());
     fx_ui_para_push();
     assert(!fx_ui_on() && !fx_ui_frozen()); check_frame(&p, fx_ui_on());
-    puts("ALL OK: steady red/mint PWM, frame-boundary changes, effect/freeze controls");
+    puts("ALL OK: steady red/mint/custom PWM, frame-boundary changes, effect/freeze controls");
     return 0;
 }

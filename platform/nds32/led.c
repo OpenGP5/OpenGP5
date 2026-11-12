@@ -14,10 +14,10 @@
 #define LED_MAIN_TIMEOUT_MS 500u
 
 volatile unsigned gp5_led_status;
-static volatile unsigned effect_on;
+static volatile uint32_t effect_on;       /* fw_active(): 0, non-zero, or a GP5_LED colour */
 static volatile uint32_t main_heartbeat;
 
-void led_set_effect(unsigned on) { effect_on = !!on; main_heartbeat++; }
+void led_set_effect(uint32_t on) { effect_on = on; main_heartbeat++; }
 
 static void led_fault(void)
 {

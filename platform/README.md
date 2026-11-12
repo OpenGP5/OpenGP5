@@ -42,7 +42,7 @@ our two sections (`dsp`, `app`); Valeton's other sections on the pedal are not t
   responder, output level, cycle counters, resident tick patcher.
 
 Limits today: one screen font and no drawing helpers beyond `gp5_blit` / `gp5_text`; LED colours are
-fixed (dim red / mint, chosen by `fw_active`). The control-processor build uses only our own code: start-up,
+dim red / mint, or a firmware's own colour (`fw_active` returns `GP5_LED(r, g, b)`). The control-processor build uses only our own code: start-up,
 drivers (`nds32/hal/`) and USB, nothing compiled, included or linked from the vendor SDK. The image
 holds only the two sections we build; flashing it leaves Valeton's other sections on the pedal as they are.
 Flashing and recovery: `GETTING-STARTED.md` (public tree) / `release/GETTING-STARTED.md`.

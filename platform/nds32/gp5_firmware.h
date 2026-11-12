@@ -28,7 +28,11 @@ unsigned fw_setting_count(void);          /* ids 0..count-1 (at most 32) must be
                                              the platform starts the LEDs */
 int fw_draw(unsigned knob, int force);    /* draw (part of) the screen; return non-zero while more is left
                                              for the next pass. force = redraw everything. */
-unsigned fw_active(void);                 /* LED colour: 0 = dim red, non-zero = mint */
+unsigned fw_active(void);                 /* LED colour: 0 = dim red, 1 = mint, or GP5_LED(r, g, b) */
+
+/* A firmware's own LED colour, returned by fw_active(): r, g, b = brightness 0..32 (32 = fully lit) on each of
+ * the LEDs' three colour lines. LEDs are not linear and their colours differ in strength: check on the pedal. */
+#define GP5_LED(r, g, b) (0x01000000u | (uint32_t)(r) | ((uint32_t)(g) << 8) | ((uint32_t)(b) << 16))
 
 /* ---- provided by the platform ---- */
 /* Send w x h pixels (RGB565, big-endian bytes as the panel wants them) to the screen at x, y. */
