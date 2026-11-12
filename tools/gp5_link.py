@@ -6,12 +6,16 @@
   gp5_link.py load                 DSP load: cycles of the last audio block, the worst since start-up, late
                                    blocks (278,000 cycles per 64-sample block is 100 %)
   gp5_link.py raw <hex payload>    send one DSP link payload [cmd u16][len u16][fields], print the reply
+  gp5_link.py flash-read <addr> <length> [out.bin]
+                                   read the control processor's flash (below 2 MB; reading only) and say
+                                   whether it is erased (all FF); with out.bin, save the bytes
 
 Commands of the control processor's USB protocol (platform/nds32/proto.c), SysEx class 1:
   7E 00                      DSP version            -> 7E 00 <ok> <version u32 LE>
   7E 01                      link counters
   7E 03 <off u16> <bytes>    stage up to 48 bytes of a payload
   7E 04 <len u16> <wait/10ms> send the staged payload to the DSP -> 7E 04 <status> <n> <reply>
+  7E 05 <addr u32> <count>   read up to 64 bytes of flash -> 7E 05 <ok> <bytes>
 A firmware's own DSP commands start at 0x7F10 (platform/dsp/gp5_dsp.h); for example the granular delay's
 `gp5_link.py raw 117f0400` reads its settings. Nothing here writes the pedal's flash.
 Needs `pip install mido python-rtmidi`.
@@ -65,9 +69,21 @@ def show_raw(link, payload):
     return st in (1, 0x14)
 
 
+def flash_read(link, addr, length):
+    out = bytearray()
+    while len(out) < length:
+        n = min(64, length - len(out))
+        a = addr + len(out)
+        pl = ask(link, [0x7E, 0x05, a & 0xFF, (a >> 8) & 0xFF, (a >> 16) & 0xFF, a >> 24, n])
+        if not pl or len(pl) < 3 or not pl[2]:
+            sys.exit("no flash-read reply at 0x%x (needs an OpenGP5 platform with 7E 05)" % a)
+        out += pl[3:3 + n]
+    return bytes(out)
+
+
 def main():
     a = sys.argv[1:] or ["stats"]
-    if a[0] not in ("version", "stats", "raw", "load"): sys.exit(__doc__)
+    if a[0] not in ("version", "stats", "raw", "load", "flash-read"): sys.exit(__doc__)
     link = open_link()
     if a[0] == "version":
         pl = ask(link, [0x7E, 0x00])
@@ -82,6 +98,14 @@ def main():
             last, worst, late = struct.unpack_from("<3I", r[1], 4)
             print("DSP load: last block %d cycles (%.1f %%), worst %d (%.1f %%), late blocks %d"
                   % (last, 100 * last / 278000, worst, 100 * worst / 278000, late))
+    elif a[0] == "flash-read":
+        if len(a) < 3: sys.exit(__doc__)
+        addr, length = int(a[1], 0), int(a[2], 0)
+        data = flash_read(link, addr, length)
+        used = [i for i in range(0, len(data), 4096) if any(b != 0xFF for b in data[i:i + 4096])]
+        print("0x%06x..0x%06x: %s" % (addr, addr + length - 1, "erased (all FF)" if not used else
+              "%d of %d 4 KB sectors hold data, first at 0x%06x" % (len(used), (length + 4095) // 4096, addr + used[0])))
+        if len(a) > 3: open(a[3], "wb").write(data); print("saved", a[3])
     else:
         show_raw(link, bytes.fromhex("".join(a[1:])))
     link.close()

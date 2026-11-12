@@ -30,6 +30,7 @@ SECTIONS
 
     .data : {
         __data_start = .;
+        *(.ramfunc)                       /* code that must run from RAM (hal/flash.c) */
         *(.data .data.* .gnu.linkonce.d.*)
         . = ALIGN(8);
         *(.sdata_d .sdata_d.*)

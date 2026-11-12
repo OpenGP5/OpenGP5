@@ -17,10 +17,11 @@ INC="-I$APP -I$FW"
 CF="-std=gnu99 -DUI_PANEL -mcpu=d1088-spu -mext-dsp -mext-zol -mcmodel=medium -Os -g -Wall -fmessage-length=0 -fsingle-precision-constant -ffunction-sections -fdata-sections $INC"
 
 # Platform (start-up, drivers in hal/, USB-MIDI, DSP link, LEDs, screen) + the firmware's own code.
-for f in "$APP/main.c" "$APP/led.c" "$APP/usb_midi.c" "$APP/proto.c" "$APP/dsp_link.c" "$APP/dsp_ctl.c" "$APP/hal/gpio.c" "$APP/hal/wdg.c" "$APP/hal/spim.c" "$APP/hal/adc.c" "$APP/hal/uart0.c" "$APP/hal/timer.c" "$APP/hal/tick.c" "$APP/hal/backlight.c" "$APP/hal/clock.c" "$APP/hal/usb.c" "$FW"/*.c \
+for f in "$APP/main.c" "$APP/led.c" "$APP/usb_midi.c" "$APP/proto.c" "$APP/dsp_link.c" "$APP/dsp_ctl.c" "$APP/hal/gpio.c" "$APP/hal/wdg.c" "$APP/hal/spim.c" "$APP/hal/adc.c" "$APP/hal/uart0.c" "$APP/hal/timer.c" "$APP/hal/tick.c" "$APP/hal/backlight.c" "$APP/hal/clock.c" "$APP/hal/usb.c" "$APP/hal/flash.c" "$APP/gp5_store.c" "$FW"/*.c \
          "$APP/start/vectors.S" "$APP/start/startup.c" "$APP/start/irq.c" "$APP/start/cache.c"; do
   b=$(basename "$f"); X=
   [ "$b" = cache.c ] && X=-mno-ext-zol      # no hardware-loop registers touched on the way to the factory loader
+  [ "$b" = flash.c ] && X=-fno-toplevel-reorder   # keeps its no-EX9 / no-IFC brackets around the code
   nds32le-elf-gcc $CF $X -I"$APP/start" -c "$f" -o "${b%.*}.o"
 done
 nds32le-elf-gcc -Os -nostartfiles -static -mcmodel=medium -mext-dsp -mvh -T "$APP/start/app.ld" -Wl,--gc-sections -Wl,-Map,app.map \

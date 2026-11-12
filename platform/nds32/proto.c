@@ -22,6 +22,8 @@
  *                                                          -> 7E 04 <status> <n> <reply payload, n bytes>
  *                                                      status: 1 = reply frame, 0x14 = ACK, 0x13 = NAK,
  *                                                      0 = no answer
+ *     7E 05 <addr u32> <count <= 64>                    read flash below 2 MB (memory-mapped; reads only)
+ *                                                          -> 7E 05 <ok> <bytes>
  * Anything else is ignored (counted in proto_frames).
  *
  * loader_handover() is the SDK's start_up_grate(AppResourceUsbDevice) (BT_Audio_APP device/upgrade.c),

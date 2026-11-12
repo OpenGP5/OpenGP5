@@ -23,6 +23,7 @@
 #include "hal/tick.h"
 #include "hal/backlight.h"
 #include "hal/clock.h"
+#include "hal/flash.h"
 #include "start/irq.h"
 #include "usb_midi.h"
 #include "proto.h"
@@ -323,7 +324,7 @@ static void knob_poll(void)
 
 static unsigned knob_value(void) { return (knob_last >> 4) & 0xFF; }
 
-/* Host commands 7E 01 .. 7E 04 (proto.c); the request is in proto_req. */
+/* Host commands 7E 01 .. 7E 05 (proto.c); the request is in proto_req. */
 static uint8_t dsp_raw[DSP_RAW_MAX];     /* payload staged by 7E 03, sent by 7E 04 */
 static void host_dsp_cmd(void)
 {
@@ -360,9 +361,48 @@ static void host_dsp_cmd(void)
         pl[3] = (uint8_t)dsp_link_raw(dsp_raw, proto_req[2] | (proto_req[3] << 8), pl + 4, sizeof pl - 4,
                                       proto_req[4] * 10u, &pl[2]);
         n = 4 + pl[3];
+    } else if (proto_req[1] == 0x05 && proto_req_len == 7) {
+        /* read flash (memory-mapped, read-only): 7E 05 <addr u32> <count <= 64> -> 7E 05 <ok> <bytes> */
+        uint32_t a = proto_req[2] | (proto_req[3] << 8) | ((uint32_t)proto_req[4] << 16) | ((uint32_t)proto_req[5] << 24);
+        unsigned cnt = proto_req[6];
+        pl[2] = 0; n = 3;
+        if (cnt <= 64 && a < 0x200000u && a + cnt <= 0x200000u) {
+            for (i = 0; i < cnt; i++) pl[n++] = *(volatile const uint8_t *)(a + i);
+            pl[2] = 1;
+        }
+    } else if (proto_req[1] == 0x06 && proto_req_len == 2) {
+        /* flash id and status: 7E 06 -> 7E 06 1 <JEDEC id u32> <status u32> */
+        uint32_t id = gp5_flash_id(), st = gp5_flash_status();
+        pl[2] = 1;
+        for (i = 0; i < 4; i++) { pl[3 + i] = (uint8_t)(id >> (8 * i)); pl[7 + i] = (uint8_t)(st >> (8 * i)); }
+        n = 11;
+    } else if (proto_req[1] == 0x09 && proto_req_len == 7) {
+        /* flash read through the controller's read command: 7E 09 <addr u32> <count> -> 7E 09 <ok> <bytes> */
+        static uint32_t r[16];
+        uint32_t a = proto_req[2] | (proto_req[3] << 8) | ((uint32_t)proto_req[4] << 16) | ((uint32_t)proto_req[5] << 24);
+        pl[2] = gp5_flash_read_cmd(a, r, proto_req[6]) == 0;
+        n = 3;
+        if (pl[2]) for (i = 0; i < proto_req[6]; i++) pl[n++] = ((uint8_t *)r)[i];
+    } else if ((proto_req[1] == 0x07 && proto_req_len == 6) || (proto_req[1] == 0x08 && proto_req_len >= 10)) {
+        /* storage area only (hal/flash.h): 7E 07 <addr u32> erase a 4 KB sector; 7E 08 <addr u32> <bytes, a
+         * multiple of 4> program -> 7E 07|08 <ok> */
+        static uint32_t w[16];
+        uint32_t a = proto_req[2] | (proto_req[3] << 8) | ((uint32_t)proto_req[4] << 16) | ((uint32_t)proto_req[5] << 24);
+        unsigned cnt = proto_req_len - 6;
+        if (proto_req[1] == 0x07) pl[2] = gp5_flash_erase(a) == 0;
+        else if (cnt > sizeof w || (cnt & 3u)) pl[2] = 0;
+        else {
+            for (i = 0; i < cnt; i++) ((uint8_t *)w)[i] = proto_req[6 + i];
+            pl[2] = gp5_flash_program(a, w, cnt) == 0;
+        }
+        n = 3;
     } else return;
     proto_reply(0x01, 0, pl, n);
 }
+
+/* gp5_firmware.h: optional for firmwares */
+__attribute__((weak)) void fw_para_release(void) {}
+__attribute__((weak)) void fw_foot_release(void) {}
 
 /* PARA encoder: quadrature on B2/B3, sampled wherever the code can spend time (main loop, screen rows) */
 static int enc;
@@ -499,7 +539,7 @@ static void monitor(void)
 
         if (!gfx && !status && (int32_t)(gp5_ms() - t_start) >= STATUS_AFTER_MS) {
             clear_screen();
-            put_line(0, "GP5 OPEN FW28", yellow, black);
+            put_line(0, "OPENGP5 0.2.0", yellow, black);
             status = 1; dsp_show = 1; lusb = ~0u;
         }
         if (dsp_show && !gfx && status) {
@@ -519,12 +559,12 @@ static void monitor(void)
         foot = !(a & FOOT_PIN); para = !(b & PARA_PIN);
         if (foot != lfoot) {
             midi_send(foot ? 0x90 : 0x80, 60, foot ? 100 : 0);
-            if (foot) fw_foot();
+            if (foot) fw_foot(); else fw_foot_release();
             lfoot = foot;
         }
         if (para != lpara) {
             midi_send(para ? 0x90 : 0x80, 62, para ? 100 : 0);
-            if (para) fw_para_push();
+            if (para) fw_para_push(); else fw_para_release();
             lpara = para;
         }
         det = enc >> 1;                              /* a detent every 2 quadrature steps: at 11 and at 00 */

@@ -17,7 +17,10 @@
 /* ---- implemented by the firmware ---- */
 void fw_init(void);
 void fw_foot(void);                       /* foot switch pressed */
+void fw_foot_release(void);               /* optional: foot switch let go (empty default; not debounced) */
 void fw_para_push(void);                  /* PARA knob pushed */
+void fw_para_release(void);               /* optional: PARA knob let go (the platform has an empty default).
+                                             The button is not debounced: time a hold with fw_knob's 10 ms. */
 void fw_para_turn(int detents);           /* PARA knob turned, +/- clicks */
 void fw_knob(unsigned knob);              /* volume knob, 0..255, about every 10 ms */
 unsigned fw_level(void);                  /* output level for the DSP, 0..255 */
@@ -39,4 +42,13 @@ unsigned fw_active(void);                 /* LED colour: 0 = dim red, 1 = mint, 
 void gp5_blit(unsigned x, unsigned y, unsigned w, unsigned h, const uint16_t *px);
 /* One of five 13-character text lines in the platform's 5x7 font, white on black. */
 void gp5_text(unsigned line, const char *s);
+
+/* Storage that survives power-off (platform/nds32/gp5_store.c): up to GP5_STORE_MAX bytes, tagged with an id of
+ * your choosing (e.g. four letters) so that another firmware's data is never taken for yours. Load returns the
+ * length of the last save for that id (0 = nothing saved) and copies at most max bytes. A save takes about
+ * 1 ms, and every few dozen saves up to a few hundred ms (a flash erase); the control processor does nothing
+ * else meanwhile (the sound goes on: it is the DSP's). Only the platform's 8 KB store area is ever written. */
+#define GP5_STORE_MAX 1024u
+unsigned gp5_store_load(uint32_t id, void *dst, unsigned max);
+int gp5_store_save(uint32_t id, const void *src, unsigned len);    /* 0 = saved and read back */
 #endif
