@@ -142,7 +142,7 @@ static const uint8_t initseq[] = {
     0xC3, 2, 0x8D,0x6A,  0xC4, 2, 0x8D,0xEE,  0xC5, 1, 0x0E,
     0xE0, 16, 0x10,0x0E,0x02,0x03,0x0E,0x07,0x02,0x07,0x0A,0x12,0x27,0x37,0x00,0x0D,0x0E,0x10,
     0xE1, 16, 0x10,0x0E,0x03,0x03,0x0F,0x06,0x02,0x08,0x0A,0x13,0x26,0x36,0x00,0x0D,0x0E,0x10,
-    0x3A, 1, 0x05,  0x36, 1, 0xA8,  0x28, 0,  0x29, 0,
+    0x3A, 1, 0x05,  0x36, 1, 0xA0,  0x28, 0,  0x29, 0,     /* 0x36 = 0xA0: rotation; colour order bit clear (0xA8 swapped red and blue) */
     0x00, 0xFF
 };
 
@@ -174,7 +174,7 @@ static void set_window(unsigned x0, unsigned x1, unsigned y0, unsigned y1)
 
 static uint8_t row[W * 2];
 
-/* colours are given as R,G,B; the panel is in BGR mode, so swap here */
+/* colours are given as R,G,B; the panel takes blue in the high bits (BGR 5-6-5), red in the low bits */
 static uint16_t rgb(unsigned r, unsigned g, unsigned b)
 {
     return (uint16_t)(((b >> 3) << 11) | ((g >> 2) << 5) | (r >> 3));
@@ -539,7 +539,7 @@ static void monitor(void)
 
         if (!gfx && !status && (int32_t)(gp5_ms() - t_start) >= STATUS_AFTER_MS) {
             clear_screen();
-            put_line(0, "OPENGP5 0.2.0", yellow, black);
+            put_line(0, "OPENGP5 0.2.1", yellow, black);
             status = 1; dsp_show = 1; lusb = ~0u;
         }
         if (dsp_show && !gfx && status) {
