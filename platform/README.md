@@ -25,7 +25,7 @@ sends it to the DSP as link command `0x7F10 [id][value]`; the DSP half receives 
 ```
 release/setup-toolchain.sh                                  # once: the Andes compiler into fw-build/andes
 platform/build_firmware.sh <name> [out.bin]                 # one flashable image with both halves
-python3 tools/gp5tool.py flash <out.bin> --sections all     # over USB, no probe
+python3 tools/gp5tool.py flash <out.bin> --sections all     # over USB
 ```
 
 Needs `arm-none-eabi-gcc`, Docker (the control processor is built with the Andes toolchain under

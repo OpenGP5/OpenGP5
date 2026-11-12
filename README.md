@@ -2,13 +2,12 @@
   <img src="docs/assets/opengp5-banner.webp" alt="OpenGP5: an open firmware platform for the Valeton GP-5 guitar pedal" width="100%">
 </p>
 
-<p align="center"><b>write your own effects · flash over USB · no probe</b></p>
+<p align="center"><b>write your own effects · flash over USB</b></p>
 
 <p align="center">
   <a href="LICENSE"><img alt="Licence: MIT" src="https://img.shields.io/badge/licence-MIT-3ee8b5?style=flat-square"></a>
-  <img alt="Status: beta" src="https://img.shields.io/badge/status-beta-f0b429?style=flat-square">
+  <img alt="Status: alpha" src="https://img.shields.io/badge/status-alpha-e8590c?style=flat-square">
   <img alt="Builds on macOS, Linux and Windows" src="https://img.shields.io/badge/builds%20on-macOS%20%7C%20Linux%20%7C%20Windows-5b6b7b?style=flat-square">
-  <img alt="Flashes over USB, no probe" src="https://img.shields.io/badge/flash-USB%2C%20no%20probe-5b6b7b?style=flat-square">
 </p>
 
 <p align="center">
@@ -25,8 +24,9 @@ processors, plus a small framework for writing your own: your audio code, your s
 flashed over USB.
 
 > [!NOTE]
-> **Beta.** It runs on the pedal it was built on; reports from other GP-5s are very welcome (see
-> [Known limits](GETTING-STARTED.md#known-limits)). Interfaces may still change.
+> **Alpha.** Tested on one pedal so far. Expect rough edges, and expect interfaces to change. Reports from
+> other GP-5s are very welcome (see [Known limits](GETTING-STARTED.md#known-limits)); read the
+> [Safety](#safety) warning before you flash.
 
 ## Write an effect in plain C
 
