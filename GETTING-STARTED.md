@@ -1,5 +1,23 @@
 # Getting started
 
+## Just want to try it? Flash a prebuilt release
+
+No compilers needed. Read the [Safety](README.md#safety) warning first.
+
+1. From the [Releases](https://github.com/OpenGP5/OpenGP5/releases) page, download a firmware image
+   (`GP-5_tremolo.bin`, `GP-5_granular-delay.bin` or `GP-5_passthrough.bin`) and the release's
+   **Source code (zip)**, which contains the flasher. Unzip the source.
+2. Install Python 3.9 or newer, then: `pip install mido python-rtmidi`
+3. Plug the pedal in and, from the unzipped folder:
+
+   ```
+   python3 tools/gp5tool.py status
+   python3 tools/gp5tool.py flash GP-5_tremolo.bin --sections all
+   ```
+
+Optional: check the download against the release's `SHA256SUMS` (`shasum -a 256 GP-5_tremolo.bin` on
+macOS / Linux, `certutil -hashfile GP-5_tremolo.bin SHA256` on Windows).
+
 ## 1. What you need
 
 - A Valeton GP-5 and a USB cable.
