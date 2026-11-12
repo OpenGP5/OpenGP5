@@ -187,19 +187,20 @@ static void fill_rect(unsigned x, unsigned y, unsigned w, unsigned h, uint16_t c
     for (j = 0; j < h; j++) lcd_dat(row, w * 2);
 }
 
-static void draw_bars(void)
+/* The start-up picture: OpenGP5 logo, 160 x 80, run-length encoded in the panel's colour format
+ * (boot_logo.h, made from boot_logo.png by tools/png_to_screen.py). */
+#include "boot_logo.h"
+
+static void draw_logo(void)
 {
-    static const uint8_t bars[8][3] = { {255,255,255}, {255,255,0}, {0,255,255}, {0,255,0},
-                                        {255,0,255}, {255,0,0}, {0,0,255}, {0,0,0} };
-    unsigned x, y;
+    unsigned r = 0, left = boot_logo[0].count, x, y;
+    set_window(0, W - 1, 0, H - 1);
     for (y = 0; y < H; y++) {
         for (x = 0; x < W; x++) {
-            uint16_t c;
-            if (y < 2 || y >= H - 2 || x < 2 || x >= W - 2) c = 0xFFFF;
-            else { const uint8_t *k = bars[x / (W / 8)]; c = rgb(k[0], k[1], k[2]); }
+            uint16_t c = boot_logo[r].colour;
             row[2 * x] = (uint8_t)(c >> 8); row[2 * x + 1] = (uint8_t)c;
+            if (--left == 0 && ++r < BOOT_LOGO_RUNS) left = boot_logo[r].count;
         }
-        set_window(0, W - 1, y, y);
         lcd_dat(row, W * 2);
     }
 }
@@ -394,6 +395,15 @@ void gp5_text(unsigned line, const char *s)
     if (line < ROWS) put_line(line, s, rgb(255,255,255), rgb(0,0,0));
 }
 
+#define STATUS_AFTER_MS 4000u
+
+/* black screen, and forget what text was on it */
+static void clear_screen(void)
+{
+    fill_rect(0, 0, W, H, rgb(0, 0, 0));
+    __builtin_memset(shown, 0, sizeof shown); __builtin_memset(shown_col, 0, sizeof shown_col);
+}
+
 static void monitor(void)
 {
     uint16_t white = rgb(255,255,255), black = rgb(0,0,0), yellow = rgb(255,255,0), green = rgb(0,255,0);
@@ -403,16 +413,17 @@ static void monitor(void)
     uint32_t knob_next = 0, fx_next = 0;
     uint32_t fx_startup_acked = 0, fx_all;  /* decorative LEDs wait for every initial setting */
     unsigned knob = 0, lstep = ~0u, knob_reads = 0;
-    int dsp_show = 0, host_asked;
+    int dsp_show = 0, host_asked, status = 0;
+    uint32_t t_start;
     int det, ldet = 0, foot, para, lfoot = 0, lpara = 0, gfx = 0, gforce = 0;
     unsigned ab, n, i;
     static uint8_t mbuf[64];
     char s[COLS + 1];
     char *p;
 
-    fill_rect(0, 0, W, H, black);
-    __builtin_memset(shown, 0, sizeof shown); __builtin_memset(shown_col, 0, sizeof shown_col);
-    put_line(0, "GP5 OPEN FW26", yellow, black);
+    /* The start-up logo stays up until the firmware's screen takes over. Only if that takes more than
+     * STATUS_AFTER_MS (the DSP not answering, say) does the platform's status screen replace it. */
+    t_start = gp5_ms();
     enc = 0;
     enc_lab = (gp5_reg_get(GP5_GPIO_B_IN) >> 2) & 3;
     fw_init();
@@ -486,7 +497,12 @@ static void monitor(void)
             }
         }
 
-        if (dsp_show && !gfx) {
+        if (!gfx && !status && (int32_t)(gp5_ms() - t_start) >= STATUS_AFTER_MS) {
+            clear_screen();
+            put_line(0, "GP5 OPEN FW28", yellow, black);
+            status = 1; dsp_show = 1; lusb = ~0u;
+        }
+        if (dsp_show && !gfx && status) {
             /* answered: "D V01010006 n" (n = sync step, K = done, X = gave up); not answered: "D" +
              * tries + bytes received so far */
             p = s; *p++ = 'D'; *p++ = ' ';
@@ -522,11 +538,11 @@ static void monitor(void)
 
         /* The graphic effect screen takes over once the DSP is in sync (one band per pass); until then,
          * and for good if the sync fails, the text lines above and the USB line below stay. */
-        if (!gfx && dsp_ctl_step == DSP_CTL_DONE) { gfx = 1; gforce = 1; }
+        if (!gfx && dsp_ctl_step == DSP_CTL_DONE) { gfx = 1; gforce = 1; clear_screen(); }
         if (gfx) {
             if (!fw_draw(knob, gforce) && (fx_startup_acked & fx_all) == fx_all) led_start();
             gforce = 0;
-        } else {
+        } else if (status) {
             usb = ((uint32_t)usb_midi_configured() << 31) ^ (usb_setups << 24) ^ rx;
             if (usb != lusb) {
                 p = s; *p++ = 'U'; *p++ = usb_midi_configured() ? '1' : '0'; *p++ = ' ';
@@ -561,14 +577,18 @@ int main(void)
     panel_init();
     gp5_stage = 5;
 
-    draw_bars();
+    draw_logo();
     gp5_stage = 6;
 
     gp5_reg_bits_set(GP5_GPIO_A_OUT, GP5_PIN(15));   /* 0x47fa4 */
-    backlight(100);
+    backlight(0);                                /* the logo fades in: about 0.6 s, eased for the eye */
+    for (unsigned n = 1; n <= 50; n++) {
+        gp5_backlight_duty(n * n / 25);
+        delay_ms(12);
+    }
     gp5_stage = 7;
 
-    delay_ms(1500);
+    delay_ms(900);                               /* 1.5 s in all, as before */
 
     __nds32__mtsr(0, NDS32_SR_INT_MASK2);        /* nothing enabled but what we enable below, whatever the loader left */
     gp5_tick_setup();                            /* timer 1, 1 ms (hal/tick.c) */
