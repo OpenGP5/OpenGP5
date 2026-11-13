@@ -27,6 +27,11 @@
 #include "start/irq.h"
 #include "usb_midi.h"
 #include "proto.h"
+void gp5_link_stop(void);                    /* audio_link.c */
+int gp5_link_running(void);
+/* The hand-over mark: the top 32 bytes of RAM, outside the app's RAM (start/app.ld). Survives a system reset. */
+#define HANDOVER_MARK  ((volatile uint32_t *)0x20047FE0u)
+#define HANDOVER_MAGIC 0x4C445231u                   /* "LDR1" */
 #include "dsp_link.h"
 #include "dsp_ctl.h"
 #include "gp5_firmware.h"
@@ -219,12 +224,12 @@ static void draw_char(unsigned col, unsigned line, char ch, uint16_t fg, uint16_
 {
     const uint8_t *g;
     unsigned x, y;
-    if (ch < 0x20 || ch > 0x5A) ch = '?';
+    if (ch < 0x20 || ch > GP5_FONT5X7_LAST) ch = '?';
     g = font[ch - 0x20];
     for (y = 0; y < CH; y++) {
         for (x = 0; x < CW; x++) {
             unsigned fx = x / 2, fy = y / 2;
-            uint16_t c = (fx < 5 && fy < 7 && ((g[fx] >> fy) & 1)) ? fg : bg;
+            uint16_t c = (fx < 5 && fy < 8 && ((g[fx] >> fy) & 1)) ? fg : bg;
             cell[2 * (y * CW + x)] = (uint8_t)(c >> 8); cell[2 * (y * CW + x) + 1] = (uint8_t)c;
         }
     }
@@ -256,6 +261,7 @@ static char *hex(char *p, uint32_t v, unsigned digits)
 }
 
 /* Control map, confirmed on hardware with an input monitor (2026-11-09) */
+#define DEBOUNCE_MS 30u          /* foot switch and PARA push: ignore contact bounce this long after a change */
 #define FOOT_PIN  GP5_PIN(17)    /* port A: foot switch, active low */
 #define PARA_PIN  GP5_PIN(6)     /* port B: PARA knob push button, active low */
 #define ENC_PINS  (GP5_PIN(2) | GP5_PIN(3))   /* port B: PARA knob quadrature (both high at a detent) */
@@ -370,6 +376,33 @@ static void host_dsp_cmd(void)
             for (i = 0; i < cnt; i++) pl[n++] = *(volatile const uint8_t *)(a + i);
             pl[2] = 1;
         }
+#ifdef GP5_DEBUG_PEEK
+    } else if (proto_req[1] == 0x0A && proto_req_len == 7) {
+        /* debug builds only (GP5_DEBUG_PEEK=1): read words anywhere, registers included:
+         * 7E 0A <addr u32, 4-aligned> <count <= 16> -> 7E 0A <ok> <words LE> */
+        uint32_t a = proto_req[2] | (proto_req[3] << 8) | ((uint32_t)proto_req[4] << 16) | ((uint32_t)proto_req[5] << 24);
+        unsigned cnt = proto_req[6];
+        pl[2] = 0; n = 3;
+        if (cnt <= 16 && !(a & 3u)) {
+            for (i = 0; i < cnt; i++) {
+                uint32_t w = *(volatile const uint32_t *)(a + 4u * i);
+                pl[n++] = (uint8_t)w; pl[n++] = (uint8_t)(w >> 8); pl[n++] = (uint8_t)(w >> 16); pl[n++] = (uint8_t)(w >> 24);
+            }
+            pl[2] = 1;
+        }
+    } else if (proto_req[1] == 0x0C && proto_req_len == 10) {
+        /* debug builds only: write one word: 7E 0C <addr u32, 4-aligned> <value u32> -> 7E 0C <ok> */
+        uint32_t a = proto_req[2] | (proto_req[3] << 8) | ((uint32_t)proto_req[4] << 16) | ((uint32_t)proto_req[5] << 24);
+        uint32_t v = proto_req[6] | (proto_req[7] << 8) | ((uint32_t)proto_req[8] << 16) | ((uint32_t)proto_req[9] << 24);
+        pl[2] = !(a & 3u); n = 3;
+        if (pl[2]) *(volatile uint32_t *)a = v;
+    } else if (proto_req[1] == 0x0B && proto_req_len == 2) {
+        /* 7E 0B -> 7E 0B 1 <INT_MASK2> <INT_PEND2> <INT_PRI> <INT_PRI2> <PSW> */
+        uint32_t v[5] = { __nds32__mfsr(NDS32_SR_INT_MASK2), __nds32__mfsr(NDS32_SR_INT_PEND2),
+                          __nds32__mfsr(NDS32_SR_INT_PRI), __nds32__mfsr(NDS32_SR_INT_PRI2), __nds32__mfsr(NDS32_SR_PSW) };
+        pl[2] = 1; n = 3;
+        for (i = 0; i < 20; i++) pl[n++] = (uint8_t)(v[i / 4] >> (8 * (i % 4)));
+#endif
     } else if (proto_req[1] == 0x06 && proto_req_len == 2) {
         /* flash id and status: 7E 06 -> 7E 06 1 <JEDEC id u32> <status u32> */
         uint32_t id = gp5_flash_id(), st = gp5_flash_status();
@@ -456,6 +489,7 @@ static void monitor(void)
     int dsp_show = 0, host_asked, status = 0;
     uint32_t t_start;
     int det, ldet = 0, foot, para, lfoot = 0, lpara = 0, gfx = 0, gforce = 0;
+    uint32_t foot_quiet = 0, para_quiet = 0;
     unsigned ab, n, i;
     static uint8_t mbuf[64];
     char s[COLS + 1];
@@ -485,6 +519,20 @@ static void monitor(void)
             r = proto_feed(mbuf + i);
             if (r == PROTO_TO_LOADER) {
                 put_line(4, "TO LOADER", yellow, black);
+                if (gp5_link_running()) {
+                    /* After the audio link has run, the factory loader crashes once the host connects (cause not
+                     * found, docs/platform/protocols.md). So: DSP quiet, link off, restart the chip with the
+                     * hand-over mark set; the next start sees it and hands over before anything else runs. */
+                    dsp_link_send(0x7F05, 0, 0);
+                    delay_ms(5);
+                    dsp_link_send(0x7F05, 0, 0);
+                    delay_ms(100);
+                    gp5_link_stop();
+                    HANDOVER_MARK[0] = HANDOVER_MAGIC; HANDOVER_MARK[1] = ~HANDOVER_MAGIC;
+                    __nds32__gie_dis();
+                    *(volatile uint32_t *)0x40022008u = 1;   /* system reset (the vendor's Reset_McuSystem) */
+                    for (;;) ;
+                }
                 delay_ms(100);                   /* as stock; the reply is already with the host */
                 loader_handover();
             }
@@ -556,16 +604,20 @@ static void monitor(void)
             dsp_show = 0;
         }
 
+        /* Switch contacts bounce for a few ms: take a change at once, then ignore the switch for DEBOUNCE_MS so
+         * the bounce cannot add a second press (or cancel the first); a change that outlasts it is taken then. */
         foot = !(a & FOOT_PIN); para = !(b & PARA_PIN);
-        if (foot != lfoot) {
+        if (foot != lfoot && (int32_t)(gp5_ms() - foot_quiet) >= 0) {
             midi_send(foot ? 0x90 : 0x80, 60, foot ? 100 : 0);
             if (foot) fw_foot(); else fw_foot_release();
             lfoot = foot;
+            foot_quiet = gp5_ms() + DEBOUNCE_MS;
         }
-        if (para != lpara) {
+        if (para != lpara && (int32_t)(gp5_ms() - para_quiet) >= 0) {
             midi_send(para ? 0x90 : 0x80, 62, para ? 100 : 0);
             if (para) fw_para_push(); else fw_para_release();
             lpara = para;
+            para_quiet = gp5_ms() + DEBOUNCE_MS;
         }
         det = enc >> 1;                              /* a detent every 2 quadrature steps: at 11 and at 00 */
         if ((ab == 3 || ab == 0) && det != ldet) {
@@ -608,6 +660,10 @@ int main(void)
 
     board_init();
     io_init();
+    if (HANDOVER_MARK[0] == HANDOVER_MAGIC && HANDOVER_MARK[1] == ~HANDOVER_MAGIC) {
+        HANDOVER_MARK[0] = 0; HANDOVER_MARK[1] = 0;      /* once only */
+        loader_handover();                       /* the host asked for update mode before this restart */
+    }
     gp5_stage = 3;
 
     gp5_spim_clear_int();

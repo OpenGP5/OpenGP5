@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Rasterise a TrueType font into anti-aliased bitmap tables for the pedal's screen (a C header).
 
-  python3 tools/make_font.py FONT.ttf OUT.h NAME:CAP_HEIGHT[:SPACING] [...] [--notice TEXT]
+  python3 tools/make_font.py FONT.ttf OUT.h NAME:CAP_HEIGHT[:SPACING] [...] [--notice TEXT] [--chars TEXT]
 
 Each NAME becomes a `font_t` with 4-bit coverage per pixel (two pixels per byte, high nibble first), for the
 characters space % * + - . / 0-9 : A-Z. CAP_HEIGHT is the height of a capital letter in pixels; every glyph's
 box is that plus a margin row above and below. SPACING adds pixels between letters (default 0). --notice puts the font's copyright / licence line in the
-header (keep it: font licences such as the SIL OFL ask for it). Needs Pillow.
+header (keep it: font licences such as the SIL OFL ask for it). --chars replaces the character set (for example to add
+lowercase letters or '#'). Needs Pillow.
 """
 import sys
 from PIL import Image, ImageDraw, ImageFont
@@ -51,9 +52,12 @@ def build(path, name, cap, track=0):
 
 
 def main():
+    global CHARS
     args, notice = sys.argv[1:], "see the font's licence"
     if "--notice" in args:
         i = args.index("--notice"); notice = args[i + 1]; del args[i:i + 2]
+    if "--chars" in args:
+        i = args.index("--chars"); CHARS = args[i + 1]; del args[i:i + 2]
     if len(args) < 3: sys.exit(__doc__)
     path, out = args[0], args[1]
     parts = []

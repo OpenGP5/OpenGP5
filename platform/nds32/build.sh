@@ -11,13 +11,14 @@ set -eu
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 export PATH=$ROOT/fw-build/andes/v3s/nds32le-elf-mculib-v3s/bin:$PATH
 APP=$ROOT/platform/nds32
-FW=${GP5_FIRMWARE_DIR:-$ROOT/firmwares/${GP5_FIRMWARE:-granular-delay}}/nds32     # the firmware's own UI / control code
+FW=${GP5_FIRMWARE_DIR:-$ROOT/firmwares/${GP5_FIRMWARE:-tuner}}/nds32     # the firmware's own UI / control code
 O=$APP/out; mkdir -p "$O"; cd "$O"; rm -f ./*.o app.elf app.bin app.dis app.sym app.map app.ld init-default.c
 INC="-I$APP -I$FW"
 CF="-std=gnu99 -DUI_PANEL -mcpu=d1088-spu -mext-dsp -mext-zol -mcmodel=medium -Os -g -Wall -fmessage-length=0 -fsingle-precision-constant -ffunction-sections -fdata-sections $INC"
+if [ -n "${GP5_DEBUG_PEEK:-}" ]; then CF="$CF -DGP5_DEBUG_PEEK"; fi     # debug builds: 7E 0A / 7E 0B read registers over USB
 
 # Platform (start-up, drivers in hal/, USB-MIDI, DSP link, LEDs, screen) + the firmware's own code.
-for f in "$APP/main.c" "$APP/led.c" "$APP/usb_midi.c" "$APP/proto.c" "$APP/dsp_link.c" "$APP/dsp_ctl.c" "$APP/hal/gpio.c" "$APP/hal/wdg.c" "$APP/hal/spim.c" "$APP/hal/adc.c" "$APP/hal/uart0.c" "$APP/hal/timer.c" "$APP/hal/tick.c" "$APP/hal/backlight.c" "$APP/hal/clock.c" "$APP/hal/usb.c" "$APP/hal/flash.c" "$APP/gp5_store.c" "$FW"/*.c \
+for f in "$APP/main.c" "$APP/led.c" "$APP/usb_midi.c" "$APP/proto.c" "$APP/dsp_link.c" "$APP/dsp_ctl.c" "$APP/hal/gpio.c" "$APP/hal/wdg.c" "$APP/hal/spim.c" "$APP/hal/adc.c" "$APP/hal/uart0.c" "$APP/hal/timer.c" "$APP/hal/tick.c" "$APP/hal/backlight.c" "$APP/hal/clock.c" "$APP/hal/usb.c" "$APP/hal/flash.c" "$APP/hal/spis.c" "$APP/audio_link.c" "$APP/gp5_store.c" "$FW"/*.c \
          "$APP/start/vectors.S" "$APP/start/startup.c" "$APP/start/irq.c" "$APP/start/cache.c"; do
   b=$(basename "$f"); X=
   [ "$b" = cache.c ] && X=-mno-ext-zol      # no hardware-loop registers touched on the way to the factory loader

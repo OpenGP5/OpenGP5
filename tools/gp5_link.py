@@ -16,8 +16,8 @@ Commands of the control processor's USB protocol (platform/nds32/proto.c), SysEx
   7E 03 <off u16> <bytes>    stage up to 48 bytes of a payload
   7E 04 <len u16> <wait/10ms> send the staged payload to the DSP -> 7E 04 <status> <n> <reply>
   7E 05 <addr u32> <count>   read up to 64 bytes of flash -> 7E 05 <ok> <bytes>
-A firmware's own DSP commands start at 0x7F10 (platform/dsp/gp5_dsp.h); for example the granular delay's
-`gp5_link.py raw 117f0400` reads its settings. Nothing here writes the pedal's flash.
+A firmware's own DSP commands start at 0x7F10 (platform/dsp/gp5_dsp.h); for example the tuner's
+`gp5_link.py raw 307f0400` reads how many DSP cycles it takes per block. Nothing here writes the pedal's flash.
 Needs `pip install mido python-rtmidi`.
 """
 import struct, sys

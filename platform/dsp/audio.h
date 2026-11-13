@@ -101,21 +101,39 @@ static void audio_init(void) {
     REG(AIF + 0x00) = 0x8070741Bu;
 }
 
+/* 1 once the control processor announced a hand-over to its loader (link command 0x7F05): the firmware's processing
+ * and the audio link stop, so that the main loop answers the serial link promptly (the loader talks to the DSP, and
+ * the DSP reads its serial port only between blocks). Plain passthrough until the next start. */
+static uint32_t dsp_quiet;
+
 #ifdef AUDIO_SPI1
 /* SPI-1 <-> NDS32 block stream (stock: init 0x7c18/0x7d52, per block callback 0x572c -> 0x7da8).
- * 512 B each way per audio block via DMA0 (0x40020000) ch0 (SPI1 -> rx 0x1001fc00) and ch1
- * (tx 0x1001fe00 -> SPI1). Stock carries USB audio here; the NDS32 may wait on this stream. */
+ * One exchange each way per audio block via DMA0 (0x40020000) ch0 (SPI1 -> RAW_RX) and ch1 (RAW_TX -> SPI1);
+ * stock used 512 B at 0x1001fc00 / 0x1001fe00 for USB audio. Ours carries the audio link (framing below). */
 #define SPI1 0x4000C000u
 #define DMA0 0x40020000u
-#define SPI_RX 0x1001FC00u
-#define SPI_TX 0x1001FE00u
+/* Link framing. The control processor's SPI slave keeps a few bytes queued from one exchange to the next (its first
+ * bytes out are the previous exchange's last ones; how many depends on start-up timing: 1 and 5 measured on the
+ * pedal, 2026-11-13). So each side sends [sync word][GP5_LINK_WORDS words][LINK_PAD zero bytes], and the receiver
+ * looks for the other side's sync word in the first LINK_PAD + 1 byte positions and copies the words after it into
+ * a buffer of its own. The copy also keeps the words steady while the next exchange is already being received. */
+#define LINK_SYNC_D 0xC0DE5A17u          /* DSP -> control processor */
+#define LINK_SYNC_N 0xC0DE5A71u          /* control processor -> DSP */
+#define LINK_PAD    32u
+#define LINK_N      (4u + 512u + LINK_PAD)   /* bytes per exchange (0x224) */
+#define RAW_RX      0x1001E800u          /* as received */
+#define LINK_IN     0x1001EA40u          /* the words after the sync word, for fw_process() */
+#define RAW_TX      0x1001EC40u          /* sync word, the firmware's words, padding */
+#define SPI_RX      LINK_IN
+static uint32_t link_lag = 0xFFFFFFFFu;  /* bytes before the sync word in the last exchange (0xFFFFFFFF = none) */
 static void spi1_init(void) {
-    for (uint32_t a = SPI_RX; a < SPI_TX + 0x200u; a += 4) REG(a) = 0;
-    REG(DMA0 + 0x108) = SPI1;   REG(DMA0 + 0x10C) = SPI_RX;
+    for (uint32_t a = RAW_RX; a < RAW_TX + LINK_N; a += 4) REG(a) = 0;
+    REG(RAW_TX) = LINK_SYNC_D;
+    REG(DMA0 + 0x108) = SPI1;   REG(DMA0 + 0x10C) = RAW_RX;
     REG(DMA0 + 0x100) = 0x800200C0u;          /* stock 0x800200c1 without arming */
     REG(DMA0 + 0x104) = 0x14D7u;
     REG(DMA0 + 0x228) = 0x23u;
-    REG(DMA0 + 0x128) = SPI_TX; REG(DMA0 + 0x12C) = SPI1;
+    REG(DMA0 + 0x128) = RAW_TX; REG(DMA0 + 0x12C) = SPI1;
     REG(DMA0 + 0x120) = 0x80020090u;          /* stock 0x80020091 without arming */
     REG(DMA0 + 0x124) = 0x324Fu;
     REG(DMA0 + 0x224) = 0x22u;
@@ -123,25 +141,52 @@ static void spi1_init(void) {
     REG(DMA0 + 0x24) = 1u;
     REG(SPI1 + 0x04) = 0x000CC110u;
     REG(SPI1 + 0x10) = 0x000003EAu;
-    REG(SPI1 + 0x08) = 0x00000200u;
+    REG(SPI1 + 0x08) = LINK_N;
     REG(SPI1 + 0x04) = 0x000CC110u;
 }
+/* The firmware's view (gp5_dsp.h, GP5_AUDIO_LINK): during fw_process() gp5_link_in() holds the words the control
+ * processor sent in the exchange started after the previous block (zeros if its sync word was not found), and
+ * gp5_link_out() is free; spi1_block() starts the next exchange right after fw_process(). */
+static const int32_t *gp5_link_in(void) { return (const int32_t *)LINK_IN; }
+static int32_t *gp5_link_out(void) { return (int32_t *)(RAW_TX + 4u); }
+static void spi1_take(void) {                             /* before fw_process(): find the sync word, copy */
+    const volatile uint8_t *r = (const volatile uint8_t *)RAW_RX;
+    volatile uint8_t *d = (volatile uint8_t *)LINK_IN;
+    uint32_t o;
+    for (o = 0; o <= LINK_PAD; o++)
+        if (r[o] == (uint8_t)LINK_SYNC_N && r[o + 1] == (uint8_t)(LINK_SYNC_N >> 8) &&
+            r[o + 2] == (uint8_t)(LINK_SYNC_N >> 16) && r[o + 3] == (uint8_t)(LINK_SYNC_N >> 24)) break;
+    if (o > LINK_PAD) {
+        for (uint32_t i = 0; i < 128u; i++) REG(LINK_IN + 4u * i) = 0;
+        link_lag = 0xFFFFFFFFu; ST[23]++;                 /* exchanges without the sync word */
+        return;
+    }
+    link_lag = o;
+    if (!(o & 3u)) for (uint32_t i = 0; i < 128u; i++) REG(LINK_IN + 4u * i) = REG(RAW_RX + o + 4u + 4u * i);
+    else for (uint32_t i = 0; i < 512u; i++) d[i] = r[o + 4u + i];
+}
+/* Before a hand-over (0x7F05): SPI-1 back to the state of a firmware without the link (control 0x21000, as measured)
+ * and its two DMA channels off, so the wires to the control processor are as the factory loader expects them. */
+static void spi1_quiet(void) {
+    REG(DMA0 + 0x100) &= ~1u;
+    REG(DMA0 + 0x120) &= ~1u;
+    REG(DMA0 + 0x28) = 0xFFu;
+    REG(SPI1 + 0x04) = 0x00021000u;
+}
 static void spi1_block(void) {
+    if (dsp_quiet) return;
     REG(SPI1 + 0x04) |= 0x1000u;                          /* stock 0x5768 */
     if (REG(DMA0 + 0x20) & 0x2u) { ST[22]++; return; }    /* previous transfer still busy */
     REG(SPI1 + 0x04) &= ~0x1000u;                         /* stock 0x7dfc */
-    REG(SPI1 + 0x08) = 0x200u;
-    REG(DMA0 + 0x114) = 0x200u;
-    REG(DMA0 + 0x108) = SPI1;   REG(DMA0 + 0x10C) = SPI_RX;
+    REG(SPI1 + 0x08) = LINK_N;
+    REG(DMA0 + 0x114) = LINK_N;
+    REG(DMA0 + 0x108) = SPI1;   REG(DMA0 + 0x10C) = RAW_RX;
     REG(DMA0 + 0x100) = 0x800200C1u;
-    REG(DMA0 + 0x134) = 0x200u;
-    REG(DMA0 + 0x128) = SPI_TX; REG(DMA0 + 0x12C) = SPI1;
+    REG(DMA0 + 0x134) = LINK_N;
+    REG(DMA0 + 0x128) = RAW_TX; REG(DMA0 + 0x12C) = SPI1;
     REG(DMA0 + 0x120) = 0x80020091u;
     REG(DMA0 + 0x28) = 0xFFu;                             /* clear done flags (polled design) */
     ST[21]++;
-    uint32_t orv = 0;
-    for (uint32_t a = SPI_RX; a < SPI_RX + 0x200u; a += 4) orv |= REG(a);
-    if (orv) ST[23]++;                                    /* blocks with non-zero SPI rx data */
 }
 #endif
 
@@ -185,7 +230,14 @@ static int audio_poll(void) {
             if (a > peak) peak = a;
             blk[i] = m;
         }
-        fw_process(blk, bl, br);
+        if (dsp_quiet) {                                       /* before an update: plain passthrough */
+            for (int i = 0; i < 64; i++) { bl[i] = blk[i]; br[i] = blk[i]; }
+        } else {
+#ifdef AUDIO_SPI1
+            spi1_take();
+#endif
+            fw_process(blk, bl, br);
+        }
         for (int i = 0; i < 64; i++) {
             outL[i] = (uint32_t)(int32_t)(((int64_t)bl[i] * g) >> 16);
             outR[i] = (uint32_t)(int32_t)(((int64_t)br[i] * g) >> 16);

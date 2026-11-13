@@ -6,25 +6,24 @@ No compilers needed. Read the [Safety](README.md#safety) warning first.
 
 **In your browser (easiest):** open the [web flasher](https://opengp5.github.io/OpenGP5/flasher/) in Chrome, Edge or Opera on a computer
 (Safari can't talk to MIDI devices; Firefox asks for a permission first). Plug the pedal in, click
-Connect, allow MIDI access, pick Dreamcatcher or upload a `.bin` file (an image from the
-[releases](https://github.com/OpenGP5/OpenGP5/releases) such as the tremolo, one you built, or Valeton's firmware), tick the box
-and click Flash.
+Connect, allow MIDI access, pick a firmware built with OpenGP5 (the strobe tuner demo, or Dreamcatcher), or upload a `.bin` file
+(one you built, or Valeton's firmware), tick the box and click Flash.
 
 **From the command line:**
 
 1. From the [Releases](https://github.com/OpenGP5/OpenGP5/releases) page, download a firmware image
-   (`GP-5_tremolo.bin`, `GP-5_granular-delay.bin` or `GP-5_passthrough.bin`) and the release's
+   (`GP-5_tuner.bin`) and the release's
    **Source code (zip)**, which contains the flasher. Unzip the source.
 2. Install Python 3.9 or newer, then: `pip install mido python-rtmidi`
 3. Plug the pedal in and, from the unzipped folder:
 
    ```
    python3 tools/gp5tool.py status
-   python3 tools/gp5tool.py flash GP-5_tremolo.bin --sections all
+   python3 tools/gp5tool.py flash GP-5_tuner.bin --sections all
    ```
 
-Optional: check the download against the release's `SHA256SUMS` (`shasum -a 256 GP-5_tremolo.bin` on
-macOS / Linux, `certutil -hashfile GP-5_tremolo.bin SHA256` on Windows).
+Optional: check the download against the release's `SHA256SUMS` (`shasum -a 256 GP-5_tuner.bin` on
+macOS / Linux, `certutil -hashfile GP-5_tuner.bin SHA256` on Windows).
 
 ## 1. What you need
 
@@ -51,10 +50,10 @@ release/setup-toolchain.sh
 ## 2. Build
 
 ```
-platform/build_firmware.sh tremolo
+platform/build_firmware.sh tuner
 ```
 
-This builds both halves and packs them into one image, `build/GP-5_tremolo.bin`, which holds only the
+This builds both halves and packs them into one image, `build/GP-5_tuner.bin`, which holds only the
 two parts we replace: the DSP firmware and the control-processor app. Valeton's other data on the pedal
 (audio models, presets) is not touched.
 
@@ -64,7 +63,7 @@ Plug the pedal in, then:
 
 ```
 python3 tools/gp5tool.py status                                        # finds the pedal
-python3 tools/gp5tool.py flash build/GP-5_tremolo.bin --sections all
+python3 tools/gp5tool.py flash build/GP-5_tuner.bin --sections all
 ```
 
 The tool checks the whole image before it sends anything, restarts the pedal into its update mode by

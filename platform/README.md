@@ -13,9 +13,8 @@ firmwares/<name>/dsp/firmware.h      audio: fw_init, fw_process, fw_command     
 firmwares/<name>/nds32/*.c           screen and controls: fw_draw, fw_knob, ...   (interface: platform/nds32/gp5_firmware.h)
 ```
 
-Start with `docs/platform/first-effect.md`, which walks through `firmwares/tremolo` (float maths, three
-settings, a text screen), then copy that folder. `firmwares/passthrough` is the smallest firmware;
-`firmwares/granular-delay` is a large one with 13 settings, a graphic screen and its own link commands.
+Start with `docs/platform/first-effect.md`, which walks through `firmwares/tuner` (a demo firmware, a strobe tuner: float
+maths, the audio link between the processors, a graphic screen, storage), then copy that folder.
 Try the sound on the computer before flashing: `python3 tools/run_effect.py <name> in.wav out.wav`. The two interface headers are the documentation: what the platform calls, when, and what
 a firmware may use (audio format, memory, screen, link commands to its other half).
 
@@ -37,7 +36,8 @@ our two sections (`dsp`, `app`); Valeton's other sections on the pedal are not t
 ## What is in here
 
 - `nds32/` — control processor (BP1048, NDS32): start-up, display driver, foot switch, PARA knob, volume knob,
-  LEDs, USB-MIDI, hand-over to the factory loader (`11 6F`), link to the DSP, start-up sync.
+  LEDs, USB-MIDI, hand-over to the factory loader (`11 6F`), link to the DSP, start-up sync, the audio link
+  (SPI slave + DMA, `gp5_link_start`).
 - `dsp/` — audio processor (Cortex-M4F): start-up, audio in/out (64-sample blocks, 44.1 kHz), link
   responder, output level, cycle counters, resident tick patcher.
 

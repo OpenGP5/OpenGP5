@@ -50,6 +50,7 @@ static void stray(unsigned line)
 extern void SystickInterrupt(void);     /* hal/tick.c: 1 ms tick (timer 1) */
 extern void UART0_Interrupt(void);      /* dsp_link.c: DSP link receive */
 extern void Timer2Interrupt(void);      /* led.c: LED brightness */
+extern void gp5_link_irq(void);         /* audio_link.c: audio link exchange done (DMA channel 4) */
 
 typedef void (*gp5_irq_fn)(unsigned line);
 #define H(f) ((gp5_irq_fn)(void (*)(void))(f))
@@ -59,6 +60,7 @@ const gp5_irq_fn gp5_irq_table[GP5_IRQ_COUNT] = {
     [GP5_IRQ_TICK] = H(SystickInterrupt),
     [GP5_IRQ_UART0] = H(UART0_Interrupt),
     [GP5_IRQ_TIMER2] = H(Timer2Interrupt),
+    [13] = H(gp5_link_irq),
 };
 
 /* Names the vendor objects that are still linked (USB) call. */

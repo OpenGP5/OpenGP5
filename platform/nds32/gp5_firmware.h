@@ -17,10 +17,11 @@
 /* ---- implemented by the firmware ---- */
 void fw_init(void);
 void fw_foot(void);                       /* foot switch pressed */
-void fw_foot_release(void);               /* optional: foot switch let go (empty default; not debounced) */
+void fw_foot_release(void);               /* optional: foot switch let go (empty default) */
 void fw_para_push(void);                  /* PARA knob pushed */
 void fw_para_release(void);               /* optional: PARA knob let go (the platform has an empty default).
-                                             The button is not debounced: time a hold with fw_knob's 10 ms. */
+                                             Time a hold with fw_knob's 10 ms. Foot switch and PARA push are
+                                             debounced by the platform (30 ms). */
 void fw_para_turn(int detents);           /* PARA knob turned, +/- clicks */
 void fw_knob(unsigned knob);              /* volume knob, 0..255, about every 10 ms */
 unsigned fw_level(void);                  /* output level for the DSP, 0..255 */
@@ -51,4 +52,12 @@ void gp5_text(unsigned line, const char *s);
 #define GP5_STORE_MAX 1024u
 unsigned gp5_store_load(uint32_t id, void *dst, unsigned max);
 int gp5_store_save(uint32_t id, const void *src, unsigned len);    /* 0 = saved and read back */
+/* Audio link to the DSP (platform/nds32/audio_link.c). The DSP firmware opts in with #define GP5_AUDIO_LINK
+ * (gp5_dsp.h) and exchanges GP5_LINK_WORDS words with this side after every audio block. Start it once (e.g. in
+ * fw_init); on_block() then runs in the link's interrupt once per block (1.45 ms) with the words just received
+ * and the words to fill for the DSP: keep it shorter than a block. Words sent here reach the DSP two exchanges
+ * later. gp5_link_blocks counts the exchanges. */
+#define GP5_LINK_WORDS 128u
+void gp5_link_start(void (*on_block)(const int32_t *in, int32_t *out));
+extern volatile uint32_t gp5_link_blocks;
 #endif

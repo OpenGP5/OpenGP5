@@ -10,7 +10,7 @@ Section 0x63 (DSP region c = DSP flash 0x4000..0x10348) is:
    vector table is]  [our image linked at 0x4400: vector table + code]  [0xFF padding to 0xc348 bytes]
 The length is the stock section's (0xc348). No stock image is needed: the header is written here.
 """
-import subprocess, sys, tempfile, struct
+import re, subprocess, sys, tempfile, struct
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
 import gp5tool
@@ -48,6 +48,8 @@ def main():
             if not (inc / "firmware.h").is_file(): inc = ROOT / "firmwares" / a.firmware / "dsp"
             assert (inc / "firmware.h").is_file(), f"no {inc}/firmware.h"
             fw = [f"-I{inc}", f"-I{HERE}", "-DGP5_FIRMWARE"]
+            if re.search(r"^\s*#\s*define\s+GP5_AUDIO_LINK\b", (inc / "firmware.h").read_text(), re.M):
+                fw.append("-DAUDIO_SPI1")                   # the firmware opts in to the audio link
         srcs = [str(HERE / a.src)] + ([str(HERE / "gp5_math.c")] if a.src == "responder.c" else [])
         subprocess.run([tool("arm-none-eabi-gcc"), *CFLAGS, f"-I{HERE}", *fw, *[f"-D{x}" for x in a.defines],
                         f"-Wl,-T,{HERE/'link.ld'}", "-Wl,--gc-sections", *srcs, *LIBS, "-o", str(elf)], check=True)

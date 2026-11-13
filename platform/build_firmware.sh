@@ -37,7 +37,7 @@ if [ "$(uname -s)" = Linux ] && "$AS" --version >/dev/null 2>&1; then
 elif command -v docker >/dev/null 2>&1; then
   if [[ "$FWDIR" == "$PWD"/* ]]; then MNT=(); CFW=/work/${FWDIR#"$PWD"/}       # inside this tree
   else MNT=(-v "$FWDIR":/fw); CFW=/fw; fi                                      # elsewhere: mount it too
-  docker run --rm --platform linux/386 -e GP5_FIRMWARE_DIR="$CFW" -v "$PWD":/work ${MNT[@]+"${MNT[@]}"} debian:bookworm-slim \
+  docker run --rm --platform linux/386 -e GP5_FIRMWARE_DIR="$CFW" -e GP5_DEBUG_PEEK="${GP5_DEBUG_PEEK:-}" -v "$PWD":/work ${MNT[@]+"${MNT[@]}"} debian:bookworm-slim \
       bash /work/platform/nds32/build.sh
 else
   echo "The control-processor compiler is a 32-bit Linux program and cannot run here."

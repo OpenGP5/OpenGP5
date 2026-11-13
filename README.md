@@ -31,7 +31,7 @@ flashed over USB.
 
 ## Write an effect in plain C
 
-The audio half of a firmware is three functions. This is the heart of the included tremolo:
+The audio half of a firmware is three functions. A tremolo, for example:
 
 ```c
 static void fw_process(const int32_t *in, int32_t *out_left, int32_t *out_right)
@@ -45,21 +45,22 @@ static void fw_process(const int32_t *in, int32_t *out_left, int32_t *out_right)
 }
 ```
 
-Hear it before you flash it: `python3 tools/run_effect.py tremolo guitar.wav out.wav` runs the same code,
+Hear it before you flash it: `python3 tools/run_effect.py <firmware> guitar.wav out.wav` runs the same code,
 with the same maths, on your computer.
 
 ## Quick start
 
 **Try it without installing anything:** open the **[web flasher](https://opengp5.github.io/OpenGP5/flasher/)** in Chrome, Edge or Opera on a
-computer, plug the pedal in, pick [Dreamcatcher](https://github.com/OpenGP5/Dreamcatcher) or upload a `.bin` (one from
-the [releases](https://github.com/OpenGP5/OpenGP5/releases), one you built, or Valeton's) and flash. (Read [Safety](#safety) first.)
+computer, plug the pedal in, pick one of the firmwares built with OpenGP5 (the strobe tuner demo, or
+[Dreamcatcher](https://github.com/OpenGP5/Dreamcatcher)), or upload a `.bin` (one you built, or Valeton's), and flash.
+(Read [Safety](#safety) first.)
 
 **Build your own:**
 
 ```bash
 release/setup-toolchain.sh                    # both compilers, pinned and checksum-checked (~190 MB)
-platform/build_firmware.sh tremolo            # -> build/GP-5_tremolo.bin
-python3 tools/gp5tool.py flash build/GP-5_tremolo.bin --sections all
+platform/build_firmware.sh tuner              # -> build/GP-5_tuner.bin
+python3 tools/gp5tool.py flash build/GP-5_tuner.bin --sections all
 ```
 
 Requirements per system, recovery and going back to Valeton's firmware: **[GETTING-STARTED.md](GETTING-STARTED.md)**.
@@ -69,7 +70,7 @@ Requirements per system, recovery and going back to Valeton's firmware: **[GETTI
 | | |
 |---|---|
 | **Platform** (`platform/`) | Runs on both chips. Control processor: start-up, drivers, USB-MIDI, colour screen, foot switch, knobs, LEDs, the link to the DSP. DSP: start-up, audio in / out, floating-point maths, the link back. |
-| **Firmwares** (`firmwares/`) | `tremolo`, the worked example (start here) · `passthrough`, the smallest · `granular-delay`, a granular delay and micro-looper with 13 settings and its own screen. |
+| **Demo firmware** (`firmwares/tuner`) | A strobe tuner built with OpenGP5: the guitar straight through, a tuner (guitar and 5-string bass) on the screen. It uses every part of the platform, so it is the one to copy for your own. |
 | **Built on OpenGP5** | [Dreamcatcher](https://github.com/OpenGP5/Dreamcatcher), an ambient texture firmware in its own repository: micro-looper, chance-driven glitch delay, presets, purple screen. |
 | **Flasher** (`tools/gp5tool.py`) | Flashes your build or Valeton's own firmware over USB-MIDI, on macOS, Linux and Windows. |
 | **Off-pedal tools** | `run_effect.py` runs your audio code on a WAV file; `dsp_emu_check.py` boots the built DSP firmware in an emulator; `make_font.py` turns a TrueType font into smooth screen text. |
@@ -87,6 +88,7 @@ flowchart LR
         ctl["Control processor (BP1048)<br/>your fw_draw, fw_knob, fw_foot<br/>platform: drivers, USB-MIDI, screen"]
         dsp["DSP (Cortex-M4F)<br/>your fw_process, fw_command<br/>platform: audio I/O, maths"]
         ctl -- "settings (link command 0x7F10)" --> dsp
+        dsp <-- "audio link: 128 words each way per block" --> ctl
     end
     guitar(["Guitar in"]) --> dsp
     dsp --> out(["Out L / R"])

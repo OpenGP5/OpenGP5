@@ -6,7 +6,7 @@ ENTRY(_start)
 MEMORY
 {
     APP (rx)  : ORIGIN = 0x00010000, LENGTH = 0x168000
-    RAM (rwx) : ORIGIN = 0x20004000, LENGTH = 0x44000
+    RAM (rwx) : ORIGIN = 0x20004000, LENGTH = 0x44000 - 0x20   /* the top 32 bytes: the hand-over mark (main.c) */
 }
 
 SECTIONS

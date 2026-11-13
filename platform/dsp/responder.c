@@ -208,6 +208,15 @@ static void handle(const uint8_t *p, uint32_t n) {
 #endif
     switch (cmd) {
 #ifdef GP5_FIRMWARE
+#ifdef AUDIO_PASSTHROUGH
+    case 0x7F05:                      /* the control processor is about to hand over to its loader: go quiet */
+        dsp_quiet = 1;
+#ifdef AUDIO_SPI1
+        spi1_quiet();
+#endif
+        send_ack();
+        break;
+#endif
     case 0x7F04: {                    /* DSP load: [cmd][16][cycles last block][worst since boot][late blocks] */
         uint8_t r[16] = { 0x04, 0x7F, 16, 0 };
         uint32_t v[3] = { ST[29], ST[30], ST[31] };

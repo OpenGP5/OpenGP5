@@ -48,6 +48,12 @@ Started by `11 6F` from the open firmware (or Valeton's), or by holding the foot
 while plugging the pedal in. In update mode the screen stays dark. One session writes one or more
 sections; every frame waits for its `14 08 00`:
 
+> A firmware that has run the audio link (`gp5_link_start`) cannot hand over to the loader directly: the
+> loader starts, but crashes once the computer connects (cause not found yet). So for `11 6F` the platform
+> first restarts the chip with a mark in the top 32 bytes of RAM (`0x20047FE0`, kept out of the app's RAM),
+> and the next start, which sees the mark before the link or the firmware runs, hands over. It takes about
+> one second longer; the tool and the web flasher wait for it.
+
 ```
 ENTER        11 60
 BEGIN        11 61 <type> 00 00 00 <packet count u32> <length u32>      the loader erases the section

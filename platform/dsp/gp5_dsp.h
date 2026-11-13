@@ -39,12 +39,25 @@ static void     gp5_reply(const uint8_t *payload, uint32_t n);   /* one link fra
 static void     gp5_ack(void);
 static uint32_t gp5_get32(const uint8_t *p);
 
+/* Audio link to the control processor: put  #define GP5_AUDIO_LINK  in firmware.h. After every block the
+ * platform exchanges GP5_LINK_WORDS 32-bit words each way with it (gp5_link_start() in gp5_firmware.h there).
+ * In fw_process(), gp5_link_in() holds the words received in the last exchange and gp5_link_out() takes the
+ * words for the next one. Words sent from here come back processed three blocks later at the earliest. */
+#define GP5_LINK_WORDS 128u
+#ifdef AUDIO_SPI1                                     /* set by build.py when firmware.h defines GP5_AUDIO_LINK */
+static const int32_t *gp5_link_in(void);
+static int32_t *gp5_link_out(void);
+#endif
+
 #ifndef GP5_HOST
 #define GP5_CYCLES_LAST  (*(volatile uint32_t *)0x20007F74u)     /* core cycles of the last audio block */
 #define GP5_CYCLES_WORST (*(volatile uint32_t *)0x20007F78u)     /* worst block since boot */
 #define GP5_LATE_BLOCKS  (*(volatile uint32_t *)0x20007F7Cu)     /* blocks that finished after the next one was ready */
 #else                                                             /* tools/run_effect.py, on the computer */
 static uint32_t GP5_CYCLES_LAST, GP5_CYCLES_WORST, GP5_LATE_BLOCKS;
+static int32_t gp5_host_link[2][GP5_LINK_WORDS];                  /* no control processor here: words in stay 0 */
+static __attribute__((unused)) const int32_t *gp5_link_in(void) { return gp5_host_link[0]; }
+static __attribute__((unused)) int32_t *gp5_link_out(void) { return gp5_host_link[1]; }
 #undef GP5_LARGE
 #define GP5_LARGE
 #endif
