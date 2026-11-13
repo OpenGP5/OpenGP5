@@ -8,9 +8,12 @@
  * side draws the note, the cents, and the strobe's three bands (fundamental, 2nd and 4th harmonic): light and
  * dark segments that stand still when the string is in tune and drift right when it is sharp, left when it is
  * flat. One colour throughout, whatever the tuning: the movement is the information.
- * Lettering: Rubik SemiBold (font_aa.h, tools/make_font.py; SIL Open Font License, LICENSE-Rubik-OFL.txt). */
+ * Lettering: the platform's smooth "sans" font (gp5_font.h, derived from Varela) in three sizes. */
 #include "gp5_firmware.h"
-#include "font_aa.h"
+#include "gp5_font.h"
+#include "fonts/sans_12.h"
+#include "fonts/sans_20.h"
+#include "fonts/sans_40.h"
 #include "../dsp/link_words.h"
 
 /* Pixel format: the panel is blue-green-red 5-6-5, high byte first. */
@@ -90,35 +93,15 @@ unsigned fw_active(void) { return muted ? 0u : 1u; }
 #define STROBE_H (3u * BAND_H + 2u * BAND_GAP)
 static uint16_t band[W * TOP_H];
 
-static void fill(int x, int y, int w, int h, uint16_t c)
+/* text by its baseline (gp5_draw_text takes the top of the line), blended into the band */
+#define NOTE  (&gp5_font_sans_40)
+#define MID   (&gp5_font_sans_20)
+#define SMALL (&gp5_font_sans_12)
+static uint32_t rgb(rgb_t c) { return ((uint32_t)c.r << 16) | ((uint32_t)c.g << 8) | c.b; }
+static int text_w(const gp5_font_t *f, const char *s) { return gp5_text_width(f, s); }
+static void text(int x, int baseline, const char *s, const gp5_font_t *f, rgb_t c)
 {
-    int i, j;
-    for (j = y; j < y + h; j++) for (i = x; i < x + w; i++)
-        if (i >= 0 && i < (int)W && j >= 0 && j < (int)TOP_H) band[j * (int)W + i] = c;
-}
-/* anti-aliased text (font_aa.h): 4-bit coverage blended from the background to `fg` */
-static const font_glyph_t *aa_glyph(const font_t *f, char c)
-{
-    const char *k = FONT_CHARS;
-    unsigned i;
-    for (i = 0; k[i]; i++) if (k[i] == c) return &f->g[i];
-    return &f->g[0];
-}
-static int aa_width(const font_t *f, const char *s) { int w = 0; for (; *s; s++) w += aa_glyph(f, *s)->adv; return w; }
-static void aa_text(int x, int y, const char *s, const font_t *f, rgb_t fg)
-{
-    uint16_t shade[16];
-    unsigned a;
-    for (a = 0; a < 16; a++) shade[a] = pix(mix(BG, fg, a * 17u));
-    for (; *s; s++) {
-        const font_glyph_t *g = aa_glyph(f, *s);
-        unsigned j, n = g->w * f->h;
-        for (j = 0; j < n; j++) {
-            unsigned b = f->data[g->off + j / 2], v = j & 1 ? b & 15u : b >> 4;
-            if (v) fill(x + g->left + (int)(j % g->w), y + (int)(j / g->w), 1, 1, shade[v]);
-        }
-        x += g->adv;
-    }
+    gp5_draw_text(band, W, TOP_H, x, baseline - (int)f->base, f, s, rgb(c));
 }
 
 static const char *const LETTER = "CCDDEFFGGAAB";
@@ -134,29 +117,29 @@ static void draw_top(int note, int cents10)
         unsigned v = a4x10 / 10u;
         s[0] = 'A'; s[1] = '4'; s[2] = ' '; s[3] = (char)('0' + v / 100u); s[4] = (char)('0' + v / 10u % 10u);
         s[5] = (char)('0' + v % 10u); s[6] = 0;
-        aa_text(6, 2, s + 3, &font_note, INK);                /* "442" */
-        aa_text(9 + aa_width(&font_note, s + 3), 24, "Hz", &font_small, DIM);
-        aa_text(156 - aa_width(&font_small, "A4 pitch"), 6, "A4 pitch", &font_small, DIM);
-        aa_text(156 - aa_width(&font_small, "push: 440"), 22, "push: 440", &font_small, DIM);
+        text(6, 31, s + 3, NOTE, INK);                        /* "442" */
+        text(9 + text_w(NOTE, s + 3), 31, "Hz", SMALL, DIM);
+        text(156 - text_w(SMALL, "A4 pitch"), 14, "A4 pitch", SMALL, DIM);
+        text(156 - text_w(SMALL, "push: 440"), 39, "push: 440", SMALL, DIM);
     } else if (note < 0) {
-        aa_text(6, 2, "-", &font_note, FAINT);
-        aa_text(160 - 4 - aa_width(&font_small, "play a string"), 16, "play a string", &font_small, DIM);
+        text(6, 31, "-", NOTE, FAINT);
+        text(156 - text_w(SMALL, "play a string"), 24, "play a string", SMALL, DIM);
     } else {
         int n = note % 12, oct = note / 12 - 1, a = cents10 < 0 ? -cents10 : cents10, x;
         char l[2] = { LETTER[n], 0 }, o[2] = { (char)('0' + (oct < 0 ? 0 : oct > 9 ? 9 : oct)), 0 };
-        aa_text(6, 2, l, &font_note, INK);
-        x = 8 + aa_width(&font_note, l);
-        if (SHARP_SIGN[n]) aa_text(x, 2, "#", &font_mid, INK);
-        aa_text(x, 19, o, &font_mid, DIM);
+        text(6, 31, l, NOTE, INK);
+        x = 8 + text_w(NOTE, l);
+        if (SHARP_SIGN[n]) text(x, 15, "#", MID, INK);
+        text(x, 37, o, MID, DIM);
         a = (a + 5) / 10;                                     /* whole cents, right-aligned */
         i = 0;
         if (a) s[i++] = cents10 > 0 ? '+' : '-';
         if (a >= 10) s[i++] = (char)('0' + a / 10);
         s[i++] = (char)('0' + a % 10);
         s[i] = 0;
-        aa_text(160 - 4 - aa_width(&font_note, s), 2, s, &font_note, INK);
+        text(156 - text_w(NOTE, s), 31, s, NOTE, INK);
     }
-    if (muted) aa_text(70, 4, "muted", &font_small, INK);
+    if (muted) text(70, 12, "muted", SMALL, INK);
     gp5_blit(0, 0, W, TOP_H, band);
 }
 

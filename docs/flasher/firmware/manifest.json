@@ -4,7 +4,7 @@
   "title": "Strobe tuner (demo)",
   "description": "A demo firmware built with OpenGP5: the guitar straight through, with a strobe tuner on the screen (guitar and 5-string bass). Foot switch = mute, PARA = reference pitch, volume knob = level.",
   "version": "v1.0.0",
-  "sha256": "e43e08a17e8c6e68732d8734c6061ededa4a141e4c7c8d67648cf011140d3cec"
+  "sha256": "f14cddff29d6f24cc80e86acc0d36ea18cc3df82c1f075a0ca57920c24b8d9b6"
  },
  {
   "file": "GP-5_dreamcatcher.bin",

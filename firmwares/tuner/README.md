@@ -25,8 +25,8 @@ tune, drift right when it is sharp and left when it is flat, faster the further 
 - **Between them:** the audio link (`gp5_link_start` / `GP5_AUDIO_LINK`): every block the DSP sends the note,
   the cents and the 3 × 64 strobe segments (`dsp/link_words.h`) and receives the reference pitch and the mute.
 
-Lettering: Rubik SemiBold (`nds32/font_aa.h`, made with `tools/make_font.py`), SIL Open Font License
-(`LICENSE-Rubik-OFL.txt`).
+Lettering: the platform's smooth "sans" font (sizes 40, 20 and 12) through `gp5_draw_text`
+([Text and fonts](../../docs/platform/fonts.md)).
 
 ## Tests on the computer
 

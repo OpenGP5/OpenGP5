@@ -41,7 +41,8 @@ unsigned fw_active(void);                 /* LED colour: 0 = dim red, 1 = mint, 
 /* ---- provided by the platform ---- */
 /* Send w x h pixels (RGB565, big-endian bytes as the panel wants them) to the screen at x, y. */
 void gp5_blit(unsigned x, unsigned y, unsigned w, unsigned h, const uint16_t *px);
-/* One of five 13-character text lines in the platform's 5x7 font, white on black. */
+/* One of five 13-character text lines in the built-in 5x7 pixel font, white on black. For smooth text in any font
+ * and size, anywhere on the screen: gp5_font.h (gp5_text_at, gp5_draw_text) and docs/platform/fonts.md. */
 void gp5_text(unsigned line, const char *s);
 
 /* Storage that survives power-off (platform/nds32/gp5_store.c): up to GP5_STORE_MAX bytes, tagged with an id of

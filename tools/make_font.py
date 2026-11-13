@@ -1,82 +1,136 @@
 #!/usr/bin/env python3
-"""Rasterise a TrueType font into anti-aliased bitmap tables for the pedal's screen (a C header).
+"""Turn any font into a header for the platform's text drawing (platform/nds32/gp5_font.h).
 
-  python3 tools/make_font.py FONT.ttf OUT.h NAME:CAP_HEIGHT[:SPACING] [...] [--notice TEXT] [--chars TEXT]
+  python3 tools/make_font.py FONT.ttf NAME SIZE_PX OUT.h --notice TEXT [--source TEXT] [--chars TEXT]
+  python3 tools/make_font.py FONT.bdf NAME SCALE   OUT.h --notice TEXT [--source TEXT] [--chars TEXT]
 
-Each NAME becomes a `font_t` with 4-bit coverage per pixel (two pixels per byte, high nibble first), for the
-characters space % * + - . / 0-9 : A-Z. CAP_HEIGHT is the height of a capital letter in pixels; every glyph's
-box is that plus a margin row above and below. SPACING adds pixels between letters (default 0). --notice puts the font's copyright / licence line in the
-header (keep it: font licences such as the SIL OFL ask for it). --chars replaces the character set (for example to add
-lowercase letters or '#'). Needs Pillow.
+A TrueType / OpenType font is rasterised at SIZE_PX pixels per em, smooth (16 levels of coverage). A BDF
+bitmap font is copied pixel for pixel, each font pixel drawn SCALE x SCALE screen pixels (1 = native size).
+Characters: printable ASCII (0x20..0x7E), or only those in --chars (the others take no room and draw nothing:
+useful for big digits). Each glyph keeps only its rows with ink; the line height is ascent + descent.
+The header defines `static const gp5_font_t NAME`. Put it in your firmware's nds32/ folder and include it: only
+the fonts a firmware includes end up in its image. --notice is the font's copyright / licence line, kept in the
+header as font licences ask (keep the licence file next to it too). Needs Pillow for TrueType fonts.
 """
 import sys
-from PIL import Image, ImageDraw, ImageFont
 
-CHARS = " %*+-./0123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+FIRST, LAST = 0x20, 0x7E
 
 
-def build(path, name, cap, track=0):
-    # find the font size whose capital H is `cap` pixels tall
-    size = cap / 0.72
-    for _ in range(20):
-        f = ImageFont.truetype(path, round(size * 4) / 4)
-        t = f.getbbox("H", anchor="ls")
-        h = t[3] - t[1]
-        if h == cap: break
-        size *= cap / h
-    box_h = cap + 2                                  # one margin row above and below
-    glyphs, data = [], bytearray()
-    for ch in CHARS:
-        adv = round(f.getlength(ch)) + track
+def ttf_glyphs(path, size):
+    from PIL import Image, ImageDraw, ImageFont
+    f = ImageFont.truetype(path, size)
+    asc, desc = f.getmetrics()
+    h = asc + desc
+    out = []
+    for code in range(FIRST, LAST + 1):
+        ch = chr(code)
+        adv = round(f.getlength(ch))
         bb = f.getbbox(ch, anchor="ls")
         left = min(0, bb[0])
         w = max(adv, bb[2]) - left
-        img = Image.new("L", (w, box_h), 0)
-        ImageDraw.Draw(img).text((-left, cap + 1), ch, fill=255, font=f, anchor="ls")
+        img = Image.new("L", (max(w, 1), h), 0)
+        ImageDraw.Draw(img).text((-left, asc), ch, fill=255, font=f, anchor="ls")
         px = img.load()
-        off = len(data)
-        nib = [min(15, (px[x, y] + 8) // 17) for y in range(box_h) for x in range(w)]
-        if len(nib) % 2: nib.append(0)
-        data += bytes((nib[i] << 4) | nib[i + 1] for i in range(0, len(nib), 2))
-        glyphs.append((w, adv, left, off))
-    out = [f"static const uint8_t {name}_data[{len(data)}] = {{"]
-    for i in range(0, len(data), 24):
-        out.append("    " + ", ".join(f"0x{b:02x}" for b in data[i:i + 24]) + ",")
-    out.append("};")
-    out.append(f"static const font_glyph_t {name}_glyphs[{len(CHARS)}] = {{")
-    for ch, (w, adv, left, off) in zip(CHARS, glyphs):
-        out.append(f"    {{ {w}, {adv}, {left}, {off} }},   /* '{ch}' */")
-    out.append("};")
-    out.append(f"static const font_t {name} = {{ {box_h}, {name}_glyphs, {name}_data }};")
-    return "\n".join(out)
+        cov = [[min(15, (px[x, y] + 8) // 17) for x in range(w)] for y in range(h)]
+        out.append((w, adv, left, cov))
+    name = " ".join(f.getname())
+    return h, asc, out, name
+
+
+def bdf_glyphs(path, scale):
+    lines = open(path, encoding="latin-1").read().splitlines()
+    props, glyphs, i = {}, {}, 0
+    while i < len(lines):
+        t = lines[i].split()
+        if t and t[0] in ("FONT_ASCENT", "FONT_DESCENT"): props[t[0]] = int(t[1])
+        if t and t[0] == "FAMILY_NAME": props["name"] = lines[i].split(" ", 1)[1].strip('"')
+        if t and t[0] == "STARTCHAR":
+            g = {}
+            i += 1
+            while not lines[i].startswith("BITMAP"):
+                u = lines[i].split()
+                if u[0] == "ENCODING": g["code"] = int(u[1])
+                if u[0] == "DWIDTH": g["adv"] = int(u[1])
+                if u[0] == "BBX": g["bbx"] = list(map(int, u[1:5]))
+                i += 1
+            rows = []
+            i += 1
+            while lines[i] != "ENDCHAR":
+                rows.append(int(lines[i], 16)); i += 1
+            g["rows"] = rows
+            if FIRST <= g.get("code", -1) <= LAST: glyphs[g["code"]] = g
+        i += 1
+    asc, desc = props["FONT_ASCENT"], props["FONT_DESCENT"]
+    h = asc + desc
+    out = []
+    for code in range(FIRST, LAST + 1):
+        g = glyphs[code]
+        bw, bh, bx, by = g["bbx"]
+        adv = g["adv"]
+        left = min(0, bx)
+        w = max(adv, bx + bw) - left
+        nbytes = (bw + 7) // 8
+        cov = [[0] * w for _ in range(h)]
+        top = asc - (by + bh)                        # row of the box's top edge, from the top of the line
+        for r, bits in enumerate(g["rows"]):
+            for c in range(bw):
+                if bits >> (8 * nbytes - 1 - c) & 1:
+                    y, x = top + r, bx - left + c
+                    if 0 <= y < h: cov[y][x] = 15
+        out.append((w, adv, left, cov))
+    if scale > 1:
+        out = [(w * scale, adv * scale, left * scale,
+                [[v for v in row for _ in range(scale)] for row in cov for _ in range(scale)])
+               for (w, adv, left, cov) in out]
+    return h * scale, asc * scale, out, props.get("name", "BDF font")
 
 
 def main():
-    global CHARS
-    args, notice = sys.argv[1:], "see the font's licence"
-    if "--notice" in args:
-        i = args.index("--notice"); notice = args[i + 1]; del args[i:i + 2]
-    if "--chars" in args:
-        i = args.index("--chars"); CHARS = args[i + 1]; del args[i:i + 2]
-    if len(args) < 3: sys.exit(__doc__)
-    path, out = args[0], args[1]
-    parts = []
-    for a in args[2:]:
-        n, *nums = a.split(":")
-        parts.append(build(path, n, *map(int, nums)))
-    fam = ImageFont.truetype(path, 12).getname()
-    hdr = f"""/* Generated by tools/make_font.py from {fam[0]} {fam[1]}: do not edit.
- * Font: {notice}
- * Characters: "{CHARS}". Pixels: 4-bit coverage, two per byte, high nibble first, row by row. */
-#ifndef FONT_AA_H
-#define FONT_AA_H
-#include <stdint.h>
-typedef struct {{ uint8_t w, adv; int8_t left; uint16_t off; }} font_glyph_t;
-typedef struct {{ uint8_t h; const font_glyph_t *g; const uint8_t *data; }} font_t;
-#define FONT_CHARS "{CHARS}"
-"""
-    open(out, "w").write(hdr + "\n\n".join(parts) + "\n#endif\n")
-    print(out, "written")
+    a = sys.argv[1:]
+    opts = {}
+    for k in ("--notice", "--source", "--chars"):
+        if k in a:
+            i = a.index(k); opts[k] = a[i + 1]; del a[i:i + 2]
+    if len(a) != 4 or "--notice" not in opts: sys.exit(__doc__)
+    path, name, size, out = a[0], a[1], int(a[2]), a[3]
+    if path.lower().endswith(".bdf"):
+        h, base, glyphs, fam = bdf_glyphs(path, size)
+        how = "copied pixel for pixel" + (" at %dx" % size if size > 1 else "")
+    else:
+        h, base, glyphs, fam = ttf_glyphs(path, size)
+        how = "rasterised at %d px per em, 16 coverage levels" % size
+    keep = opts.get("--chars")
+    if keep is not None:                                  # only these characters: the rest take no room
+        glyphs = [g if chr(FIRST + i) in keep else (0, 0, 0, []) for i, g in enumerate(glyphs)]
+    data, table = bytearray(), []
+    for (w, adv, left, cov) in glyphs:
+        used = [y for y, row in enumerate(cov) if any(row)]   # crop to the rows that have ink
+        top, rows = (used[0], used[-1] - used[0] + 1) if used else (0, 0)
+        nib = [v for row in cov[top:top + rows] for v in row]
+        if len(nib) % 2: nib.append(0)
+        table.append((w, adv, left, top, rows, len(data)))
+        data += bytes((nib[i] << 4) | nib[i + 1] for i in range(0, len(nib), 2))
+    src = opts.get("--source", fam)
+    guard = "FONT_%s_H" % name.upper()
+    o = ["/* Generated by tools/make_font.py: do not edit.",
+         " * From: %s, %s. Line height %d px, baseline %d px from the top." % (src, how, h, base),
+         " * Font licence: %s */" % opts["--notice"],
+         "#ifndef %s" % guard, "#define %s" % guard, '#include "gp5_font.h"',
+         "static const uint8_t %s_data[%d] = {" % (name, len(data))]
+    for i in range(0, len(data), 32):
+        o.append("    " + ",".join("0x%02x" % b for b in data[i:i + 32]) + ",")
+    o.append("};")
+    o.append("static const gp5_glyph_t %s_glyphs[%d] = {" % (name, len(table)))
+    for code, (w, adv, left, top, rows, off) in zip(range(FIRST, LAST + 1), table):
+        c = chr(code)
+        shown = {"\\": "backslash", "*": "star", "/": "slash"}.get(c, c)
+        o.append("    { %d, %d, %d, %d, %d, %d },   /* %s */" % (w, adv, left, top, rows, off, shown))
+    o.append("};")
+    o.append("static const gp5_font_t %s = { %d, %d, %s_glyphs, %s_data };" % (name, h, base, name, name))
+    o.append("#endif")
+    open(out, "w").write("\n".join(o) + "\n")
+    print("%s: %s, line height %d, %d bytes of pixels" % (out, name, h, len(data)))
 
 
 if __name__ == "__main__":

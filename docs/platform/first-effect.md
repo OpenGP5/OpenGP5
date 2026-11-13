@@ -207,8 +207,8 @@ int fw_draw(unsigned knob, int force)
 }
 ```
 
-The screen is five lines of 13 characters (`gp5_text`); for pixels of your own, use `gp5_blit`
-(`platform/nds32/gp5_firmware.h`).
+The screen is five lines of 13 characters (`gp5_text`). For smooth text in any font and size, see
+[Text and fonts](fonts.md); for pixels of your own, `gp5_blit` (`platform/nds32/gp5_firmware.h`).
 
 ## 5. Build, check, flash
 
@@ -233,7 +233,6 @@ follows a slow `sinf`).
 
 - **`firmwares/tuner`**, a strobe tuner (demo): the **audio link** (`gp5_link_start` /
   `#define GP5_AUDIO_LINK`), which exchanges 128 words each way between the halves after every block, for data
-  that changes all the time; a graphic screen drawn pixel by pixel with smooth (anti-aliased) lettering made
-  by `tools/make_font.py`; settings kept across power-off; and tests that run on the computer.
+  that changes all the time; a graphic screen drawn pixel by pixel with smooth lettering ([Text and fonts](fonts.md)); settings kept across power-off; and tests that run on the computer.
 - **[Dreamcatcher](https://github.com/OpenGP5/Dreamcatcher)**, in its own repository: a large firmware with a
   looper, delays, reverb, presets and a graphic screen, built on OpenGP5 as a submodule.

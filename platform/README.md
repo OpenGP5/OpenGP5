@@ -53,8 +53,9 @@ What a firmware can use besides settings and the screen (all in `nds32/gp5_firmw
 - **LED colour:** `fw_active` returns 0 (dim red), 1 (mint) or `GP5_LED(r, g, b)`.
 - **Switch releases:** optional `fw_para_release` / `fw_foot_release` (the platform has empty defaults), for
   taps versus holds. The edges are not debounced; time them with `fw_knob`'s 10 ms.
-- **Large, smooth text:** `gp5_text` is the platform's 5x7 font; `tools/make_font.py` turns any TrueType font
-  into anti-aliased glyph tables for `gp5_blit` (keep the font's licence notice it writes).
+- **Text:** `gp5_text` writes the built-in 5x7 pixel font (5 lines of 13 characters); `gp5_text_at` /
+  `gp5_draw_text` (`nds32/gp5_font.h`) write smooth text in the platform's "sans" font or any font you convert
+  with `tools/make_font.py`. See `docs/platform/fonts.md`.
 
 On the DSP, code runs from flash: a large per-sample loop can be several times slower than the same code in
 RAM. Put hot code in a `.data` section to run it from RAM (Dreamcatcher's `DC_HOT` macros, `dsp/dream.h`).

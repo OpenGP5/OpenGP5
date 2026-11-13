@@ -73,7 +73,7 @@ Requirements per system, recovery and going back to Valeton's firmware: **[GETTI
 | **Firmwares** (`firmwares/`) | `passthrough`, the template to copy (start here) · `tuner`, a strobe tuner demo (guitar and 5-string bass) that uses every part of the platform, the audio link between the processors included. |
 | **Built on OpenGP5** | [Dreamcatcher](https://github.com/OpenGP5/Dreamcatcher), an ambient texture firmware in its own repository: micro-looper, chance-driven glitch delay, presets, purple screen. |
 | **Flasher** (`tools/gp5tool.py`) | Flashes your build or Valeton's own firmware over USB-MIDI, on macOS, Linux and Windows. |
-| **Off-pedal tools** | `run_effect.py` runs your audio code on a WAV file; `dsp_emu_check.py` boots the built DSP firmware in an emulator; `make_font.py` turns a TrueType font into smooth screen text. |
+| **Off-pedal tools** | `run_effect.py` runs your audio code on a WAV file; `dsp_emu_check.py` boots the built DSP firmware in an emulator; `make_font.py` turns any TrueType or BDF font into smooth screen text for your firmware ([fonts](docs/platform/fonts.md)). |
 
 None of it comes from the chip vendor or from Valeton: no vendor SDK code, headers or libraries, and no
 Valeton code or data. It was written from what the hardware does. The same source builds byte-identical
@@ -103,6 +103,7 @@ Walkthrough: **[Your first effect](docs/platform/first-effect.md)**.
 |---|---|
 | [GETTING-STARTED.md](GETTING-STARTED.md) | set up, build, flash, recover |
 | [docs/platform/first-effect.md](docs/platform/first-effect.md) | your first effect, step by step |
+| [docs/platform/fonts.md](docs/platform/fonts.md) | text on the screen: the built-in font, smooth fonts, your own |
 | [platform/README.md](platform/README.md) | how a firmware plugs into the platform |
 | [docs/platform/protocols.md](docs/platform/protocols.md) | USB-MIDI, the firmware update, the image format, the link between the processors |
 | [docs/platform/hardware.md](docs/platform/hardware.md) | memory, pins and clocks of both processors |
