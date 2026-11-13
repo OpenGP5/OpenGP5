@@ -13,8 +13,9 @@ firmwares/<name>/dsp/firmware.h      audio: fw_init, fw_process, fw_command     
 firmwares/<name>/nds32/*.c           screen and controls: fw_draw, fw_knob, ...   (interface: platform/nds32/gp5_firmware.h)
 ```
 
-Start with `docs/platform/first-effect.md`, which walks through `firmwares/tuner` (a demo firmware, a strobe tuner: float
-maths, the audio link between the processors, a graphic screen, storage), then copy that folder.
+Start with `docs/platform/first-effect.md`: it copies `firmwares/passthrough`, the template, and turns it into a
+tremolo (float maths, settings, a text screen). `firmwares/tuner`, a strobe tuner demo, shows the rest: the
+audio link between the processors, a graphic screen, storage.
 Try the sound on the computer before flashing: `python3 tools/run_effect.py <name> in.wav out.wav`. The two interface headers are the documentation: what the platform calls, when, and what
 a firmware may use (audio format, memory, screen, link commands to its other half).
 
