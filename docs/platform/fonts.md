@@ -29,10 +29,19 @@ gp5_text_at(4, 10, &gp5_font_sans_24, "Delay", 0xFFFFFF, 0x101820);   /* straigh
 - `gp5_text_width(font, text)` measures, for centring or right-aligning.
 - A font knows its line height (`font->h`) and where its baseline is (`font->base`, pixels below the top).
 
-The platform includes one smooth font, **sans** (derived from Varela, which reads well on small screens), in
-six sizes: `fonts/sans_12.h`, `sans_16`, `sans_20`, `sans_24`, `sans_32`, `sans_40`. The number is the size in
-pixels; the line is about a third taller. Only the sizes a firmware includes take room in its image (from
-about 3 KB for size 12 to about 27 KB for size 40).
+The platform includes one smooth font, **sans**: [Atkinson Hyperlegible Next](https://github.com/googlefonts/atkinson-hyperlegible-next),
+designed for legibility, at weight 600 (semibold), in six sizes: `fonts/sans_12.h`, `sans_16`, `sans_20`,
+`sans_24`, `sans_32`, `sans_40`. The number is the size in pixels; the line is about a third taller. Only the
+sizes a firmware includes take room in its image (from about 3 KB for size 12 to about 26 KB for size 40).
+
+It is a variable font, and its file is in the platform (`platform/nds32/fonts/AtkinsonHyperlegibleNext-VariableFont_wght.ttf`),
+so any weight from 200 (extra light) to 800 (extra bold) is one command away, for example a bold title:
+
+```
+python3 tools/make_font.py platform/nds32/fonts/AtkinsonHyperlegibleNext-VariableFont_wght.ttf font_title 24 \
+        firmwares/my-effect/nds32/font_title.h --weight 800 \
+        --notice "Atkinson Hyperlegible Next, SIL Open Font License 1.1 (LICENSE-AtkinsonHyperlegibleNext-OFL.txt)"
+```
 
 ## 3. Your own font
 
@@ -54,10 +63,11 @@ gp5_text_at(4, 4, &font_title, "My effect", 0xFFFFFF, 0x000000);
   pixel, `2` doubles every pixel (crisp, for pixel-art looks).
 - `--chars "0123456789.-+%"` keeps only the characters you list; the others take no room. A big readout font
   then costs a fraction of a full one.
+- `--weight W` picks the weight of a variable font (within the font's own range; the tool says it if not).
 - `--notice` goes into the header: keep the font's copyright and licence there, and put the font's licence file
   next to the header in your firmware's folder. Most free fonts (SIL Open Font License) ask for exactly that.
-  If the licence reserves the font's name (the OFL's "Reserved Font Name"), give your converted copy another
-  name, as the platform does with Varela ("sans").
+  If the licence reserves the font's name (the OFL's "Reserved Font Name", stated after its copyright line),
+  give your converted copy another name.
 - Make as many sizes as you need; each is its own header.
 
 To check how text looks before flashing, the tuner's screen preview (`firmwares/tuner/test/screen.sh`) shows

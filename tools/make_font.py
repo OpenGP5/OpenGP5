@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Turn any font into a header for the platform's text drawing (platform/nds32/gp5_font.h).
 
-  python3 tools/make_font.py FONT.ttf NAME SIZE_PX OUT.h --notice TEXT [--source TEXT] [--chars TEXT]
-  python3 tools/make_font.py FONT.bdf NAME SCALE   OUT.h --notice TEXT [--source TEXT] [--chars TEXT]
+  python3 tools/make_font.py FONT.ttf NAME SIZE_PX OUT.h --notice TEXT [--weight W] [--chars TEXT] [--source TEXT]
+  python3 tools/make_font.py FONT.bdf NAME SCALE   OUT.h --notice TEXT [--chars TEXT] [--source TEXT]
 
 A TrueType / OpenType font is rasterised at SIZE_PX pixels per em, smooth (16 levels of coverage). A BDF
 bitmap font is copied pixel for pixel, each font pixel drawn SCALE x SCALE screen pixels (1 = native size).
+--weight W picks the weight of a variable font (e.g. 400 regular, 700 bold, within the font's own range).
 Characters: printable ASCII (0x20..0x7E), or only those in --chars (the others take no room and draw nothing:
 useful for big digits). Each glyph keeps only its rows with ink; the line height is ascent + descent.
 The header defines `static const gp5_font_t NAME`. Put it in your firmware's nds32/ folder and include it: only
@@ -17,9 +18,19 @@ import sys
 FIRST, LAST = 0x20, 0x7E
 
 
-def ttf_glyphs(path, size):
+def ttf_glyphs(path, size, weight=None):
     from PIL import Image, ImageDraw, ImageFont
     f = ImageFont.truetype(path, size)
+    if weight is not None:
+        try:
+            axes = f.get_variation_axes()
+        except Exception:
+            sys.exit("--weight: %s is not a variable font" % path)
+        w = [a for a in axes if a["name"] in (b"Weight", "Weight")]
+        if not w: sys.exit("--weight: the font has no weight axis")
+        if not w[0]["minimum"] <= weight <= w[0]["maximum"]:
+            sys.exit("--weight: this font goes from %d to %d" % (w[0]["minimum"], w[0]["maximum"]))
+        f.set_variation_by_axes([weight if a is w[0] else a["default"] for a in axes])
     asc, desc = f.getmetrics()
     h = asc + desc
     out = []
@@ -89,7 +100,7 @@ def bdf_glyphs(path, scale):
 def main():
     a = sys.argv[1:]
     opts = {}
-    for k in ("--notice", "--source", "--chars"):
+    for k in ("--notice", "--source", "--chars", "--weight"):
         if k in a:
             i = a.index(k); opts[k] = a[i + 1]; del a[i:i + 2]
     if len(a) != 4 or "--notice" not in opts: sys.exit(__doc__)
@@ -98,8 +109,9 @@ def main():
         h, base, glyphs, fam = bdf_glyphs(path, size)
         how = "copied pixel for pixel" + (" at %dx" % size if size > 1 else "")
     else:
-        h, base, glyphs, fam = ttf_glyphs(path, size)
-        how = "rasterised at %d px per em, 16 coverage levels" % size
+        weight = int(opts["--weight"]) if "--weight" in opts else None
+        h, base, glyphs, fam = ttf_glyphs(path, size, weight)
+        how = "rasterised at %d px per em%s, 16 coverage levels" % (size, ", weight %d" % weight if weight else "")
     keep = opts.get("--chars")
     if keep is not None:                                  # only these characters: the rest take no room
         glyphs = [g if chr(FIRST + i) in keep else (0, 0, 0, []) for i, g in enumerate(glyphs)]

@@ -2,8 +2,9 @@
  *
  * A font is a C header made by tools/make_font.py from any TrueType / OpenType font, or from a BDF pixel font.
  * Use your own: convert it, put the header in your firmware's nds32/ folder and #include it; only the fonts a
- * firmware includes take room in its image. Or use the platform's own, "sans" (derived from Varela, SIL Open
- * Font License: fonts/LICENSE-Varela-OFL.txt) in sizes 12, 16, 20, 24, 32 and 40 px:
+ * firmware includes take room in its image. Or use the platform's own, "sans": Atkinson Hyperlegible Next,
+ * weight 600 (SIL Open Font License: fonts/LICENSE-AtkinsonHyperlegibleNext-OFL.txt), in sizes 12, 16, 20,
+ * 24, 32 and 40 px. Its variable font file is in fonts/ too, for other weights (docs/platform/fonts.md):
  *     #include "fonts/sans_16.h"      ...      gp5_text_at(4, 20, &gp5_font_sans_16, "Hello", 0xFFFFFF, 0x000000);
  * Fonts cover printable ASCII (space .. ~); other characters draw as '?'. Pixels are coverage (0..15), blended
  * into what is behind them. (The built-in 5x7 pixel font of gp5_text() is separate: gp5_firmware.h.) */

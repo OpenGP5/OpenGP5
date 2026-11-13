@@ -8,7 +8,7 @@
  * side draws the note, the cents, and the strobe's three bands (fundamental, 2nd and 4th harmonic): light and
  * dark segments that stand still when the string is in tune and drift right when it is sharp, left when it is
  * flat. One colour throughout, whatever the tuning: the movement is the information.
- * Lettering: the platform's smooth "sans" font (gp5_font.h, derived from Varela) in three sizes. */
+ * Lettering: the platform's smooth "sans" font (gp5_font.h: Atkinson Hyperlegible Next) in three sizes. */
 #include "gp5_firmware.h"
 #include "gp5_font.h"
 #include "fonts/sans_12.h"

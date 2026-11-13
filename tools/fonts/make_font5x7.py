@@ -5,6 +5,8 @@
   python3 tools/fonts/make_font5x7.py
 
 The eight printable ASCII characters that font does not have ($ & @ [ \\ ] ^ |) come from the table below.
+Narrow glyphs (I, i, l, punctuation) are centred in their 5 columns: the font is drawn proportionally by its
+author, the platform's text grid is fixed.
 """
 import re
 from pathlib import Path
@@ -26,7 +28,15 @@ def main():
         c = bytes(c, "latin-1").decode("unicode_escape")
         rows = re.findall(r'"([^"]*)"', body)
         if len(rows) == 7 and c not in glyphs:
-            glyphs[c] = tuple(sum(1 << y for y in range(7) if rows[y][x] == '#') for x in range(5))
+            cols = [sum(1 << y for y in range(7) if rows[y][x] == '#') for x in range(5)]
+            # the font is drawn proportionally by its author (each glyph as wide as its ink, left-aligned);
+            # in the platform's fixed 6-pixel grid a narrow glyph is centred instead, or it leaves a gap
+            used = [x for x in range(5) if cols[x]]
+            if used:
+                width = used[-1] + 1
+                shift = (5 - width) // 2
+                cols = [0] * shift + cols[:5 - shift]
+            glyphs[c] = tuple(cols)
     glyphs.update({k: v for k, v in EXTRA.items() if k not in glyphs})
     glyphs.setdefault(' ', (0, 0, 0, 0, 0))
     rows = []
@@ -51,7 +61,7 @@ def main():
  *   COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
  *   TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *   THE SOFTWARE.
- * $ & @ [ \\ ] ^ | are not in that font and were added here. */
+ * $ & @ [ \\ ] ^ | are not in that font and were added here; narrow glyphs are centred in their 5 columns. */
 #define GP5_FONT5X7_LAST 0x7E
 static const uint8_t font[][5] = {
 %s

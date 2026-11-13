@@ -519,13 +519,16 @@ static void monitor(void)
             r = proto_feed(mbuf + i);
             if (r == PROTO_TO_LOADER) {
                 put_line(4, "TO LOADER", yellow, black);
+                /* The DSP goes quiet first (its firmware's processing paused, plain passthrough): the loader talks
+                 * to the DSP as it starts, and a busy DSP, which reads its serial port only between audio blocks,
+                 * could miss that and leave the loader waiting. Sent twice in case a busy DSP misses the first. */
+                dsp_link_send(0x7F05, 0, 0);
+                delay_ms(5);
+                dsp_link_send(0x7F05, 0, 0);
                 if (gp5_link_running()) {
                     /* After the audio link has run, the factory loader crashes once the host connects (cause not
-                     * found, docs/platform/protocols.md). So: DSP quiet, link off, restart the chip with the
-                     * hand-over mark set; the next start sees it and hands over before anything else runs. */
-                    dsp_link_send(0x7F05, 0, 0);
-                    delay_ms(5);
-                    dsp_link_send(0x7F05, 0, 0);
+                     * found, docs/platform/protocols.md). So: link off, restart the chip with the hand-over mark
+                     * set; the next start sees it and hands over before anything else runs. */
                     delay_ms(100);
                     gp5_link_stop();
                     HANDOVER_MARK[0] = HANDOVER_MAGIC; HANDOVER_MARK[1] = ~HANDOVER_MAGIC;
