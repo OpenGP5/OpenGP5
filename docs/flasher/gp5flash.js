@@ -14,11 +14,11 @@ const STOCK_V106 = { 0x63: [0x3688, 0xC348], 0x67: [0x27A5, 0x55028], 0x66: [0x2
 export const MODE_OPEN = "open firmware", MODE_STOCK = "stock firmware", MODE_LOADER = "update mode";
 export const MODE_SILENT = "firmware that does not answer";
 const OPEN_PORT = "GP-5 Open FW", ANY_PORT = "GP-5";
-export const RECOVERY = "Recovery: unplug the pedal, hold the foot switch and the PARA knob, plug it back in (the screen " +
-  "stays dark = update mode), then flash again. The factory loader is never overwritten.";
+export const RECOVERY = "Recovery: unplug the pedal, hold the foot switch and the PARA knob, plug it back in: the screen shows " +
+  "a red warning, \"When updating Please don't shut down!\" (update mode). Then flash again. The factory loader is never overwritten.";
 
 export const Timing = { reply: 1000, ack: 5000, begin: 30000, beginSettle: 10000, settle: 1500, final: 8000,
-                        reenum: 25000, retries: 6, retryDelay: 50, poll: 150 };
+                        reenum: 45000, retries: 6, retryDelay: 50, poll: 150 };
 
 export class Problem extends Error {}
 
@@ -218,7 +218,8 @@ async function toLoader(ports, say) {
   if (!ack) say("  (no acknowledgement; waiting for the restart anyway)");
   [name, mode] = await waitFor(ports, [MODE_LOADER], Timing.reenum);
   if (mode !== MODE_LOADER)
-    throw new Problem(`The pedal did not go into update mode${mode === MODE_SILENT ? " and does not answer" : ""}.\n${RECOVERY}`);
+    throw new Problem(`The pedal didn't show up in update mode in time${mode === MODE_SILENT ? " and does not answer" : ""}. ` +
+      `If its screen shows the red "When updating Please don't shut down!" warning, it is in update mode: just flash again.\n${RECOVERY}`);
   return name;
 }
 

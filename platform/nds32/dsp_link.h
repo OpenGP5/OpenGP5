@@ -14,6 +14,8 @@ void dsp_link_init(void);
 
 /* Call often from the main loop: handles the frames received since the last call. Never waits. */
 void dsp_link_poll(void);
+void dsp_link_rx_reset(void);              /* clear the receiver's error state (after flash writes) */
+extern volatile uint32_t dsp_rx_resets;
 
 /* Send one command frame without waiting for anything. Returns 0 if nargs is too large. */
 int dsp_link_send(uint16_t cmd, const uint8_t *args, unsigned nargs);

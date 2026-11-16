@@ -61,6 +61,14 @@ void fw_init(void)
     gp5_link_start(on_block);
 }
 void fw_foot(void) { muted ^= 1u; }
+const char *fw_name(void) { return "tuner"; }
+int fw_store_changed(uint32_t id)                            /* the computer changed the reference pitch */
+{
+    uint32_t v = 0;
+    if (id != STORE_ID) return 0;
+    if (gp5_store_load(STORE_ID, &v, sizeof v) == sizeof v && v >= 4300u && v <= 4500u) a4x10 = v;
+    return 1;
+}
 static void ref_changed(void) { save_at = ticks + 200u; show_ref_until = ticks + 200u; }   /* save after 2 s still */
 void fw_para_push(void) { if (a4x10 != 4400u) { a4x10 = 4400u; ref_changed(); } else show_ref_until = ticks + 200u; }
 void fw_para_turn(int detents)

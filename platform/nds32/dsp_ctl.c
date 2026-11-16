@@ -40,7 +40,8 @@ static int send_step(unsigned step, unsigned level)
     static uint8_t buf[0x0C];
     uint8_t rep[8], st;
 
-    dsp_link_raw(buf, dsp_ctl_step_payload(step, level, buf), rep, sizeof rep, 300, &st);
+    /* the DSP acknowledges within a few ms; a long wait here would hold up the inputs if it can't answer */
+    dsp_link_raw(buf, dsp_ctl_step_payload(step, level, buf), rep, sizeof rep, 40, &st);
     if (st == 0x14) return 1;
     dsp_ctl_naks++;
     return 0;

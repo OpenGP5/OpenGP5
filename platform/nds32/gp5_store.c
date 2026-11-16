@@ -3,9 +3,10 @@
  * The two 4 KB sectors of the flash store (hal/flash.h) hold a log of records, appended one after the other:
  *   [magic u32 'GP5S'][sequence u32][firmware id u32][length u16][CRC-16 u16][data, padded to 4 bytes]
  * Loading takes the record with the highest sequence number for the firmware's id whose CRC is right. Saving
- * appends to the sector of the newest record; when it is full, the other sector is erased and the record goes
- * at its start. A power cut while saving leaves the previous record valid (its sector is never erased while it
- * is the newest), and a sector is erased only every few dozen saves. */
+ * appends to the sector of the newest record; when it is full, the other sector is erased, the newest record of
+ * every OTHER firmware id is copied to its start (so one firmware's saves never wipe another's settings), and the
+ * new record follows. A power cut while appending leaves the previous record valid; one during the switch can
+ * lose only records that lived in the sector being erased. A sector is erased only every few dozen saves. */
 #include <stdint.h>
 #include "gp5_firmware.h"
 #include "hal/flash.h"
@@ -19,6 +20,8 @@
 #endif
 
 static uint32_t buf[(HDR + GP5_STORE_MAX) / 4];     /* the record being written: programming reads RAM words */
+static uint32_t keep[GP5_FLASH_SECTOR / 4];          /* other firmwares' newest records, copied across a sector switch */
+#define KEEP_IDS 16
 
 static uint16_t crc16_at(unsigned off, const uint8_t *ram, unsigned n)   /* of the store at off, or of ram */
 {
@@ -77,28 +80,74 @@ unsigned gp5_store_load(uint32_t id, void *dst, unsigned max)
     return r.len;
 }
 
-int gp5_store_save(uint32_t id, const void *src, unsigned len)
+/* program one record (id, data) at store offset a with sequence seq; 0 = done and read back */
+static int put(uint32_t a, uint32_t seq, uint32_t id, const uint8_t *src, unsigned len)
 {
-    rec_t newest = { 0, 0, 0, 0 };
-    uint32_t top = 0xFFFFFFFFu, a;
-    unsigned end[2], s, i, size = rec_size(len);
-    if (len > GP5_STORE_MAX) return -1;
-    scan(0, 0, 1, &newest, &top, &end[0]);
-    scan(1, 0, 1, &newest, &top, &end[1]);
-    /* after the newest record, if it fits there on erased flash; else the other sector, erased first unless it
-     * is entirely erased already (a power cut during an erase can leave old bytes behind a blank start) */
-    s = newest.found ? (newest.addr >= SECT(1)) : 0;
-    if (!newest.found || end[s] + size > GP5_FLASH_SECTOR || !erased(SECT(s) + end[s], size)) {
-        s = newest.found ? !s : 0;
-        if (!erased(SECT(s), GP5_FLASH_SECTOR) && gp5_flash_erase(GP5_FLASH_STORE + SECT(s))) return -1;
-        end[s] = 0;
-    }
-    a = SECT(s) + end[s];
+    unsigned i, size = rec_size(len);
     if (!erased(a, size)) return -1;
-    buf[0] = MAGIC; buf[1] = newest.found ? top + 1u : 1u; buf[2] = id;
-    for (i = 0; i < size - HDR; i++) ((uint8_t *)buf)[HDR + i] = i < len ? ((const uint8_t *)src)[i] : 0xFFu;
+    buf[0] = MAGIC; buf[1] = seq; buf[2] = id;
+    for (i = 0; i < size - HDR; i++) ((uint8_t *)buf)[HDR + i] = i < len ? src[i] : 0xFFu;
     buf[3] = len | ((uint32_t)crc16_at(0, (const uint8_t *)buf + HDR, len) << 16);
     if (gp5_flash_program(GP5_FLASH_STORE + a, buf, size)) return -1;
     for (i = 0; i < size / 4; i++) if (STORE_WORD(a + 4 * i) != buf[i]) return -1;   /* read back */
     return 0;
+}
+
+int gp5_store_save(uint32_t id, const void *src, unsigned len)
+{
+    rec_t newest = { 0, 0, 0, 0 };
+    uint32_t top = 0xFFFFFFFFu, seq;
+    unsigned end[2], s, size = rec_size(len);
+    if (len > GP5_STORE_MAX) return -1;
+    scan(0, 0, 1, &newest, &top, &end[0]);
+    scan(1, 0, 1, &newest, &top, &end[1]);
+    seq = newest.found ? top + 1u : 1u;
+    s = newest.found ? (newest.addr >= SECT(1)) : 0;
+    if (newest.found && end[s] + size <= GP5_FLASH_SECTOR && erased(SECT(s) + end[s], size))
+        return put(SECT(s) + end[s], seq, id, (const uint8_t *)src, len);
+    /* Switch sectors: keep the newest record of every other id (in RAM: one of them may live in the sector about
+     * to be erased), erase the other sector unless it is blank, write them back, then the new record. Records are
+     * kept oldest id first; any that would not leave room for the new record are dropped. */
+    {
+        uint32_t ids[KEEP_IDS], at[KEEP_IDS], sq[KEEP_IDS], k, n = 0, used = 0, a;
+        unsigned ln[KEEP_IDS], t, off, i;
+        for (t = 0; t < 2; t++)                          /* every valid record: the newest per id (not ours) */
+            for (off = 0; off + HDR <= GP5_FLASH_SECTOR; ) {
+                uint32_t r = SECT(t) + off, m = STORE_WORD(r), rid, rseq;
+                unsigned rl;
+                if (m == 0xFFFFFFFFu) break;
+                rl = STORE_WORD(r + 12) & 0xFFFFu;
+                if (m != MAGIC || rl > GP5_STORE_MAX || off + rec_size(rl) > GP5_FLASH_SECTOR) break;
+                rid = STORE_WORD(r + 8); rseq = STORE_WORD(r + 4);
+                if (rid != id && crc16_at(r + HDR, 0, rl) == (STORE_WORD(r + 12) >> 16)) {
+                    for (k = 0; k < n && ids[k] != rid; k++) {}
+                    if (k == n && n < KEEP_IDS) { ids[n] = rid; sq[n] = rseq; at[n] = r; ln[n] = rl; n++; }
+                    else if (k < n && rseq > sq[k]) { sq[k] = rseq; at[k] = r; ln[k] = rl; }
+                }
+                off += rec_size(rl);
+            }
+        for (k = 1; k < n; k++)                          /* oldest first, so the newest survive if space runs out */
+            for (i = k; i > 0 && sq[i - 1] > sq[i]; i--) {
+                uint32_t t1 = ids[i]; ids[i] = ids[i - 1]; ids[i - 1] = t1;
+                t1 = sq[i]; sq[i] = sq[i - 1]; sq[i - 1] = t1; t1 = at[i]; at[i] = at[i - 1]; at[i - 1] = t1;
+                t1 = ln[i]; ln[i] = ln[i - 1]; ln[i - 1] = (unsigned)t1;
+            }
+        for (k = 0; k < n; k++) used += rec_size(ln[k]);
+        while (n && used + size > GP5_FLASH_SECTOR) {    /* no room for all: drop the oldest */
+            used -= rec_size(ln[0]);
+            for (k = 0; k + 1 < n; k++) { ids[k] = ids[k + 1]; sq[k] = sq[k + 1]; at[k] = at[k + 1]; ln[k] = ln[k + 1]; }
+            n--;
+        }
+        for (k = 0, a = 0; k < n; k++) {                 /* their data into RAM, one after the other (4-byte steps) */
+            for (i = 0; i < ln[k]; i++) ((uint8_t *)keep)[a + i] = STORE_BYTE(at[k] + HDR + i);
+            at[k] = a; a += (ln[k] + 3u) & ~3u;
+        }
+        s = newest.found ? !s : 0;
+        if (!erased(SECT(s), GP5_FLASH_SECTOR) && gp5_flash_erase(GP5_FLASH_STORE + SECT(s))) return -1;
+        for (k = 0, a = SECT(s); k < n; k++) {
+            if (put(a, seq++, ids[k], (const uint8_t *)keep + at[k], ln[k])) return -1;
+            a += rec_size(ln[k]);
+        }
+        return put(a, seq, id, (const uint8_t *)src, len);
+    }
 }

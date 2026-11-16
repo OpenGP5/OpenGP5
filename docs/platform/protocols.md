@@ -33,8 +33,13 @@ frame again.
 | `7E 05 <addr u32> <count>` | `7E 05 <ok> <bytes…>` | read up to 64 bytes of the control processor's flash (below 2 MB, memory-mapped; reads only) |
 | `7E 06` | `7E 06 1 <JEDEC id u32> <status u32>` | the flash chip's id and status register 1 |
 | `7E 09 <addr u32> <count>` | `7E 09 <ok> <bytes…>` | the same as `7E 05`, read with the flash controller's read command (a driver check) |
-| `7E 07 <addr u32>` | `7E 07 <ok>` | erase a 4 KB sector of the platform's store (any other address is refused) |
-| `7E 08 <addr u32> <bytes…>` | `7E 08 <ok>` | program up to 56 bytes (a multiple of 4) in the platform's store |
+| `7E 07 <addr u32>` | `7E 07 <ok>` | erase a 4 KB sector of the platform's store or data area (any other address is refused) |
+| `7E 08 <addr u32> <bytes…>` | `7E 08 <ok>` | program up to 56 bytes (a multiple of 4) in the platform's store or data area |
+| `7E 0D` | `7E 0D 1 <major> <minor> <patch> <name…> 0` | which firmware this is (platform 0.2.2 and later): the platform's version and the firmware's `fw_name()` |
+| `7E 0E <firmware id u32>` | `7E 0E <reloaded>` | the computer rewrote a store record (0.2.2+): the firmware's `fw_store_changed(id)` loads it again (1) or can't (0: restart the pedal) |
+| `7E 10 <id u16> <value u32>` | `7E 10 <taken>` | a setting of the running firmware, live (0.5.4): `fw_param_set`; 0 from firmwares without it. Launchpad's live editor |
+| `7E 11 <first u16> <count>` | `7E 11 <n> <values u16 × n>` | read settings (0.5.4): `fw_param_get` from `first`, at most 40; `n` stops at the first id the firmware doesn't know |
+| `7E 0F` | `7E 0F 1 <knob> <foot> <para>` | the controls (0.5.2+): volume knob 0..255 (as filtered for `fw_knob`), foot switch and PARA push pressed now (0/1, not debounced). Launchpad turns its drawn knob with it |
 
 `tools/gp5_link.py` wraps `7E 00`, `7E 01`, `7E 03` / `7E 04` and `7E 05` (`flash-read`).
 

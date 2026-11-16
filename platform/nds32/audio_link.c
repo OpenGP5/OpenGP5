@@ -80,7 +80,11 @@ void gp5_link_start(void (*fn)(const int32_t *in, int32_t *out))
     LINES(tx[0], NDS32_CCTL_L1D_VA_WB); LINES(tx[1], NDS32_CCTL_L1D_VA_WB);
     cur = 0; started = 1;
     gp5_spis_init();
-    gp5_irq_priority(GP5_IRQ_SPIS_DMA, 0);
+    /* Lowest priority: a heavy on_block() can take most of a block, and the 1 ms tick (0) and the DSP link's
+     * receive (2, a 4-byte FIFO that overruns after ~80 us) must be able to interrupt it. The handler re-arms
+     * the next exchange first, so a short pause costs nothing (NAM, 2026-11-14: at 83 % the DSP's replies
+     * were lost, so the output level never reached it and the outputs stayed muted). */
+    gp5_irq_priority(GP5_IRQ_SPIS_DMA, 3);
     gp5_spis_start(tx[0], rx[0], BYTES);
     gp5_irq_enable(GP5_IRQ_SPIS_DMA);
 }

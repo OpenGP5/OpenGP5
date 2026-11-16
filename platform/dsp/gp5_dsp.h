@@ -42,8 +42,14 @@ static uint32_t gp5_get32(const uint8_t *p);
 /* Audio link to the control processor: put  #define GP5_AUDIO_LINK  in firmware.h. After every block the
  * platform exchanges GP5_LINK_WORDS 32-bit words each way with it (gp5_link_start() in gp5_firmware.h there).
  * In fw_process(), gp5_link_in() holds the words received in the last exchange and gp5_link_out() takes the
- * words for the next one. Words sent from here come back processed three blocks later at the earliest. */
+ * words for the next one. Words sent from here come back processed three blocks later at the earliest.
+ * An exchange takes about 38 % of a block; a firmware whose fw_process() runs long should also
+ * #define GP5_LINK_EARLY (the exchange then starts at the start of each block; see platform/dsp/audio.h).
+ * A firmware that needs more words per exchange puts e.g.  #define GP5_LINK_WORDS 264u  in firmware.h: both
+ * sides are built with it (the exchange then takes longer: about 38 % of a block per 128 words). */
+#ifndef GP5_LINK_WORDS
 #define GP5_LINK_WORDS 128u
+#endif
 #ifdef AUDIO_SPI1                                     /* set by build.py when firmware.h defines GP5_AUDIO_LINK */
 static const int32_t *gp5_link_in(void);
 static int32_t *gp5_link_out(void);

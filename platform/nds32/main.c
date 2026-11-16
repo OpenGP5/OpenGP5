@@ -417,7 +417,7 @@ static void host_dsp_cmd(void)
         n = 3;
         if (pl[2]) for (i = 0; i < proto_req[6]; i++) pl[n++] = ((uint8_t *)r)[i];
     } else if ((proto_req[1] == 0x07 && proto_req_len == 6) || (proto_req[1] == 0x08 && proto_req_len >= 10)) {
-        /* storage area only (hal/flash.h): 7E 07 <addr u32> erase a 4 KB sector; 7E 08 <addr u32> <bytes, a
+        /* store and data areas only (hal/flash.h): 7E 07 <addr u32> erase a 4 KB sector; 7E 08 <addr u32> <bytes, a
          * multiple of 4> program -> 7E 07|08 <ok> */
         static uint32_t w[16];
         uint32_t a = proto_req[2] | (proto_req[3] << 8) | ((uint32_t)proto_req[4] << 16) | ((uint32_t)proto_req[5] << 24);
@@ -428,13 +428,47 @@ static void host_dsp_cmd(void)
             for (i = 0; i < cnt; i++) ((uint8_t *)w)[i] = proto_req[6 + i];
             pl[2] = gp5_flash_program(a, w, cnt) == 0;
         }
+        dsp_link_rx_reset();                         /* interrupts were off: the DSP link's receiver may be stuck */
         n = 3;
+    } else if (proto_req[1] == 0x0D && proto_req_len == 2) {
+        /* who is this: 7E 0D -> 7E 0D 1 <platform major minor patch> <firmware name, ASCII, zero-terminated> */
+        const char *nm = fw_name();
+        pl[2] = 1; pl[3] = GP5_VERSION_MAJOR; pl[4] = GP5_VERSION_MINOR; pl[5] = GP5_VERSION_PATCH; n = 6;
+        for (i = 0; nm[i] && i < 32; i++) pl[n++] = (uint8_t)nm[i];
+        pl[n++] = 0;
+    } else if (proto_req[1] == 0x0F && proto_req_len == 2) {
+        /* the controls (platform 0.5.2): 7E 0F -> 7E 0F 1 <volume knob 0..255> <foot switch 0/1> <PARA pushed 0/1>
+         * (the knob as filtered for fw_knob; the switches as read now, not debounced) */
+        uint32_t a = gp5_reg_get(GP5_GPIO_A_IN), b = gp5_reg_get(GP5_GPIO_B_IN);
+        pl[2] = 1; pl[3] = (uint8_t)knob_value(); pl[4] = !(a & FOOT_PIN); pl[5] = !(b & PARA_PIN); n = 6;
+    } else if (proto_req[1] == 0x10 && proto_req_len == 8) {
+        /* a setting of the running firmware, live (platform 0.5.4): 7E 10 <id u16> <value u32> -> 7E 10 <1 if taken>
+         * (fw_param_set; firmwares without it answer 0) */
+        uint32_t id = proto_req[2] | (proto_req[3] << 8);
+        uint32_t v = proto_req[4] | (proto_req[5] << 8) | ((uint32_t)proto_req[6] << 16) | ((uint32_t)proto_req[7] << 24);
+        pl[2] = (uint8_t)(fw_param_set(id, v) != 0); n = 3;
+    } else if (proto_req[1] == 0x11 && proto_req_len == 5) {
+        /* read settings (0.5.4): 7E 11 <first id u16> <count, at most 40> -> 7E 11 <n> <n values, u16 each>; n stops
+         * at the first id the firmware doesn't know (fw_param_get) */
+        uint32_t first = proto_req[2] | (proto_req[3] << 8), v;
+        unsigned cnt = proto_req[4] > 40u ? 40u : proto_req[4];
+        pl[2] = 0; n = 3;
+        for (i = 0; i < cnt && fw_param_get(first + i, &v); i++) { pl[n++] = (uint8_t)v; pl[n++] = (uint8_t)(v >> 8); pl[2]++; }
+    } else if (proto_req[1] == 0x0E && proto_req_len == 6) {
+        /* the computer changed a store record: 7E 0E <firmware id u32> -> 7E 0E <1 if the firmware reloaded it> */
+        uint32_t id = proto_req[2] | (proto_req[3] << 8) | ((uint32_t)proto_req[4] << 16) | ((uint32_t)proto_req[5] << 24);
+        pl[2] = (uint8_t)(fw_store_changed(id) != 0); n = 3;
     } else return;
     proto_reply(0x01, 0, pl, n);
 }
 
 /* gp5_firmware.h: optional for firmwares */
 __attribute__((weak)) void fw_para_release(void) {}
+__attribute__((weak)) const char *fw_name(void) { return "opengp5"; }
+void gp5_storage_claim(void);
+__attribute__((weak)) int fw_store_changed(uint32_t id) { (void)id; return 0; }
+__attribute__((weak)) int fw_param_get(uint32_t id, uint32_t *value) { (void)id; (void)value; return 0; }
+__attribute__((weak)) int fw_param_set(uint32_t id, uint32_t value) { (void)id; (void)value; return 0; }
 __attribute__((weak)) void fw_foot_release(void) {}
 
 /* PARA encoder: quadrature on B2/B3, sampled wherever the code can spend time (main loop, screen rows) */
@@ -500,6 +534,7 @@ static void monitor(void)
     t_start = gp5_ms();
     enc = 0;
     enc_lab = (gp5_reg_get(GP5_GPIO_B_IN) >> 2) & 3;
+    gp5_storage_claim();                             /* gp5_files.c: storage belongs to this firmware (0.5) */
     fw_init();
     n = fw_setting_count();
     fx_all = n >= 32 ? 0xFFFFFFFFu : (1u << n) - 1u;
@@ -590,7 +625,7 @@ static void monitor(void)
 
         if (!gfx && !status && (int32_t)(gp5_ms() - t_start) >= STATUS_AFTER_MS) {
             clear_screen();
-            put_line(0, "OPENGP5 0.2.1", yellow, black);
+            put_line(0, "OPENGP5 " GP5_VERSION_TEXT, yellow, black);
             status = 1; dsp_show = 1; lusb = ~0u;
         }
         if (dsp_show && !gfx && status) {

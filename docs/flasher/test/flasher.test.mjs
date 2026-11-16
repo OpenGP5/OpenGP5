@@ -117,7 +117,7 @@ test("flash: no pedal, and a pedal that does not answer", async () => {
   const p = new FakePedal(); p.present = false;
   await assert.rejects(F.flash(p, SMALL, say), /No GP-5 found/);
   const m = new FakePedal(F.MODE_STOCK, { mute: true });
-  await assert.rejects(F.flash(m, SMALL, say), /did not go into update mode/);
+  await assert.rejects(F.flash(m, SMALL, say), /didn't show up in update mode/);
 });
 
 test("flash: staying in update mode afterwards, and a silent app afterwards, are reported as such", async () => {

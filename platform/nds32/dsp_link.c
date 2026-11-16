@@ -192,11 +192,30 @@ static void parse(void)
 }
 
 /* Main loop: take what the interrupt handler received and handle complete frames. Never waits. */
+/* The receiver can stop after an overrun without raising an interrupt (seen after the computer wrote flash: each
+ * erase runs with interrupts off, the 4-byte FIFO overflows, and the error state that follows needs RX_ERR_CLR,
+ * which the handler only writes when an interrupt comes). The DSP reports every 43 ms, so a silence longer than
+ * RX_QUIET_MS means the receiver is stuck: clear its error and interrupt flags. Also done after every flash write
+ * the computer sends (dsp_link_rx_reset, main.c). */
+#define RX_QUIET_MS 150u
+static uint32_t rx_seen, rx_resets;
+volatile uint32_t dsp_rx_resets;
+
+void dsp_link_rx_reset(void)
+{
+    gp5_uart0_rx_err_clear();
+    gp5_uart0_rx_int_clear();
+    dsp_rx_resets = ++rx_resets;
+}
+
 void dsp_link_poll(void)
 {
     uint32_t now = gp5_ms();
     uint16_t w;
     int got = 0;
+
+    if (ring_w != ring_r) rx_seen = now;
+    else if ((uint32_t)(now - rx_seen) > RX_QUIET_MS) { dsp_link_rx_reset(); rx_seen = now; }
 
     if (dsp_irq_off) drain();           /* only after the safety net in UART0_Interrupt tripped */
     w = ring_w;

@@ -66,7 +66,10 @@ void led_start(void)
     }
     gp5_timer_int_clear(2);
     __nds32__mtsr(1u << GP5_IRQ_TIMER2, NDS32_SR_INT_PEND2);
-    NVIC_SetPriority(GP5_IRQ_TIMER2, 3);       /* below working tick (0) and UART RX (2) */
+    /* Above the audio link (3): a firmware's on_block() can run for most of each block (NAM: ~1 ms of 1.45 ms),
+     * and while it ran at the same priority the brightness pulses froze (dim colours flickered, 2026-11-15).
+     * Level with UART RX (2) and below the tick (0); the handler takes a few microseconds. */
+    NVIC_SetPriority(GP5_IRQ_TIMER2, 2);
     gp5_led_status = 1;
     gp5_timer_start(2);
     NVIC_EnableIRQ(GP5_IRQ_TIMER2);

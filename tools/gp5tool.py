@@ -46,8 +46,9 @@ MODE_OPEN, MODE_STOCK, MODE_LOADER = "open firmware", "stock firmware", "update 
 # firmware it does not know: its screen stays dark, but it still obeys the restart-into-update command.
 MODE_SILENT = "firmware that does not answer"
 OPEN_PORT, ANY_PORT = "GP-5 Open FW", "GP-5"
-RECOVERY = ("Recovery: unplug the pedal, hold the foot switch and the PARA knob, plug it back in (the screen stays\n"
-            "dark = update mode), then run the flash again. The factory loader is never overwritten.")
+RECOVERY = ("Recovery: unplug the pedal, hold the foot switch and the PARA knob, plug it back in: the screen shows a\n"
+            "red warning, \"When updating Please don't shut down!\" (update mode). Then run the flash again. The factory\n"
+            "loader is never overwritten.")
 
 
 class Problem(Exception):
@@ -187,7 +188,7 @@ class Timing:
     begin_settle = 10.0
     settle = 1.5
     final = 8.0          # END_IMAGE status
-    reenum = 25.0        # the pedal re-appearing on USB
+    reenum = 45.0        # the pedal re-appearing on USB (a firmware with the audio link restarts first: slower)
     retries = 6
     retry_delay = 0.05
     poll = 0.15

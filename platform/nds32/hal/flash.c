@@ -116,9 +116,11 @@ static int __attribute__((section(".ramfunc"), noinline)) flash_op(unsigned op, 
 /* Called through a pointer: a direct call from flash could not reach RAM. */
 static int (*volatile flash_op_ptr)(unsigned, uint32_t, const uint32_t *, unsigned, uint32_t *) = flash_op;
 
+#define WRITABLE      GP5_FLASH_AREA                  /* files A, store, files B: 0x13F000 .. 0x16FFFF */
+#define WRITABLE_SIZE GP5_FLASH_AREA_SIZE
 static int in_store(uint32_t addr, unsigned len)
 {
-    return addr >= GP5_FLASH_STORE && len <= GP5_FLASH_STORE_SIZE && addr - GP5_FLASH_STORE <= GP5_FLASH_STORE_SIZE - len;
+    return addr >= WRITABLE && len <= WRITABLE_SIZE && addr - WRITABLE <= WRITABLE_SIZE - len;
 }
 
 static void forget_cached(uint32_t addr, unsigned len)       /* the data cache may still hold the old bytes */
