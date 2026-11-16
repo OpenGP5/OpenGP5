@@ -4,16 +4,21 @@
 
 No compilers needed. Read the [Safety](README.md#safety) warning first.
 
-**In your browser (easiest):** open the [web flasher](https://opengp5.github.io/OpenGP5/flasher/) in Chrome, Edge or Opera on a computer
+**With the desktop app:** [OpenGP5 Launchpad](https://github.com/OpenGP5/Launchpad) (macOS, Windows, Linux) flashes
+the firmwares below, backs up and restores what's on the pedal, and manages presets and tones. It isn't signed: on
+macOS right-click it and choose Open the first time; on Windows choose More info > Run anyway.
+
+**In your browser:** open the [web flasher](https://opengp5.github.io/OpenGP5/flasher/) in Chrome, Edge or Opera on a computer
 (Safari can't talk to MIDI devices; Firefox asks for a permission first). Plug the pedal in, click
 Connect, allow MIDI access, pick a firmware built with OpenGP5 (the strobe tuner demo, or Dreamcatcher), or upload a `.bin` file
 (one you built, or Valeton's firmware), tick the box and click Flash.
 
 **From the command line:**
 
-1. From the [Releases](https://github.com/OpenGP5/OpenGP5/releases) page, download a firmware image
-   (`GP-5_tuner.bin`) and the release's
-   **Source code (zip)**, which contains the flasher. Unzip the source.
+1. Get a firmware image: build one (below), take one from a firmware's own releases (for example
+   [Dreamcatcher](https://github.com/OpenGP5/Dreamcatcher/releases)), or from the web flasher's files
+   (`docs/flasher/firmware/` in this repository). Download this repository (**Code > Download ZIP**, or a release's
+   **Source code (zip)**), which contains the flasher, and unzip it.
 2. Install Python 3.9 or newer, then: `pip install mido python-rtmidi`
 3. Plug the pedal in and, from the unzipped folder:
 
@@ -109,4 +114,4 @@ python3 tools/gp5tool.py flash <Valeton GP-5 firmware .bin> --sections all
   stereo out, 44.1 kHz.
 - To report: your pedal's hardware version if you know it, whether `--sections all` completed, and
   the output of `python3 tools/gp5tool.py status` and `python3 tools/gp5_link.py stats`.
-- One screen font, no drawing helpers beyond text and raw pixels yet.
+- No drawing helpers beyond text (the built-in font, smooth fonts) and raw pixels yet.

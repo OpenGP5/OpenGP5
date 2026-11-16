@@ -13,6 +13,7 @@
 <p align="center">
   <a href="https://opengp5.github.io/OpenGP5/flasher/"><b>Flash from your browser</b></a> ·
   <a href="GETTING-STARTED.md"><b>Getting started</b></a> ·
+  <a href="https://github.com/OpenGP5/Launchpad"><b>Launchpad (desktop app)</b></a> ·
   <a href="docs/platform/first-effect.md"><b>Your first effect</b></a> ·
   <a href="docs/platform/protocols.md">Protocols</a> ·
   <a href="docs/platform/hardware.md">Hardware</a>
@@ -69,9 +70,10 @@ Requirements per system, recovery and going back to Valeton's firmware: **[GETTI
 
 | | |
 |---|---|
-| **Platform** (`platform/`) | Runs on both chips. Control processor: start-up, drivers, USB-MIDI, colour screen, foot switch, knobs, LEDs, the link to the DSP. DSP: start-up, audio in / out, floating-point maths, the link back. |
+| **Platform** (`platform/`) | Runs on both chips. Control processor: start-up, drivers, USB-MIDI, colour screen, foot switch, knobs, LEDs, storage (settings and files), the link to the DSP. DSP: start-up, audio in / out, floating-point maths, the link back. A computer can read the controls and change your settings live over USB. |
 | **Firmwares** (`firmwares/`) | `passthrough`, the template to copy (start here) · `tuner`, a strobe tuner demo (guitar and 5-string bass) that uses every part of the platform, the audio link between the processors included. |
-| **Built on OpenGP5** | [Dreamcatcher](https://github.com/OpenGP5/Dreamcatcher), an ambient texture firmware in its own repository: micro-looper, chance-driven glitch delay, presets, purple screen. |
+| **Built on OpenGP5** | [Dreamcatcher](https://github.com/OpenGP5/Dreamcatcher): ambient looper, glitch delay with grains, reverb, presets. [NAM-Loader](https://github.com/OpenGP5/NAM-Loader): plays NAM A2 captures, 12 slots. Each in its own repository. |
+| **Desktop app** | [OpenGP5 Launchpad](https://github.com/OpenGP5/Launchpad): flash, back up and restore, manage presets and tones, with Valeton's firmware or any OpenGP5 one. |
 | **Flasher** (`tools/gp5tool.py`) | Flashes your build or Valeton's own firmware over USB-MIDI, on macOS, Linux and Windows. |
 | **Off-pedal tools** | `run_effect.py` runs your audio code on a WAV file; `dsp_emu_check.py` boots the built DSP firmware in an emulator; `make_font.py` turns any TrueType or BDF font into smooth screen text for your firmware ([fonts](docs/platform/fonts.md)). |
 
@@ -88,7 +90,7 @@ flowchart LR
         ctl["Control processor (BP1048)<br/>your fw_draw, fw_knob, fw_foot<br/>platform: drivers, USB-MIDI, screen"]
         dsp["DSP (Cortex-M4F)<br/>your fw_process, fw_command<br/>platform: audio I/O, maths"]
         ctl -- "settings (link command 0x7F10)" --> dsp
-        dsp <-- "audio link: 128 words each way per block" --> ctl
+        dsp <-- "audio link: words each way per block" --> ctl
     end
     guitar(["Guitar in"]) --> dsp
     dsp --> out(["Out L / R"])
@@ -104,6 +106,7 @@ Walkthrough: **[Your first effect](docs/platform/first-effect.md)**.
 | [GETTING-STARTED.md](GETTING-STARTED.md) | set up, build, flash, recover |
 | [docs/platform/first-effect.md](docs/platform/first-effect.md) | your first effect, step by step |
 | [docs/platform/fonts.md](docs/platform/fonts.md) | text on the screen: the built-in font, smooth fonts, your own |
+| [docs/platform/storage.md](docs/platform/storage.md) | keeping settings and files on the pedal |
 | [platform/README.md](platform/README.md) | how a firmware plugs into the platform |
 | [docs/platform/protocols.md](docs/platform/protocols.md) | USB-MIDI, the firmware update, the image format, the link between the processors |
 | [docs/platform/hardware.md](docs/platform/hardware.md) | memory, pins and clocks of both processors |

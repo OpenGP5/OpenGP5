@@ -13,6 +13,7 @@ unsigned fw_level(void) { return level; }
 void fw_dsp_ready(void) {}
 int fw_take(uint32_t *id, uint32_t *value) { (void)id; (void)value; return 0; }   /* no settings */
 unsigned fw_setting_count(void) { return 0; }
+const char *fw_name(void) { return "passthrough"; }   /* rename it for your firmware: the storage is kept for this name */
 unsigned fw_active(void) { return 1; }
 
 int fw_draw(unsigned knob, int force)

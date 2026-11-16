@@ -44,12 +44,18 @@ our two sections (`dsp`, `app`); Valeton's other sections on the pedal are not t
 
 What a firmware can use besides settings and the screen (all in `nds32/gp5_firmware.h`):
 
-- **Storage that survives power-off and firmware updates:** `gp5_store_save(id, data, len)` /
-  `gp5_store_load(id, buf, max)`, up to 1 KB per firmware, tagged with the firmware's own id. It lives in an
-  8 KB area of the control processor's flash that no update writes (`0x160000`, `docs/platform/hardware.md`);
-  records carry a CRC and alternate between two sectors, so a power cut while saving keeps the previous save
-  (`nds32/gp5_store.c`, tested in `nds32/test/store_test.c`). The flash driver (`nds32/hal/flash.c`) refuses
-  every address outside that area.
+- **Storage** (`docs/platform/storage.md`): a 300 KB area of the control processor's flash that belongs to the
+  installed firmware. Updating your firmware keeps it; installing a different one starts empty. Give your
+  firmware a name with `fw_name()`: that's how the platform (and the computer) knows it's yours.
+  - **Settings:** `gp5_store_save(id, data, len)` / `gp5_store_load(id, buf, max)`, up to 1 KB per record.
+    Records carry a CRC and alternate between two sectors, so a power cut while saving keeps the previous
+    save (`nds32/gp5_store.c`, tested in `nds32/test/store_test.c`).
+  - **Files:** bigger things (captures, samples, IRs) the computer writes; read them straight from flash with
+    `gp5_file`, `gp5_file_check`, `gp5_file_each`.
+  - The flash driver (`nds32/hal/flash.c`) refuses every address outside the area.
+- **Live settings from a computer:** optional `fw_param_set(id, value)` / `fw_param_get(id, &value)` let a
+  computer change and read your settings while the pedal plays (USB `7E 10` / `7E 11`,
+  `docs/platform/protocols.md`). The controls themselves can be read over USB too (`7E 0F`).
 - **LED colour:** `fw_active` returns 0 (dim red), 1 (mint) or `GP5_LED(r, g, b)`.
 - **Switch releases:** optional `fw_para_release` / `fw_foot_release` (the platform has empty defaults), for
   taps versus holds. The edges are not debounced; time them with `fw_knob`'s 10 ms.
@@ -57,11 +63,17 @@ What a firmware can use besides settings and the screen (all in `nds32/gp5_firmw
   `gp5_draw_text` (`nds32/gp5_font.h`) write smooth text in the platform's "sans" font or any font you convert
   with `tools/make_font.py`. See `docs/platform/fonts.md`.
 
-On the DSP, code runs from flash: a large per-sample loop can be several times slower than the same code in
-RAM. Put hot code in a `.data` section to run it from RAM (Dreamcatcher's `DC_HOT` macros, `dsp/dream.h`).
+**Speed.** The DSP runs code straight from flash; a large per-sample loop can be several times slower than
+the same code in RAM, so put hot code in a `.data` section (Dreamcatcher's `DC_HOT` macros, `dsp/dream.h`).
+Even from RAM it averages about 4-5 cycles per instruction (measured: 32 cycles for a trivial loop step; its
+small and large RAM are equally fast), so budget per-sample work carefully. The control processor (288 MHz,
+with its own float unit) ran the same float code about 1.7 times faster: heavy firmwares can run their sound
+there over the audio link (`gp5_link_start`; `#define GP5_LINK_WORDS` sets the words per block) and use
+`gp5_math.h` on both processors.
 
-A complete example in its own repository: [Dreamcatcher](https://github.com/OpenGP5/Dreamcatcher) (presets,
-anti-aliased text, its own LED colour, OpenGP5 as a submodule).
+A complete example in its own repository: [Dreamcatcher](https://github.com/OpenGP5/Dreamcatcher) (its sound
+on the control processor and a reverb on the DSP, presets, live settings, smooth text, its own LED colour,
+OpenGP5 as a submodule).
 
 The control-processor build uses only our own code: start-up,
 drivers (`nds32/hal/`) and USB, nothing compiled, included or linked from the vendor SDK. The image

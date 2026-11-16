@@ -14,6 +14,18 @@ fundamental, the 2nd and the 4th harmonic as light and dark segments: they stand
 tune, drift right when it is sharp and left when it is flat, faster the further off it is. Notes from a
 5-string bass's low B (31 Hz) up to about 1 kHz.
 
+## From a computer
+
+With platform 0.5.4 a computer can read and set the tuner while it runs (USB `7E 11` reads, `7E 10` sets;
+[protocols](../../docs/platform/protocols.md)), so it can show what the pedal shows:
+
+| id | | |
+|---|---|---|
+| 0 | reference pitch A4 × 10 (4300–4500) | read / set (saved, as from PARA) |
+| 1 | mute (0 / 1) | read / set |
+| 2 | the note shown, as a MIDI number (69 = A4), 0 = none | read |
+| 3 | cents × 10, a signed 16-bit number | read |
+
 ## How it works
 
 - **DSP** (`dsp/tuner.h`): YIN pitch detection on the signal low-passed and decimated to 5.5 kHz picks the note.

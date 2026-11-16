@@ -4,6 +4,12 @@
  *   PARA turn     reference pitch A4, 430..450 Hz (saved); PARA push: back to 440 Hz
  *   volume knob   output level
  *
+ * From a computer (platform 0.5.4, USB 7E 10 sets / 7E 11 reads; fw_param_set / fw_param_get below):
+ *   id 0  reference pitch A4 x 10 (4300..4500)   read / write (saved, as from PARA)
+ *   id 1  mute (0 / 1)                            read / write
+ *   id 2  the note shown: MIDI number, 0 = none   read
+ *   id 3  cents x 10, as a signed 16-bit number   read
+ *
  * The DSP finds the note and runs the strobe (dsp/tuner.h) and sends both over the audio link every block; this
  * side draws the note, the cents, and the strobe's three bands (fundamental, 2nd and 4th harmonic): light and
  * dark segments that stand still when the string is in tune and drift right when it is sharp, left when it is
@@ -70,6 +76,23 @@ int fw_store_changed(uint32_t id)                            /* the computer cha
     return 1;
 }
 static void ref_changed(void) { save_at = ticks + 200u; show_ref_until = ticks + 200u; }   /* save after 2 s still */
+/* live access from a computer (see the top of this file) */
+int fw_param_get(uint32_t id, uint32_t *value)
+{
+    switch (id) {
+    case 0: *value = a4x10; return 1;
+    case 1: *value = muted; return 1;
+    case 2: *value = r_note < 0 ? 0u : (uint32_t)r_note; return 1;
+    case 3: *value = (uint32_t)(uint16_t)(int16_t)r_cents; return 1;
+    default: return 0;
+    }
+}
+int fw_param_set(uint32_t id, uint32_t value)
+{
+    if (id == 0 && value >= 4300u && value <= 4500u) { if (value != a4x10) { a4x10 = value; ref_changed(); } return 1; }
+    if (id == 1 && value <= 1u) { muted = value; return 1; }
+    return 0;
+}
 void fw_para_push(void) { if (a4x10 != 4400u) { a4x10 = 4400u; ref_changed(); } else show_ref_until = ticks + 200u; }
 void fw_para_turn(int detents)
 {

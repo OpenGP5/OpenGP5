@@ -225,7 +225,7 @@ If anything goes wrong on the pedal: unplug, hold Foot + PARA, plug in, flash a 
 ## 6. Make it yours
 
 Change `fw_process`, give your settings ids, show them on the screen. To keep settings across power-off,
-save them with `gp5_store_save` (`platform/README.md`). Ideas that fit easily: a drive (`tanhf`), a filter
+save them with `gp5_store_save` and give your firmware a name with `fw_name()`, so an update keeps them (`platform/README.md`). Ideas that fit easily: a drive (`tanhf`), a filter
 (a biquad is 5 multiplies per sample), an echo (`GP5_LARGE` buffer), a chorus (a short delay whose length
 follows a slow `sinf`).
 
