@@ -13,8 +13,8 @@
 
 #define GP5_VERSION_MAJOR 0           /* the platform's version (shown at start-up, told to the computer by 7E 0D) */
 #define GP5_VERSION_MINOR 5
-#define GP5_VERSION_PATCH 4
-#define GP5_VERSION_TEXT "0.5.4"
+#define GP5_VERSION_PATCH 5
+#define GP5_VERSION_TEXT "0.5.5"
 
 #define GP5_SCREEN_W 160
 #define GP5_SCREEN_H 80

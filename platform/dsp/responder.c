@@ -101,9 +101,27 @@ static uint8_t crc8(const uint8_t *p, uint32_t n) {
     return c;
 }
 
+/* Sending never waits for the serial line (platform 0.5.5): bytes go into a queue that the main loop feeds to the
+ * UART's FIFO between audio blocks. Waiting here stalled the loop for up to ~0.5 ms per reply (16 bytes of FIFO,
+ * ~22 us a byte at 460800 baud); when that overlapped the end of an audio block, the next DMA transfer was armed
+ * too late and the output clicked (heard in bypass with OpenGP5 Launchpad polling every 1.5 s, 2026-11-16). Only
+ * if the queue is full does a byte wait, as before. Order is kept: every byte goes through the queue. */
+#define TXQ_N 2048u                                  /* power of two */
+static uint8_t txq[TXQ_N] __attribute__((section(".large")));
+static uint32_t txq_head, txq_tail;                  /* head: next to send; tail: next free; zero at start-up */
+
+static void uart_pump(void) {
+    while (txq_head != txq_tail && ((REG(UART0 + 0x0C) >> 11) & 0x1Fu) < 16u) {
+        REG(UART0 + 0x00) = txq[txq_head & (TXQ_N - 1u)];
+        txq_head++;
+    }
+}
+
 static void uart_put(uint8_t b) {
-    while (((REG(UART0 + 0x0C) >> 11) & 0x1Fu) >= 16u) {}
-    REG(UART0 + 0x00) = b;
+    while (txq_tail - txq_head >= TXQ_N) uart_pump();   /* full: wait for the line, as before */
+    txq[txq_tail & (TXQ_N - 1u)] = b;
+    txq_tail++;
+    uart_pump();
 }
 
 static void send_frame(const uint8_t *payload, uint32_t n) {
@@ -290,6 +308,7 @@ void resp_main(void) {
 #ifdef AUDIO_PASSTHROUGH
         audio_poll();
 #endif
+        uart_pump();
         if (REG(0xE000E010u) & 0x10000u) send_report();
         uint32_t n = (REG(UART0 + 0x0C) >> 4) & 0x1Fu;
         while (n--) {

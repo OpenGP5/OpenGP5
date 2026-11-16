@@ -72,7 +72,7 @@ Requirements per system, recovery and going back to Valeton's firmware: **[GETTI
 |---|---|
 | **Platform** (`platform/`) | Runs on both chips. Control processor: start-up, drivers, USB-MIDI, colour screen, foot switch, knobs, LEDs, storage (settings and files), the link to the DSP. DSP: start-up, audio in / out, floating-point maths, the link back. A computer can read the controls and change your settings live over USB. |
 | **Firmwares** (`firmwares/`) | `passthrough`, the template to copy (start here) · `tuner`, a strobe tuner demo (guitar and 5-string bass) that uses every part of the platform, the audio link between the processors included. |
-| **Built on OpenGP5** | [Dreamcatcher](https://github.com/OpenGP5/Dreamcatcher): ambient looper, glitch delay with grains, reverb, presets. [NAM-Loader](https://github.com/OpenGP5/NAM-Loader): plays NAM A2 captures, 12 slots. Each in its own repository. |
+| **Built on OpenGP5** | [Dreamcatcher](https://github.com/OpenGP5/Dreamcatcher): ambient looper, glitch delay with grains, reverb, presets. [NAM Loader](https://github.com/OpenGP5/NAM-Loader): plays NAM A2 captures, 12 slots. Each in its own repository. |
 | **Desktop app** | [OpenGP5 Launchpad](https://github.com/OpenGP5/Launchpad): flash, back up and restore, manage presets and tones, with Valeton's firmware or any OpenGP5 one. |
 | **Flasher** (`tools/gp5tool.py`) | Flashes your build or Valeton's own firmware over USB-MIDI, on macOS, Linux and Windows. |
 | **Off-pedal tools** | `run_effect.py` runs your audio code on a WAV file; `dsp_emu_check.py` boots the built DSP firmware in an emulator; `make_font.py` turns any TrueType or BDF font into smooth screen text for your firmware ([fonts](docs/platform/fonts.md)). |
