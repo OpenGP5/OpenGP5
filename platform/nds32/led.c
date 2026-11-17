@@ -10,8 +10,13 @@
 #ifndef TIMER2_CTRL
 #define TIMER2_CTRL (*(volatile uint32_t *)0x4002b800)
 #endif
-#define LED_IRQ_LIMIT 64u                 /* expected 20 calls per 1 ms tick */
-#define LED_MAIN_TIMEOUT_MS 500u
+#define LED_IRQ_LIMIT 20000u              /* calls with no main-loop progress in between (20 per ms: 1 s). Was 64 calls
+                                           * within one ms tick, but the tick itself stops while a higher-priority
+                                           * handler runs long (the audio link waiting for its gap after a flash erase,
+                                           * 2026-11-17): that latched red and switched the LEDs off for good. A timer
+                                           * that really takes the processor over also stops the main loop. */
+#define LED_MAIN_TIMEOUT_MS 2000u               /* a stalled main loop shows red while it lasts (loading a NAM capture plus
+                                                   * a flash write took > 500 ms at 320 MHz, 2026-11-17: red until a restart) */
 
 volatile unsigned gp5_led_status;
 static volatile uint32_t effect_on;       /* fw_active(): 0, non-zero, or a GP5_LED colour */
@@ -31,25 +36,25 @@ static void led_fault(void)
 void Timer2Interrupt(void)
 {
     static led_pwm_t pwm;
-    static uint32_t tick;
     static uint32_t last_heartbeat, last_progress;
     static unsigned calls;
     uint32_t now, pins;
 
     gp5_timer_int_clear(2);
     now = gp5_ms();
-    if (now != tick) { tick = now; calls = 0; }
     if (main_heartbeat != last_heartbeat) {
         last_heartbeat = main_heartbeat;
         last_progress = now;
+        calls = 0;
     }
-    if (++calls > LED_IRQ_LIMIT || (uint32_t)(now - last_progress) > LED_MAIN_TIMEOUT_MS) {
+    if (++calls > LED_IRQ_LIMIT) {
         /* A bad timer configuration must not monopolise the control processor.
          * Keep the established tick/UART interrupts and the UI running. */
         led_fault();
         return;
     }
-    pins = led_pwm_next(&pwm, effect_on);
+    /* the main loop has stalled: red while it lasts, its own colour again once it runs */
+    pins = (uint32_t)(now - last_progress) > LED_MAIN_TIMEOUT_MS ? LED_R : led_pwm_next(&pwm, effect_on);
     /* Hardware write aliases: no A_OUT read and no global interrupt locking. */
     gp5_reg_set(GP5_GPIO_A_CLR, LED_PINS & ~pins);
     gp5_reg_set(GP5_GPIO_A_SET, pins);

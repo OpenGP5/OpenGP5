@@ -10,4 +10,5 @@ void gp5_spis_start(const void *tx, void *rx, uint32_t n);   /* arm one exchange
 int  gp5_spis_done(void);                                    /* both channels finished: 1 (and the slave's DMA requests off) */
 void gp5_spis_release(void);                 /* stop; pins A20..A23 back as they were */
 void gp5_spis_rearm(const void *tx, void *rx, uint32_t n);   /* clear the flags and arm the next exchange */
+int  gp5_spis_cs_idle(void);                                 /* 1 between exchanges (chip select high) */
 #endif

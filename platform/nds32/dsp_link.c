@@ -195,7 +195,7 @@ static void parse(void)
 /* The receiver can stop after an overrun without raising an interrupt (seen after the computer wrote flash: each
  * erase runs with interrupts off, the 4-byte FIFO overflows, and the error state that follows needs RX_ERR_CLR,
  * which the handler only writes when an interrupt comes). The DSP reports every 43 ms, so a silence longer than
- * RX_QUIET_MS means the receiver is stuck: clear its error and interrupt flags. Also done after every flash write
+ * RX_QUIET_MS means the receiver is stuck: empty its FIFO, clear its error and interrupt flags. Also done after every flash write
  * the computer sends (dsp_link_rx_reset, main.c). */
 #define RX_QUIET_MS 150u
 static uint32_t rx_seen, rx_resets;
@@ -203,6 +203,11 @@ volatile uint32_t dsp_rx_resets;
 
 void dsp_link_rx_reset(void)
 {
+    /* also empty the FIFO: an overrun can leave it full with the interrupt already taken, and then no new byte ever
+     * arrives to raise another one (2026-11-17: the DSP link silent after flash writes until the FIFO was read) */
+    NVIC_DisableIRQ(GP5_IRQ_UART0);
+    drain();
+    if (!dsp_irq_off) NVIC_EnableIRQ(GP5_IRQ_UART0);   /* the safety net below may have switched it off for good */
     gp5_uart0_rx_err_clear();
     gp5_uart0_rx_int_clear();
     dsp_rx_resets = ++rx_resets;

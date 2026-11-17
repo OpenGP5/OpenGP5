@@ -56,7 +56,8 @@ What a firmware can use besides settings and the screen (all in `nds32/gp5_firmw
 - **Live settings from a computer:** optional `fw_param_set(id, value)` / `fw_param_get(id, &value)` let a
   computer change and read your settings while the pedal plays (USB `7E 10` / `7E 11`,
   `docs/platform/protocols.md`). The controls themselves can be read over USB too (`7E 0F`).
-- **LED colour:** `fw_active` returns 0 (dim red), 1 (mint) or `GP5_LED(r, g, b)`.
+- **LED colour:** `fw_active` returns 0 (dim red), 1 (mint) or `GP5_LED(r, g, b)`. The LEDs show full red while
+  the main loop is stuck for more than 2 s (your colour again once it runs), so a `fw_` function that waits shows up.
 - **Switch releases:** optional `fw_para_release` / `fw_foot_release` (the platform has empty defaults), for
   taps versus holds. The edges are not debounced; time them with `fw_knob`'s 10 ms.
 - **Text:** `gp5_text` writes the built-in 5x7 pixel font (5 lines of 13 characters); `gp5_text_at` /
@@ -69,7 +70,12 @@ Even from RAM it averages about 4-5 cycles per instruction (measured: 32 cycles 
 small and large RAM are equally fast), so budget per-sample work carefully. The control processor (288 MHz,
 with its own float unit) ran the same float code about 1.7 times faster: heavy firmwares can run their sound
 there over the audio link (`gp5_link_start`; `#define GP5_LINK_WORDS` sets the words per block) and use
-`gp5_math.h` on both processors.
+`gp5_math.h` on both processors. A firmware that needs more can run the control processor at 320 MHz, the clock
+Valeton's own firmware uses (`#define GP5_CTL_MHZ 320u` in its `dsp/firmware.h`, 0.6.0; the core voltage goes to
+1.25 V with it, as in stock): 11 % more cycles, a little more power. NAM Loader runs at 320 MHz. Its float unit
+takes about 5 cycles per operation with no overlap and has no fused multiply-add, while its integer DSP
+instructions (`kmmac`, `kwmmul` and friends) run about one per cycle: fixed-point code can be several times
+faster than float there.
 
 A complete example in its own repository: [Dreamcatcher](https://github.com/OpenGP5/Dreamcatcher) (its sound
 on the control processor and a reverb on the DSP, presets, live settings, smooth text, its own LED colour,

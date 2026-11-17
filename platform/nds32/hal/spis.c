@@ -17,12 +17,18 @@
 
 static uint32_t mux_before;                         /* A20..A23 as they were: A22 is a board control output */
 static int mux_saved;
+static uint32_t ie_before;                          /* A23's input enable as it was */
+#define A_IN  0x40010000u                           /* port A input levels */
+#define A_IE  0x40010014u                           /* port A input enables */
+#define CS_BIT (1u << 23)                           /* A23 = the slave's chip select (vendor gpio.h: spis_cs_1) */
 
 void gp5_spis_init(void)
 {
     W(DMA_EN) &= ~((1u << CH_RX) | (1u << CH_TX));
     if (!mux_saved) { mux_before = W(PIN_MUX); mux_saved = 1; }
     W(PIN_MUX) = (W(PIN_MUX) & 0x0000FFFFu) | 0x18120000u;
+    if (mux_saved == 1) { ie_before = W(A_IE) & CS_BIT; mux_saved = 2; }
+    W(A_IE) |= CS_BIT;                               /* read chip select's level too (the slave works either way) */
     W(SPIS_CTRL) = (W(SPIS_CTRL) & ~0x7u) | 0xC8u;
     W(CH(CH_RX) + 0x00) = 0x00444000u;               /* peripheral -> memory */
     W(CH(CH_RX) + 0x04) = 0; W(CH(CH_RX) + 0x08) = 0; W(CH(CH_RX) + 0x0C) = 0;
@@ -78,5 +84,7 @@ void gp5_spis_release(void)
 {
     W(SPIS_CTRL) &= ~0x60u;
     W(DMA_EN) &= ~((1u << CH_RX) | (1u << CH_TX));
-    if (mux_saved) W(PIN_MUX) = mux_before;
+    if (mux_saved) { W(PIN_MUX) = mux_before; W(A_IE) = (W(A_IE) & ~CS_BIT) | ie_before; }
 }
+
+int gp5_spis_cs_idle(void) { return (W(A_IN) & CS_BIT) != 0; }   /* chip select high: no exchange running */

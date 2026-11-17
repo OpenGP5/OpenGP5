@@ -46,9 +46,10 @@ int gp5_link_running(void);
 #define W 160
 #define H 80
 
-/* Busy-loop delay. Sized for the 288 MHz PLL clock; if the PLL did not lock (12 MHz RC) it only
- * runs long, never short. */
-#define ITERS_PER_MS 100000u
+/* Busy-loop delay. Sized for the PLL clock (100,000 a millisecond at 288 MHz); if the PLL did not lock (12 MHz RC)
+ * it only runs long, never short. */
+#include "hal/clock.h"
+#define ITERS_PER_MS (100000u * GP5_CTL_MHZ / 288u)
 static void delay_ms(unsigned ms)
 {
     volatile unsigned n = ms * ITERS_PER_MS;
@@ -693,7 +694,7 @@ int main(void)
      * 288 MHz is the SDK's no-voltage-change setting) */
     gp5_chip_init();
     gp5_wdg_disable();
-    gp5_clock_init();                            /* PLL 288 MHz system clock, APLL 240 MHz for USB + DSP link UART */
+    gp5_clock_init();                            /* PLL GP5_CTL_MHZ system clock, APLL 240 MHz for USB + DSP link UART */
     gp5_stage = 2;
 
     board_init();

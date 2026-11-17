@@ -5,7 +5,9 @@ Measured on a GP-5 with main board `GP-5_MB_V01_241115`. The platform code is th
 
 ## Control processor: MVsilicon BP1048B2 (Andes NDS32 V3, D1088 core)
 
-- **Clocks:** 24 MHz crystal; main PLL 288 MHz = system clock; audio PLL 240 MHz feeds USB (÷4) and
+- **Clocks:** 24 MHz crystal; main PLL 288 MHz = system clock, or 320 MHz for a firmware that sets
+  `#define GP5_CTL_MHZ 320u` (0.6.0; as Valeton's firmware does, with the core regulator at 1.25 V:
+  `0x40025040` bits 0-5 from the efuse trim at offset `0x14`, then bit 21); audio PLL 240 MHz feeds USB (÷4) and
   UART0 (`platform/nds32/hal/clock.c`).
 - **Flash:** 2 MB SPI flash (JEDEC id `85 60 15`, no blocks write-protected). `0x0`–`0xFFFF` factory loader
   (USB update mode, Foot + PARA recovery; not writable over USB). `0x10000` the app (section `0x62`, at

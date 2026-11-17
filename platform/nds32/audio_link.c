@@ -23,7 +23,7 @@
 static int32_t rx[2][BUFW] __attribute__((aligned(32)));
 static int32_t tx[2][BUFW] __attribute__((aligned(32)));
 static int32_t in_copy[GP5_LINK_WORDS];
-static unsigned cur, waiting, started;
+static unsigned cur, waiting, started, resync;   /* resync: the last frame had no sync word: arm in the gap */
 static void (*on_block)(const int32_t *in, int32_t *out);
 volatile uint32_t gp5_link_blocks, gp5_link_early, gp5_link_failed, gp5_link_lost, gp5_link_lag;
 
@@ -47,6 +47,13 @@ static const int32_t *find_words(const int32_t *raw)       /* the words after th
     for (a_ = (uint32_t)(p); a_ < (uint32_t)(p) + BYTES; a_ += 32u) __nds32__cctlva_wbinval_one_lvl(op, (void *)a_); \
     __nds32__dsb(); } while (0)
 
+/* until chip select is high (between two exchanges); at most ~200,000 polls (a few ms), so a missing level can't hang */
+static void wait_gap(void)
+{
+    unsigned n = 200000u;
+    while (!gp5_spis_cs_idle() && --n) { }
+}
+
 void gp5_link_irq(void)
 {
     unsigned k = cur;
@@ -58,11 +65,19 @@ void gp5_link_irq(void)
     }
     waiting = 0;
     cur ^= 1u;
+    /* After a hiccup (interrupts off longer than a block, e.g. a flash write on a preset switch) this handler can run in
+     * the middle of one of the DSP's exchanges: arming then starts our transfers part-way into its frames, and they
+     * stay cut in two (2026-11-17: ~30 s without sync per switch at 320 MHz). So after a frame without the sync word
+     * the next exchange is armed between two of the DSP's (chip select high, ~80 us of each block): back in step at
+     * once. Otherwise at once, as always (a few bytes late is fine: the sync word is looked for in the first PAD
+     * bytes; waiting for the gap every time skipped whole exchanges now and then: clicks). */
+    if (resync) wait_gap();
     gp5_spis_rearm(tx[cur], rx[cur], BYTES);
     LINES(rx[k], NDS32_CCTL_L1D_VA_INVAL);
     if (on_block) {
         const int32_t *in = find_words(rx[k]);
         unsigned i;
+        resync = !in;
         if (!in) { for (i = 0; i < GP5_LINK_WORDS; i++) in_copy[i] = 0; in = in_copy; gp5_link_lost++; }
         on_block(in, tx[k] + 1);
     }
@@ -85,6 +100,7 @@ void gp5_link_start(void (*fn)(const int32_t *in, int32_t *out))
      * the next exchange first, so a short pause costs nothing (NAM, 2026-11-14: at 83 % the DSP's replies
      * were lost, so the output level never reached it and the outputs stayed muted). */
     gp5_irq_priority(GP5_IRQ_SPIS_DMA, 3);
+    wait_gap();                                     /* start between two exchanges too */
     gp5_spis_start(tx[0], rx[0], BYTES);
     gp5_irq_enable(GP5_IRQ_SPIS_DMA);
 }

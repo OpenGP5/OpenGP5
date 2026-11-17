@@ -7,7 +7,8 @@
 
 /* The platform's clock set-up, needed to turn microseconds into timer counts: the PLL and APLL
  * frequencies it programmed. The dividers and the clock switch are read from the chip. */
-#define GP5_PLL_HZ   288000000u
+#include "clock.h"
+#define GP5_PLL_HZ   (GP5_CTL_MHZ * 1000000u)
 #define GP5_APLL_HZ  240000000u
 
 /* Period in microseconds; single_shot = stop after one period. Leaves the timer stopped with its

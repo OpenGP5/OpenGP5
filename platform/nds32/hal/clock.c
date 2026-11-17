@@ -66,6 +66,22 @@ static void wait_oscillator(void)
         while (!R32(CLK + 0x78)) { }
 }
 
+/* The core regulator (LDO12) at 1.25 V, as the vendor's Power_LDO12Config(1250) does it (the only branch 1250 takes):
+ * the factory trim from efuse 0x14 (6 bits, bit 5 flipped), 15 steps of about 3.2 mV up, into 0x40025040 bits 0..5,
+ * then bit 21. Nothing is written when the trim is too low for it (as the vendor). Stock calls it right after locking
+ * the PLL at 320 MHz (stock @0x474ac, when the clock is above 288 MHz); the vendor notes 320 MHz needs 1.25 V. */
+#if GP5_CTL_MHZ > 288
+static void ldo12_1250(void)
+{
+    uint32_t t = (((uint32_t)gp5_efuse_read(0x14) & 0xFCu) >> 2) ^ 0x20u;
+    if (15u < t) {
+        t -= 15u;
+        R32(0x40025040u) = (R32(0x40025040u) & ~0x3Fu) | ((t ^ 0x20u) & 0x3Fu);
+        R32(0x40025040u) |= 1u << 21;
+    }
+}
+#endif
+
 /* Lock one PLL to khz (both run in the 120..360 MHz band, range setting 0x400). */
 static void pll_lock(uint32_t base, uint32_t zero_reg, uint32_t khz)
 {
@@ -97,7 +113,10 @@ void gp5_clock_init(void)
     R32(PLL + 0x04) = OSC_HZ / 31250u - 1u;
     R32(CLK + 0x20) = (uint16_t)(OSC_HZ / 32000u - 1u);
 
-    pll_lock(PLL, 0x48, 288000);                    /* main PLL 288 MHz */
+    pll_lock(PLL, 0x48, GP5_CTL_MHZ * 1000u);       /* main PLL: 288 MHz, or 320 MHz (stock's) when a firmware asks */
+#if GP5_CTL_MHZ > 288
+    ldo12_1250();                                   /* stock's order: PLL, then the core voltage, then the audio PLL */
+#endif
     pll_lock(APLL, 0x3C, 240000);                   /* audio PLL 240 MHz */
 
     if (R32(PLL + 0x34) & 1u) {                     /* system clock from the main PLL */

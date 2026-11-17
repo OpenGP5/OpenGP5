@@ -12,9 +12,9 @@
 #include <stdint.h>
 
 #define GP5_VERSION_MAJOR 0           /* the platform's version (shown at start-up, told to the computer by 7E 0D) */
-#define GP5_VERSION_MINOR 5
-#define GP5_VERSION_PATCH 6
-#define GP5_VERSION_TEXT "0.5.6"
+#define GP5_VERSION_MINOR 6
+#define GP5_VERSION_PATCH 0
+#define GP5_VERSION_TEXT "0.6.0"
 
 #define GP5_SCREEN_W 160
 #define GP5_SCREEN_H 80
@@ -103,6 +103,11 @@ int gp5_store_save(uint32_t id, const void *src, unsigned len);    /* 0 = saved 
  * (0.5.6; platform/nds32/build.sh passes it). One block (on_block) is 64 samples: 1.45 ms or 1.33 ms. */
 #ifndef GP5_SAMPLE_RATE
 #define GP5_SAMPLE_RATE 44100u
+#endif
+/* The control processor's clock in MHz: 288, or 320 (Valeton's own setting, with the core at 1.25 V) when the DSP side's
+ * firmware.h sets #define GP5_CTL_MHZ 320 (0.6; platform/nds32/build.sh passes it): 11 % more cycles per block. */
+#ifndef GP5_CTL_MHZ
+#define GP5_CTL_MHZ 288u
 #endif
 void gp5_link_start(void (*on_block)(const int32_t *in, int32_t *out));
 extern volatile uint32_t gp5_link_blocks;
