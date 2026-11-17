@@ -43,7 +43,9 @@ Measured on a GP-5 with main board `GP-5_MB_V01_241115`. The platform code is th
 
 - **Clock:** about 191.9 MHz.
 - **Audio:** 44.1 kHz, 64-sample blocks (1.45 ms, about 278,000 core cycles); guitar in mono, two
-  outputs.
+  outputs. Or 48 kHz (1.33 ms, about 255,900 cycles) for a firmware that sets `#define GP5_SAMPLE_RATE 48000u` in
+  its `dsp/firmware.h` (0.5.6): the audio clock `0x4000e01c` then takes the second entry of the table in
+  Valeton's DSP code, `0x2029200f` instead of `0x24f3200f`. Measured: 749.8 blocks/s.
 - **Flash:** `0x0`–`0x3FFF` Valeton's DSP resident (boot + its updater; not ours). `0x4000`: section
   `0x63` = a 1 KB header whose word at `+0x0C` is the vector table address (`0x4400`), then our firmware.
 - **RAM:** `0x20000000`–`0x20007FFF` (32 KB) and `0x10000000`–`0x1001FFFF` (128 KB). What a firmware

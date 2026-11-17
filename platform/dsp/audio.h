@@ -17,7 +17,9 @@
  *   ch3 (+0x160) in   0x50000038 -> 0x1001f600   cfg 0x212c1 req 0x0288
  *   Each channel owns 0x200 bytes = two 64-word halves (ping-pong). Stock arms the next half
  *   when all 4 channels report done, then processes the half that just completed.
- * Sample rate 44.1 kHz (689 blocks of 64 per second, measured).
+ * Sample rate 44.1 kHz (689 blocks of 64 per second, measured), or 48 kHz when the firmware asks (GP5_SAMPLE_RATE):
+ * stock picks the audio clock 0x4000e01c from a two-entry table at DSP 0xe7d0 (stock 0x7660, index in r2):
+ * 0x24f3200f (used, 44.1 kHz) and 0x2029200f, the 48 kHz family. Nothing else differs.
  * Clocks: the resident already set the PLL (0x4000e054/58/5c). Stock adds the dividers
  * 0x4000e024..30 and the audio clock 0x4000e01c / 0x4000e020 bit 3 (both inside a
  * 0x4000e014 = 1 ... 0 write window), plus GPIO mux 0x40011020 / 0x40011058.
@@ -90,7 +92,11 @@ static void audio_init(void) {
     audio_arm(0);
     /* audio clock on (stock 0x7664) */
     REG(0x4000E014u) = 1u;
-    REG(0x4000E01Cu) = 0x24F3200Fu;
+#if GP5_SAMPLE_RATE == 48000u
+    REG(0x4000E01Cu) = 0x2029200Fu;    /* stock's table entry 1: 48 kHz */
+#else
+    REG(0x4000E01Cu) = 0x24F3200Fu;    /* entry 0: 44.1 kHz */
+#endif
     REG(0x4000E020u) = REG(0x4000E020u) | 0x8u;
     REG(0x4000E014u) = 0u;
     /* audio interface on (stock 0x76b8): config, prefill FIFOs with zeros, enable */

@@ -39,7 +39,7 @@ our two sections (`dsp`, `app`); Valeton's other sections on the pedal are not t
 - `nds32/` — control processor (BP1048, NDS32): start-up, display driver, foot switch, PARA knob, volume knob,
   LEDs, USB-MIDI, hand-over to the factory loader (`11 6F`), link to the DSP, start-up sync, the audio link
   (SPI slave + DMA, `gp5_link_start`).
-- `dsp/` — audio processor (Cortex-M4F): start-up, audio in/out (64-sample blocks, 44.1 kHz), link
+- `dsp/` — audio processor (Cortex-M4F): start-up, audio in/out (64-sample blocks, 44.1 kHz or 48 kHz), link
   responder, output level, cycle counters, resident tick patcher.
 
 What a firmware can use besides settings and the screen (all in `nds32/gp5_firmware.h`):

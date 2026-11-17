@@ -18,6 +18,8 @@ CF="-std=gnu99 -DUI_PANEL -mcpu=d1088-spu -mext-dsp -mext-zol -mcmodel=medium -O
 if [ -n "${GP5_DEBUG_PEEK:-}" ]; then CF="$CF -DGP5_DEBUG_PEEK"; fi     # debug builds: 7E 0A / 7E 0B read registers over USB
 LW=$(sed -n 's/^[[:space:]]*#[[:space:]]*define[[:space:]]\{1,\}GP5_LINK_WORDS[[:space:]]\{1,\}\([0-9]\{1,\}\)u\{0,1\}\b.*/\1/p' "$FW/../dsp/firmware.h" 2>/dev/null | head -1)
 if [ -n "$LW" ]; then CF="$CF -DGP5_LINK_WORDS=${LW}u"; fi    # the audio link's size, as the DSP side's firmware.h sets it
+SR=$(sed -n 's/^[[:space:]]*#[[:space:]]*define[[:space:]]\{1,\}GP5_SAMPLE_RATE[[:space:]]\{1,\}\([0-9]\{1,\}\)u\{0,1\}\b.*/\1/p' "$FW/../dsp/firmware.h" 2>/dev/null | head -1)
+if [ -n "$SR" ]; then CF="$CF -DGP5_SAMPLE_RATE=${SR}u"; fi    # the sample rate, as the DSP side's firmware.h sets it
 
 # Platform (start-up, drivers in hal/, USB-MIDI, DSP link, LEDs, screen) + the firmware's own code.
 for f in "$APP/main.c" "$APP/led.c" "$APP/usb_midi.c" "$APP/proto.c" "$APP/dsp_link.c" "$APP/dsp_ctl.c" "$APP/hal/gpio.c" "$APP/hal/wdg.c" "$APP/hal/spim.c" "$APP/hal/adc.c" "$APP/hal/uart0.c" "$APP/hal/timer.c" "$APP/hal/tick.c" "$APP/hal/backlight.c" "$APP/hal/clock.c" "$APP/hal/usb.c" "$APP/hal/flash.c" "$APP/hal/spis.c" "$APP/audio_link.c" "$APP/text.c" "$APP/gp5_store.c" "$APP/gp5_files.c" "$FW"/*.c \

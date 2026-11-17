@@ -111,7 +111,7 @@ python3 tools/gp5tool.py flash <Valeton GP-5 firmware .bin> --sections all
   anything is written ("stalled" / timeout from `gp5tool.py`): unplug the pedal, plug it back in, and it
   runs what it ran before. Please report it; such pedals need a debug probe for the one-time patch.
 - Bluetooth, the audio models and Valeton's presets are not used by these firmwares. Audio is mono in,
-  stereo out, 44.1 kHz.
+  stereo out, 44.1 kHz (48 kHz for firmwares that ask for it).
 - To report: your pedal's hardware version if you know it, whether `--sections all` completed, and
   the output of `python3 tools/gp5tool.py status` and `python3 tools/gp5_link.py stats`.
 - No drawing helpers beyond text (the built-in font, smooth fonts) and raw pixels yet.

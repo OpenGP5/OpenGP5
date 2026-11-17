@@ -48,6 +48,10 @@ def main():
             if not (inc / "firmware.h").is_file(): inc = ROOT / "firmwares" / a.firmware / "dsp"
             assert (inc / "firmware.h").is_file(), f"no {inc}/firmware.h"
             fw = [f"-I{inc}", f"-I{HERE}", "-DGP5_FIRMWARE"]
+            r = re.search(r"^\s*#\s*define\s+GP5_SAMPLE_RATE\s+(\d+)u?\b", (inc / "firmware.h").read_text(), re.M)
+            if r:                                           # the firmware's sample rate (0.5.6): 44100 or 48000
+                assert r.group(1) in ("44100", "48000"), f"GP5_SAMPLE_RATE {r.group(1)}: 44100 or 48000"
+                fw.append(f"-DGP5_SAMPLE_RATE={r.group(1)}u")
             if re.search(r"^\s*#\s*define\s+GP5_AUDIO_LINK\b", (inc / "firmware.h").read_text(), re.M):
                 fw.append("-DAUDIO_SPI1")                   # the firmware opts in to the audio link
                 if re.search(r"^\s*#\s*define\s+GP5_LINK_EARLY\b", (inc / "firmware.h").read_text(), re.M):

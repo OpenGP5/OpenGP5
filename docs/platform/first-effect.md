@@ -100,7 +100,9 @@ static int fw_command(uint32_t cmd, const uint8_t *p, uint32_t n)
 ```
 
 **Time budget:** one block may take at most 278,000 DSP cycles (64 samples at 44.1 kHz, 191.9 MHz):
-about 4,300 per sample. A `sinf` costs roughly 40. This tremolo uses a few percent.
+about 4,300 per sample. A firmware can run at 48 kHz instead with `#define GP5_SAMPLE_RATE 48000u` in its
+`dsp/firmware.h` (both processors get it); a block is then 255,900 cycles. Use `GP5_SAMPLE_RATE` rather than
+writing 44100 into your maths. A `sinf` costs roughly 40. This tremolo uses a few percent.
 
 ## 3. Try the sound on the computer
 

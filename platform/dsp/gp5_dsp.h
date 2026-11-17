@@ -7,8 +7,10 @@
  * the DSP has no C library). Use float, not double: write 0.5f, not 0.5.
  *
  * Audio: mono in (the guitar, 32-bit signed, left-justified: full scale = +-2^31), stereo out, GP5_BLOCK
- * frames per call, GP5_SAMPLE_RATE Hz. The platform applies the output level (the volume knob) after
- * fw_process(). One block is 1.45 ms; the core runs at about 191.9 MHz: 278,000 cycles per block. The
+ * frames per call, GP5_SAMPLE_RATE Hz: 44100, or 48000 when firmware.h says #define GP5_SAMPLE_RATE 48000u (both
+ * processors get it; 0.5.6). The platform applies the output level (the volume knob) after fw_process(). One
+ * block is 1.45 ms at 44.1 kHz, 1.33 ms at 48 kHz; the core runs at about 191.9 MHz: 278,000 cycles per block
+ * (255,900 at 48 kHz). The
  * platform counts cycles per block (GP5_CYCLES_*) and blocks that overran (GP5_LATE_BLOCKS).
  *
  * Commands: the control processor sends link commands 0x7F10..0x7FFF to fw_command() (payload
@@ -27,7 +29,9 @@
 #include <stdint.h>
 
 #define GP5_BLOCK       64u
+#ifndef GP5_SAMPLE_RATE
 #define GP5_SAMPLE_RATE 44100u
+#endif
 #define GP5_LARGE __attribute__((section(".large")))     /* put a big buffer in the 122 KB block */
 #define GP5_FULL_SCALE 2147483648.0f                     /* in[] / GP5_FULL_SCALE = -1.0 .. 1.0 */
 
