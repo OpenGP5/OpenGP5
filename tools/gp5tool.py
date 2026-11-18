@@ -192,6 +192,8 @@ class Timing:
     reenum = 45.0        # the pedal re-appearing on USB (a firmware with the audio link restarts first: slower)
     retries = 6
     retry_delay = 0.05
+    loader_retries = 4
+    loader_retry_delay = 0.2
     poll = 0.15
 
 
@@ -267,7 +269,10 @@ def ask(link, payload, want, timeout):
 
 def find(ports):
     """Return (port name, mode) of the connected pedal, or (None, None)."""
-    names = ports.names()
+    try:
+        names = ports.names()
+    except Exception:
+        return None, None
     name = next((n for n in names if OPEN_PORT in n), None)
     if name: return name, MODE_OPEN
     name = next((n for n in names if ANY_PORT in n), None)
@@ -327,6 +332,23 @@ def to_loader(ports, say):
     return name
 
 
+def open_loader(ports, name):
+    """Open the loader's port, retrying the first state query while its USB port settles."""
+    for attempt in range(Timing.loader_retries):
+        link = None
+        try:
+            link = ports.open(name)
+            if ask(link, [0x12, 0x30], [0x11, 0x30], Timing.reply) is not None:
+                return link
+        except Exception:
+            pass
+        if link is not None:
+            try: link.close()
+            except Exception: pass
+        if attempt + 1 < Timing.loader_retries: time.sleep(Timing.loader_retry_delay)
+    return None
+
+
 def send_acked(link, raw, timeout):
     """One frame, wait for the update status. Returns 0 = acknowledged, other = NAK code, None = silence."""
     link.flush()
@@ -354,11 +376,11 @@ def flash(ports, sections, say, progress=None):
     """Send the chosen sections. Returns the mode the pedal is in afterwards (update mode if it stayed
     there, None if it did not re-appear)."""
     name = to_loader(ports, say)
-    link = ports.open(name)
+    link = open_loader(ports, name)
+    if link is None:
+        raise Problem("the loader does not answer on %s." % name)
     started = False
     try:
-        if ask(link, [0x12, 0x30], [0x11, 0x30], Timing.reply) is None:
-            raise Problem("the loader does not answer on %s." % name)
         send_reliably(link, build_sysex(CLASS_CMD, 0, [0x11, 0x60]), Timing.ack, "the start of the update")
         time.sleep(Timing.settle)
         for t, data in sections:

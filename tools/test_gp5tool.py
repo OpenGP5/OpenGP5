@@ -15,9 +15,10 @@ class FakePedal:
     """Ports + loader protocol as observed on the test unit."""
 
     def __init__(self, mode=MODE_STOCK, nak_every=0, stall_begin=False, die_at=None, stay_in_loader=False, mute=False,
-                 after=None):
+                 after=None, silent_queries=0):
         self.mode, self.nak_every, self.stall_begin, self.die_at = mode, nak_every, stall_begin, die_at
         self.stay_in_loader, self.mute, self.after = stay_in_loader, mute, after
+        self.silent_queries = silent_queries
         self.present = True
         self.written = {}          # type -> bytes, committed at END_SEC
         self.ended = False
@@ -48,7 +49,11 @@ class FakePedal:
                 return [ACK]
             return []
         if cls == CLASS_CMD:
-            if pl == b"\x12\x30": return [bytes([0x11, 0x30, 0x01, 0x01])]
+            if pl == b"\x12\x30":
+                if self.silent_queries:
+                    self.silent_queries -= 1
+                    return []
+                return [bytes([0x11, 0x30, 0x01, 0x01])]
             if pl == b"\x11\x60": return [ACK]
             if pl[:2] == b"\x11\x61":
                 if self.stall_begin: return []
@@ -89,7 +94,7 @@ class FakeLink:
 def fast():
     T = gp5tool.Timing
     T.reply = T.ack = T.begin = T.final = 0.01
-    T.begin_settle = T.settle = T.retry_delay = 0.0
+    T.begin_settle = T.settle = T.retry_delay = T.loader_retry_delay = 0.0
     T.reenum, T.poll = 0.05, 0.001
 
 
@@ -307,6 +312,27 @@ class FlashRuns(unittest.TestCase):
         gp5tool.Timing.reenum = 2.0
         self.assertEqual(self.run_flash(p, [self.small[0]]), MODE_STOCK)
         self.assertGreaterEqual(state["n"], 5)
+
+    def test_loader_state_query_is_retried(self):
+        p = FakePedal(MODE_LOADER, silent_queries=2)
+        link = gp5tool.open_loader(p, p.names()[0])
+        self.assertIsNotNone(link)
+        self.assertEqual(p.silent_queries, 0)
+        link.close()
+
+    def test_port_listing_error_during_restart_is_not_fatal(self):
+        p = FakePedal(MODE_STOCK)                       # ends on stock firmware: detection has to open the port
+        real_names, state = p.names, {"n": 0}
+        def flaky_names():
+            if p.ended:
+                state["n"] += 1
+                if state["n"] <= 3:
+                    raise RuntimeError("MidiInCore::getPortName: the 'portNumber' argument (1) is invalid.")
+            return real_names()
+        p.names = flaky_names
+        gp5tool.Timing.reenum = 2.0
+        self.assertEqual(self.run_flash(p, [self.small[0]]), MODE_STOCK)
+        self.assertGreaterEqual(state["n"], 4)
 
     def test_ending_in_the_silent_state_is_reported_as_such(self):
         p = FakePedal(MODE_STOCK, after=MODE_SILENT)
