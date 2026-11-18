@@ -22,6 +22,12 @@ fi
 [ -f "$FWDIR/dsp/firmware.h" ] || { echo "no $FWDIR/dsp/firmware.h"; exit 1; }
 ls "$FWDIR/nds32/"*.c >/dev/null 2>&1 || { echo "no C files in $FWDIR/nds32/"; exit 1; }
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+GEN=platform/nds32/out/gen; mkdir -p "$GEN"; rm -f "$GEN"/*  # firmware.json (1.0): checked, flags + metadata block
+if [ -f "$FWDIR/firmware.json" ]; then
+  python3 platform/manifest.py "$FWDIR" --check
+  python3 platform/manifest.py "$FWDIR" --flags > "$GEN/manifest.flags"
+  python3 platform/manifest.py "$FWDIR" --meta "$GEN/gp5_meta.c"
+fi
 mkdir -p "$(dirname "$OUT")"
 
 echo "== DSP firmware"

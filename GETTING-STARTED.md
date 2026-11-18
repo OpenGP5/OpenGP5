@@ -10,7 +10,7 @@ macOS right-click it and choose Open the first time; on Windows choose More info
 
 **In your browser:** open the [web flasher](https://opengp5.github.io/OpenGP5/flasher/) in Chrome, Edge or Opera on a computer
 (Safari can't talk to MIDI devices; Firefox asks for a permission first). Plug the pedal in, click
-Connect, allow MIDI access, pick a firmware built with OpenGP5 (the strobe tuner demo, or Dreamcatcher), or upload a `.bin` file
+Connect, allow MIDI access, pick a firmware built with OpenGP5 (the tremolo example, or Dreamcatcher), or upload a `.bin` file
 (one you built, or Valeton's firmware), tick the box and click Flash.
 
 **From the command line:**
@@ -24,11 +24,11 @@ Connect, allow MIDI access, pick a firmware built with OpenGP5 (the strobe tuner
 
    ```
    python3 tools/gp5tool.py status
-   python3 tools/gp5tool.py flash GP-5_tuner.bin --sections all
+   python3 tools/gp5tool.py flash GP-5_tremolo.bin --sections all
    ```
 
-Optional: check the download against the release's `SHA256SUMS` (`shasum -a 256 GP-5_tuner.bin` on
-macOS / Linux, `certutil -hashfile GP-5_tuner.bin SHA256` on Windows).
+Optional: check the download against the release's `SHA256SUMS` (`shasum -a 256 GP-5_tremolo.bin` on
+macOS / Linux, `certutil -hashfile GP-5_tremolo.bin SHA256` on Windows).
 
 ## 1. What you need
 
@@ -55,10 +55,10 @@ release/setup-toolchain.sh
 ## 2. Build
 
 ```
-platform/build_firmware.sh tuner
+platform/build_firmware.sh tremolo
 ```
 
-This builds both halves and packs them into one image, `build/GP-5_tuner.bin`, which holds only the
+This builds both halves and packs them into one image, `build/GP-5_tremolo.bin`, which holds only the
 two parts we replace: the DSP firmware and the control-processor app. Valeton's other data on the pedal
 (audio models, presets) is not touched.
 
@@ -68,7 +68,7 @@ Plug the pedal in, then:
 
 ```
 python3 tools/gp5tool.py status                                        # finds the pedal
-python3 tools/gp5tool.py flash build/GP-5_tuner.bin --sections all
+python3 tools/gp5tool.py flash build/GP-5_tremolo.bin --sections all
 ```
 
 The tool checks the whole image before it sends anything, restarts the pedal into its update mode by

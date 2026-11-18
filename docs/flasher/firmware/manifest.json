@@ -1,16 +1,16 @@
 [
  {
-  "file": "GP-5_tuner.bin",
-  "title": "Strobe tuner (demo)",
-  "description": "Strobe tuner for guitar and 5-string bass. Foot switch mutes, PARA sets the reference pitch, the volume knob sets the level.",
-  "version": "v1.1.0",
-  "sha256": "c51c3d938b1680050a544db2a5f906631a5a90314af1450d1a5649133adbc1ec"
+  "file": "GP-5_tremolo.bin",
+  "title": "Tremolo (example)",
+  "description": "The volume rises and falls. The example firmware: turn PARA to change rate, depth, shape or preset, click for the next, hold to save; the foot switch turns it on and off.",
+  "version": "v1.0.0 (OpenGP5 0.7.0)",
+  "sha256": "e507a75182d51858a1a5fd71235637700094aedcf03beeed197fa4a28be4d507"
  },
  {
   "file": "GP-5_dreamcatcher.bin",
   "title": "Dreamcatcher",
   "description": "Ambient looper, glitch delay with grains and pitch shifting, and reverb. 8 presets. Source: github.com/OpenGP5/Dreamcatcher.",
-  "version": "v1.2.0",
-  "sha256": "c71ea98b0dc235f795721d08584e5ebdde9f3844793ce81e9ad317ae946a5fc4"
+  "version": "v1.3.0 (OpenGP5 0.7.0)",
+  "sha256": "7520821348b45e077da44714bbb151b8632a77075848fb8348331341866bc999"
  }
 ]

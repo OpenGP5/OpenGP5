@@ -35,13 +35,23 @@ frame again.
 | `7E 09 <addr u32> <count>` | `7E 09 <ok> <bytes…>` | the same as `7E 05`, read with the flash controller's read command (a driver check) |
 | `7E 07 <addr u32>` | `7E 07 <ok>` | erase a 4 KB sector of the storage area, 0x13F000–0x189FFF (any other address is refused; `storage.md`) |
 | `7E 08 <addr u32> <bytes…>` | `7E 08 <ok>` | program up to 56 bytes (a multiple of 4) in the storage area |
-| `7E 0D` | `7E 0D 1 <major> <minor> <patch> <name…> 0` | which firmware this is (platform 0.2.2 and later): the platform's version and the firmware's `fw_name()` |
-| `7E 0E <firmware id u32>` | `7E 0E <reloaded>` | the computer rewrote a store record (0.2.2+): the firmware's `fw_store_changed(id)` loads it again (1) or can't (0: restart the pedal) |
-| `7E 10 <id u16> <value u32>` | `7E 10 <taken>` | a setting of the running firmware, live (0.5.4): `fw_param_set`; 0 from firmwares without it. Launchpad's live editor |
-| `7E 11 <first u16> <count>` | `7E 11 <n> <values u16 × n>` | read settings (0.5.4): `fw_param_get` from `first`, at most 40; `n` stops at the first id the firmware doesn't know |
-| `7E 0F` | `7E 0F 1 <knob> <foot> <para>` | the controls (0.5.2+): volume knob 0..255 (as filtered for `fw_knob`), foot switch and PARA push pressed now (0/1, not debounced). Launchpad turns its drawn knob with it |
+| `7E 0D` | `7E 0D 1 <major> <minor> <patch> <name…> 0` | which firmware this is (platform 0.2.2 and later): the platform's version and the firmware's name (1.0: the manifest's `id`; before: `fw_name()`) |
+| `7E 0E <firmware id u32>` | `7E 0E <reloaded>` | the computer rewrote a store record (0.2.2+): the firmware's `fw_store_changed(id)` (1.0: `fw_storage_changed()`; parameter records the platform reloads itself) loads it again (1) or can't (0: restart the pedal) |
+| `7E 10 <id u16> <value u32>` | `7E 10 <taken>` | set a value live (0.5.4). 1.0 firmwares: a parameter (`params.md`; clamped, sent to the DSP, saved), ids past the parameters go to `fw_param_set`; 0 = not taken. Launchpad's Live page |
+| `7E 11 <first u16> <count>` | `7E 11 <n> <values × n, 16 bits each>` | read values (0.5.4), at most 40; parameters are signed. `n` stops at the first id the firmware doesn't know |
+| `7E 0F` | `7E 0F 1 <knob> <foot> <para>` | the controls (0.5.2+): volume knob 0..255 (filtered, as `gp5_knob()` gives it), foot switch and PARA push pressed now (0/1, not debounced). Launchpad turns its drawn knob with it |
+| `7E 12 <id u16>` | `7E 12 1 <count u16> <id u16> <flags> <unit> <min i16> <max i16> <default i16> <name> 0 <group> 0 <choices> 0` | describe parameter `id` (1.0, `params.md`); `7E 12 0` past the last one. Choices are `A\|B\|C` |
+| `7E 15 <id u16> <value i16>` | `7E 15 1 <text> 0` | the text of a value (1.0, `GP5_U_CUSTOM`: the firmware's `fw_param_text`); `7E 15 0` when it has none |
+| `7E 17 0` | `7E 17 1 <count> <current> <dirty> <used u64>` | presets (1.0): how many, the one loaded (`FF` = none), changed since (0/1), a bit per preset that holds a sound |
+| `7E 17 1 <n>` / `7E 17 2 <n>` | `7E 17 <done>` | load / save preset `n` |
+| `7E 17 3 <n>` | `7E 17 1 <name> 0` | preset `n`'s name |
+| `7E 17 4 <n> <name…>` | `7E 17 <done>` | rename preset `n` (printable ASCII, up to 12) |
+| `7E 16 <offset u16>` | `7E 16 1 <total u16> <up to 48 bytes>` | the firmware's metadata block from `offset` (1.0; `7E 16 0` for a firmware without a manifest). Format: `"GP5META1"`, length u32, the manifest as JSON, NUL, padding to 4, CRC-32 of the JSON (`platform/manifest.py`) |
+| `7E 14 [1]` | `7E 14 1 <15 values, u32 each>` | load and memory (1.0). Control processor: cycles per block, audio-link handler last and worst, main loop's longest pass (cycles), RAM used, RAM total. DSP: answered (0/1), cycles per block, last block, worst, late blocks, variables used and total, `GP5_LARGE` used and total. With `1`: start the worst values again |
+| `7E 18 <from u32>` | `7E 18 1 <at u32> <end u32> <n> <n bytes>` | the log (1.0, `gp5_log`), from byte `from`. `at` = where the bytes start (the oldest kept, if `from` was overwritten), `end` = bytes written since start-up; ask again from `at + n` |
 
-`tools/gp5_link.py` wraps `7E 00`, `7E 01`, `7E 03` / `7E 04` and `7E 05` (`flash-read`).
+`tools/gp5_link.py` wraps `7E 00`, `7E 01`, `7E 03` / `7E 04`, `7E 05` (`flash-read`) and the 1.0 commands
+(`info`, `params`, `set`, `presets`, `preset`, `log`, `status`). `tools/gp5tool.py info` reads `7E 16` too.
 
 Valeton's own firmware and the factory loader answer the state query `12 30` with `11 30 01 00`
 (Valeton's app) or `11 30 01 01` (update mode); the open firmware does not answer it. `gp5tool.py status`
@@ -115,7 +125,9 @@ Commands the platform uses:
 | `0x1001` | control | output level: `[cmd][12][sub 0 u32][f32 0.0 … 1.0]` → ACK. The DSP is muted until it gets one. |
 | `0x4001` | DSP | a 24-byte status frame about every 43 ms (zeros today); not answered |
 | `0x7F01` / `0x7F02` | control | DSP flash tick patch: status / apply (see `platform/dsp/tickpatch.h`) |
-| `0x7F04` | control | DSP load: `[cmd][16][cycles last block][worst since start-up][late blocks]` (`gp5_link.py load`) |
-| `0x7F10` … `0x7FFF` | control | the firmware's own commands, handed to `fw_command()` (`platform/dsp/gp5_dsp.h`) |
+| `0x7F04` | control | DSP load: `[cmd][8]` or `[cmd][12][1 u32]` (then start the worst again) → `[cmd][24][cycles last block][worst since start-up][late blocks][variables in use, bytes][GP5_LARGE in use, bytes]` (1.0: the last two) |
+| `0x7F10` | control | a parameter (1.0): `[cmd][12][id u32][value u32]` → ACK; the DSP keeps it and calls `fw_param()` |
+| `0x4F10` | DSP | a log line (1.0, `gp5_log`): `[cmd][len][text]`, not answered; the control processor adds it to its log as `dsp: …` |
+| `0x7F11` … `0x7FFF` | control | the firmware's own commands, handed to `fw_command()` (`platform/dsp/gp5_dsp.h`; from `0x7F10` for a firmware without parameters) |
 
 Any other command is acknowledged.

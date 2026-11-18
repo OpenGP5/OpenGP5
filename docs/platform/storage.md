@@ -21,13 +21,13 @@ The storage area is 0x13F000–0x189FFF (300 KB). The platform lets the firmware
 ## Who owns it
 
 At start-up, before `fw_init()`, the platform checks the claim (settings record `GP5O` = the firmware's
-`fw_name()`):
+name: the `id` in its `firmware.json`, or `fw_name()` for a firmware from before 1.0):
 
 - **the same name:** nothing happens (updating a firmware keeps its data);
 - **another name:** the whole area is wiped and the mark becomes this firmware's;
 - **no mark** (a fresh pedal, or a firmware from before 0.5): the data is kept and marked.
 
-A firmware without its own `fw_name()` gets the platform's default, `opengp5`. That name doesn't claim the storage (0.5.3):
+A firmware from before 1.0 without its own `fw_name()` gets the platform's default, `opengp5`. That name doesn't claim the storage (0.5.3):
 such a firmware doesn't mark the area, and a stored `opengp5` mark (written by 0.5.2) counts as no mark. So a
 later build of the same firmware that does name itself keeps the data.
 
@@ -66,7 +66,8 @@ Each file starts with a 64-byte header in its first sector; the data follows at 
 **Writing** (the computer): first free run of sectors, erase, data, then the header **last**, read back, then erase
 the first sector of any older copy. A power cut leaves the old file or the new one, never a broken one.
 **Deleting** erases the header sector. **Reading** (firmware): `gp5_file()`, `gp5_file_check()`, `gp5_file_each()`.
-After the computer changes a firmware's files or settings it sends `7E 0E <id>`; `fw_store_changed(id)` reloads.
+After the computer changes a firmware's files or settings it sends `7E 0E <id>`: the platform reloads parameters and presets itself, then calls `fw_storage_changed()` (before 1.0:
+`fw_store_changed(id)`) to reload the rest.
 
 ## Backups
 

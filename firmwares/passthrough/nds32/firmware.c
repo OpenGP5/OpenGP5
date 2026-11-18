@@ -1,26 +1,15 @@
 /* Passthrough: the smallest control-processor firmware. Copy this folder to start your own
- * (interface: platform/nds32/gp5_firmware.h). The volume knob sets the level; nothing else does anything. */
+ * (interface: platform/nds32/gp5_firmware.h, OpenGP5 1.0). The volume knob is the output level (the platform's
+ * default); this file only shows it. Every other callback is optional: the platform's defaults do nothing. */
 #include "gp5_firmware.h"
 
-static unsigned level, shown = 1000;
+static unsigned shown = 1000;
 
-void fw_init(void) { level = 0; shown = 1000; }
-void fw_foot(void) {}
-void fw_para_push(void) {}
-void fw_para_turn(int detents) { (void)detents; }
-void fw_knob(unsigned knob) { level = knob; }
-unsigned fw_level(void) { return level; }
-void fw_dsp_ready(void) {}
-int fw_take(uint32_t *id, uint32_t *value) { (void)id; (void)value; return 0; }   /* no settings */
-unsigned fw_setting_count(void) { return 0; }
-const char *fw_name(void) { return "passthrough"; }   /* rename it for your firmware: the storage is kept for this name */
-unsigned fw_active(void) { return 1; }
-
-int fw_draw(unsigned knob, int force)
+int fw_draw(int force)
 {
     static const char hex[] = "0123456789ABCDEF";
     char line[14] = "VOLUME     00";
-    (void)knob;
+    unsigned level = gp5_knob();
     if (force) { gp5_text(0, "PASSTHROUGH  "); gp5_text(1, "             "); gp5_text(3, "             "); gp5_text(4, "             "); shown = 1000; }
     if (level != shown) {
         line[11] = hex[(level >> 4) & 15]; line[12] = hex[level & 15];

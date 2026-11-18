@@ -26,6 +26,7 @@ the foot switch and the PARA knob, then flash again.
 Needs Python 3.9+, `pip install mido python-rtmidi`. Protocol and container code: gp5_proto.py, htfw.py.
 """
 import argparse, re, struct, sys, time
+from pathlib import Path
 
 import htfw
 from gp5_proto import (CLASS_CMD, build_sysex, parse_sysex, build_update_stream, update_ack_status)
@@ -406,6 +407,29 @@ def cmd_check(a):
     return 0
 
 
+def cmd_info(a):
+    """what a firmware image is: its manifest (OpenGP5 1.0), or what can be told without one"""
+    blob = Path(a.image).read_bytes()
+    secs = dict(load_sections(blob))
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "platform"))
+    import manifest
+    m = manifest.read(secs.get(0x62, b""))
+    if m:
+        print(f"{m['name']} {m['version']} (id {m['id']}){', by ' + m['author'] if m.get('author') else ''}")
+        for k in ("description", "url", "licence"):
+            if m.get(k): print(f"  {k}: {m[k]}")
+        au = m.get("audio", {})
+        print(f"  built on OpenGP5 {m.get('built_on', '?')}, {au.get('sample_rate', 44100)} Hz, control processor {m.get('control', {}).get('mhz', 288)} MHz"
+              f"{', ' + str(m['presets']) + ' presets' if m.get('presets') else ''}")
+    else:
+        app = secs.get(0x62, b"")
+        i = app.find(b"OPENGP5 ")
+        print("an OpenGP5 firmware built before 1.0 (no manifest), platform " + app[i + 8:i + 20].split(b"\0")[0].decode(errors="replace")
+              if i >= 0 else "not an OpenGP5 firmware (Valeton's, or another)")
+    names = {t: n for n, t in SECTIONS.items()}
+    print("  sections: " + ", ".join(f"{names.get(t, hex(t))} {len(d)} bytes" for t, d in secs.items()))
+
+
 def cmd_combine(a):
     base = open(a.base, "rb").read()
     inspect(base)
@@ -497,6 +521,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     c = sub.add_parser("check", help="validate an image, send nothing"); c.add_argument("image"); c.set_defaults(fn=cmd_check)
+    i = sub.add_parser("info", help="what a firmware image is (name, version, author: its manifest)"); i.add_argument("image"); i.set_defaults(fn=cmd_info)
     s = sub.add_parser("status", help="find the pedal and report its mode"); s.set_defaults(fn=cmd_status)
     f = sub.add_parser("flash", help="write sections of an image to the pedal"); f.add_argument("image")
     f.add_argument("--sections", action="append", metavar="NAME[,NAME]", help="app, dsp, dsp-data, models, presets, all")

@@ -35,6 +35,18 @@ int gp5_link_running(void);
 #include "dsp_link.h"
 #include "dsp_ctl.h"
 #include "gp5_firmware.h"
+#include "gp5_params.h"
+#ifdef GP5_HAS_PARAMS                                         /* gp5_params.c: the firmware's parameters (1.0) */
+void gp5_params_init(void); void gp5_params_poll(void); int gp5_params_take(uint32_t *id, uint32_t *value);
+void gp5_params_dsp_restart(void); uint32_t gp5_params_dsp_mask(void); int gp5_params_set_outside(unsigned id, int32_t value);
+int gp5_params_store_changed(uint32_t id);
+#endif
+extern const uint8_t gp5_meta[] __attribute__((weak));
+extern volatile uint32_t gp5_link_cycles, gp5_link_worst;   /* audio_link.c */
+extern char _end[];                                          /* app.ld: the end of this firmware's RAM */
+static uint32_t loop_worst, loop_skip;
+unsigned gp5_log_read(uint32_t from, uint8_t *out, unsigned max, uint32_t *at, uint32_t *end);   /* gp5_log.c */
+static int api_store_changed(uint32_t id);              /* the firmware's callbacks, 1.0 or 0.6: below */   /* the manifest's metadata block (out/gen/gp5_meta.c), if any */
 #include "led.h"
 
 
@@ -437,6 +449,86 @@ static void host_dsp_cmd(void)
         pl[2] = 1; pl[3] = GP5_VERSION_MAJOR; pl[4] = GP5_VERSION_MINOR; pl[5] = GP5_VERSION_PATCH; n = 6;
         for (i = 0; nm[i] && i < 32; i++) pl[n++] = (uint8_t)nm[i];
         pl[n++] = 0;
+    } else if (proto_req[1] == 0x16 && proto_req_len == 4) {
+        /* the firmware's metadata block (1.0, platform/manifest.py): 7E 16 <offset u16> -> 7E 16 <1> <total u16>
+         * <up to 48 bytes from offset>; 7E 16 <0> for a firmware built without a manifest */
+        uint32_t off = proto_req[2] | (proto_req[3] << 8), total;
+        if (!gp5_meta) { pl[2] = 0; n = 3; }
+        else {
+            total = 12u + (gp5_meta[8] | (gp5_meta[9] << 8)) + 4u;
+            pl[2] = 1; pl[3] = (uint8_t)total; pl[4] = (uint8_t)(total >> 8); n = 5;
+            for (i = 0; i < 48u && off + i < total; i++) pl[n++] = gp5_meta[off + i];
+        }
+#ifdef GP5_HAS_PARAMS
+    } else if (proto_req[1] == 0x12 && proto_req_len == 4) {
+        /* describe a parameter (1.0): 7E 12 <id u16> -> 7E 12 1 <count u16> <id u16> <flags> <unit> <min i16> <max i16>
+         * <default i16> <name\0> <group\0> <choices\0>  (0 past the last one) */
+        uint32_t id = proto_req[2] | (proto_req[3] << 8);
+        if (id >= GP5_NPARAMS) { pl[2] = 0; n = 3; }
+        else {
+            const gp5_param_desc_t *d = &gp5_param_table[id];
+            const char *t[3] = { d->name, d->group ? d->group : "", d->choices ? d->choices : "" };
+            static const uint8_t lim[3] = { 15, 15, 47 };
+            pl[2] = 1; pl[3] = GP5_NPARAMS & 0xFF; pl[4] = GP5_NPARAMS >> 8; pl[5] = (uint8_t)id; pl[6] = (uint8_t)(id >> 8);
+            pl[7] = d->flags; pl[8] = d->unit;
+            pl[9] = (uint8_t)d->min; pl[10] = (uint8_t)((uint16_t)d->min >> 8); pl[11] = (uint8_t)d->max; pl[12] = (uint8_t)((uint16_t)d->max >> 8);
+            pl[13] = (uint8_t)d->def; pl[14] = (uint8_t)((uint16_t)d->def >> 8); n = 15;
+            for (unsigned k = 0; k < 3; k++) { for (i = 0; t[k][i] && i < lim[k]; i++) pl[n++] = (uint8_t)t[k][i]; pl[n++] = 0; }
+        }
+    } else if (proto_req[1] == 0x15 && proto_req_len == 6) {
+        /* a value's text (GP5_U_CUSTOM): 7E 15 <id u16> <value i16> -> 7E 15 <1> <text\0>, 7E 15 0 if the firmware has none */
+        uint32_t id = proto_req[2] | (proto_req[3] << 8);
+        char txt[16] = { 0 };
+        int32_t v = (int16_t)(proto_req[4] | (proto_req[5] << 8));
+        if (id < GP5_NPARAMS && fw_param_text(id, v, txt)) { pl[2] = 1; n = 3; for (i = 0; txt[i] && i < 15; i++) pl[n++] = (uint8_t)txt[i]; pl[n++] = 0; }
+        else { pl[2] = 0; n = 3; }
+    } else if (proto_req[1] == 0x17 && proto_req_len >= 3) {
+        /* presets (1.0): 7E 17 0 -> 7E 17 1 <count> <current, 0xFF none> <dirty> <used u64>;  7E 17 1 <n> load;
+         * 7E 17 2 <n> save;  7E 17 3 <n> -> <name\0>;  7E 17 4 <n> <name...> rename  (-> 7E 17 <1 done / 0>) */
+        unsigned op = proto_req[2], pn = proto_req_len > 3 ? proto_req[3] : 0u;
+        pl[2] = 0; n = 3;
+        if (op == 0) {
+            uint64_t u = 0; int c = gp5_preset_current();
+            for (i = 0; i < gp5_preset_count(); i++) if (gp5_preset_used(i)) u |= 1ull << i;
+            pl[2] = 1; pl[3] = (uint8_t)gp5_preset_count(); pl[4] = c < 0 ? 0xFF : (uint8_t)c; pl[5] = (uint8_t)gp5_preset_dirty(); n = 6;
+            for (i = 0; i < 8; i++) pl[n++] = (uint8_t)(u >> (8 * i));
+        } else if (op == 1 && proto_req_len == 4) { pl[2] = (uint8_t)gp5_preset_load(pn); }
+        else if (op == 2 && proto_req_len == 4) pl[2] = (uint8_t)gp5_preset_save(pn);
+        else if (op == 3 && proto_req_len == 4) { const char *nm = gp5_preset_name(pn); pl[2] = 1; for (i = 0; nm[i]; i++) pl[n++] = (uint8_t)nm[i]; pl[n++] = 0; }
+        else if (op == 4 && proto_req_len >= 4) {
+            char nm[13] = { 0 };
+            for (i = 0; i < 12u && 4u + i < proto_req_len; i++) nm[i] = (char)proto_req[4 + i];
+            pl[2] = (uint8_t)gp5_preset_rename(pn, nm);
+        }
+#endif
+    } else if ((proto_req[1] == 0x14 && (proto_req_len == 2 || proto_req_len == 3))) {
+        /* load and memory of both processors (1.0): 7E 14 [1 = then start the worst values again] -> 7E 14 1
+         * <15 u32: control: cycles per block, audio link handler last, worst, main loop longest pass, RAM used, RAM total;
+         *  DSP answered (1/0), cycles per block, last, worst, late blocks, variables used, variables total,
+         *  GP5_LARGE used, GP5_LARGE total> */
+        uint8_t rep[28];
+        uint32_t v[15], k;
+        static const uint8_t reset_dsp[6] = { 8, 0, 1, 0, 0, 0 };   /* [len u16][1]: the payload's own length first */
+        int reset = proto_req_len == 3 && proto_req[2] == 1;
+        unsigned got = dsp_link_query(0x7F04, reset ? reset_dsp : 0, reset ? 6u : 0u, rep, sizeof rep, 30);
+        loop_skip = 1;
+        v[0] = GP5_CTL_MHZ * 1000000u / GP5_SAMPLE_RATE * 64u; v[1] = gp5_link_cycles; v[2] = gp5_link_worst; v[3] = loop_worst;
+        v[4] = (uint32_t)((uintptr_t)_end - 0x20004000u); v[5] = 0x44000u - 0x20u;
+        v[6] = got >= 16u; v[7] = 191900000u / GP5_SAMPLE_RATE * 64u;
+        for (k = 0; k < 3; k++) v[8 + k] = got >= 16u ? (uint32_t)(rep[4 + 4 * k] | rep[5 + 4 * k] << 8 | rep[6 + 4 * k] << 16 | (uint32_t)rep[7 + 4 * k] << 24) : 0u;
+        for (k = 0; k < 2; k++) v[11 + 2 * k] = got >= 24u ? (uint32_t)(rep[16 + 4 * k] | rep[17 + 4 * k] << 8 | rep[18 + 4 * k] << 16 | (uint32_t)rep[19 + 4 * k] << 24) : 0u;
+        v[12] = 19968u; v[14] = 124928u;
+        pl[2] = 1; n = 3;
+        for (k = 0; k < 15; k++) for (i = 0; i < 4; i++) pl[n++] = (uint8_t)(v[k] >> (8 * i));
+        if (reset) { gp5_link_worst = 0; loop_worst = 0; }
+    } else if (proto_req[1] == 0x18 && proto_req_len == 6) {
+        /* the log (1.0, gp5_log.c): 7E 18 <from u32> -> 7E 18 1 <at u32> <end u32> <n> <n bytes from `at`>; `at` is
+         * `from`, or the oldest byte still kept if `from` was overwritten; `end` = bytes written since start */
+        uint32_t from = proto_req[2] | (proto_req[3] << 8) | ((uint32_t)proto_req[4] << 16) | ((uint32_t)proto_req[5] << 24), at, end;
+        unsigned got = gp5_log_read(from, pl + 12, 48, &at, &end);
+        pl[2] = 1;
+        for (i = 0; i < 4; i++) { pl[3 + i] = (uint8_t)(at >> (8 * i)); pl[7 + i] = (uint8_t)(end >> (8 * i)); }
+        pl[11] = (uint8_t)got; n = 12 + got;
     } else if (proto_req[1] == 0x0F && proto_req_len == 2) {
         /* the controls (platform 0.5.2): 7E 0F -> 7E 0F 1 <volume knob 0..255> <foot switch 0/1> <PARA pushed 0/1>
          * (the knob as filtered for fw_knob; the switches as read now, not debounced) */
@@ -447,27 +539,100 @@ static void host_dsp_cmd(void)
          * (fw_param_set; firmwares without it answer 0) */
         uint32_t id = proto_req[2] | (proto_req[3] << 8);
         uint32_t v = proto_req[4] | (proto_req[5] << 8) | ((uint32_t)proto_req[6] << 16) | ((uint32_t)proto_req[7] << 24);
+#ifdef GP5_HAS_PARAMS                               /* ids past the parameters: the firmware's own (fw_param_set) */
+        pl[2] = (uint8_t)((id < GP5_NPARAMS ? gp5_params_set_outside(id, (int32_t)v) : fw_param_set(id, v)) != 0); n = 3;
+#else
         pl[2] = (uint8_t)(fw_param_set(id, v) != 0); n = 3;
+#endif
     } else if (proto_req[1] == 0x11 && proto_req_len == 5) {
         /* read settings (0.5.4): 7E 11 <first id u16> <count, at most 40> -> 7E 11 <n> <n values, u16 each>; n stops
          * at the first id the firmware doesn't know (fw_param_get) */
         uint32_t first = proto_req[2] | (proto_req[3] << 8), v;
         unsigned cnt = proto_req[4] > 40u ? 40u : proto_req[4];
         pl[2] = 0; n = 3;
+#ifdef GP5_HAS_PARAMS
+        for (i = 0; i < cnt; i++) {
+            if (first + i < GP5_NPARAMS) v = (uint32_t)gp5_param(first + i);
+            else if (first < GP5_NPARAMS || !fw_param_get(first + i, &v)) break;   /* the firmware's own ids, from 1.0 */
+            pl[n++] = (uint8_t)v; pl[n++] = (uint8_t)(v >> 8); pl[2]++;
+        }
+#else
         for (i = 0; i < cnt && fw_param_get(first + i, &v); i++) { pl[n++] = (uint8_t)v; pl[n++] = (uint8_t)(v >> 8); pl[2]++; }
+#endif
     } else if (proto_req[1] == 0x0E && proto_req_len == 6) {
         /* the computer changed a store record: 7E 0E <firmware id u32> -> 7E 0E <1 if the firmware reloaded it> */
         uint32_t id = proto_req[2] | (proto_req[3] << 8) | ((uint32_t)proto_req[4] << 16) | ((uint32_t)proto_req[5] << 24);
-        pl[2] = (uint8_t)(fw_store_changed(id) != 0); n = 3;
+#ifdef GP5_HAS_PARAMS
+        if (gp5_params_store_changed(id)) { (void)api_store_changed(id); pl[2] = 1; n = 3; } else
+#endif
+        { pl[2] = (uint8_t)(api_store_changed(id) != 0); n = 3; }
     } else return;
     proto_reply(0x01, 0, pl, n);
 }
 
+/* ---- the firmware's callbacks: OpenGP5 1.0 (GP5_API1, a firmware with a manifest) or 0.6 ---- */
+static unsigned api_knob;
+unsigned gp5_knob(void) { return api_knob; }
+#ifdef GP5_API1
+static unsigned api_level, api_level_owned;
+static uint32_t api_led = 1u;                       /* GP5_LED_ON */
+void gp5_level_own(int own) { api_level_owned = own != 0; }
+void gp5_level_set(unsigned level) { api_level = level > 255u ? 255u : level; }
+void gp5_led(uint32_t colour) { api_led = colour; }
+__attribute__((weak)) void fw_init(void) {}
+__attribute__((weak)) int fw_draw(int force) { (void)force; return 0; }
+__attribute__((weak)) void fw_tick(void) {}
+__attribute__((weak)) void fw_foot_down(void) {}
+__attribute__((weak)) void fw_foot_up(void) {}
+__attribute__((weak)) void fw_para_down(void) {}
+__attribute__((weak)) void fw_para_up(void) {}
+__attribute__((weak)) void fw_para_click(void) {}
+__attribute__((weak)) void fw_para_hold(void) {}
+__attribute__((weak)) void fw_para_turn(int detents) { (void)detents; }
+__attribute__((weak)) void fw_storage_changed(void) {}
+__attribute__((weak)) void fw_dsp_ready(void) {}
+__attribute__((weak)) int fw_take(uint32_t *id, uint32_t *value) { (void)id; (void)value; return 0; }
+__attribute__((weak)) unsigned fw_setting_count(void) { return 0; }
+#define PARA_HOLD_MS 600u
+static uint32_t para_t0; static int para_held;
+static void api_tick(unsigned knob) { api_knob = knob; fw_tick(); }
+static unsigned api_level_now(void) { return api_level_owned ? api_level : api_knob; }
+static void api_foot(int down) { if (down) fw_foot_down(); else fw_foot_up(); }
+static void api_para(int down)
+{
+    if (down) { para_t0 = gp5_ms(); para_held = 0; fw_para_down(); return; }
+    if (!para_held) fw_para_click();
+    para_held = 1;                                  /* (no hold after the release) */
+    fw_para_up();
+}
+static void api_para_poll(int down) { if (down && !para_held && gp5_ms() - para_t0 >= PARA_HOLD_MS) { para_held = 1; fw_para_hold(); } }
+static uint32_t api_led_now(void) { return api_led; }
+static int api_draw(unsigned knob, int force) { (void)knob; return fw_draw(force); }
+static int api_store_changed(uint32_t id) { (void)id; fw_storage_changed(); return 1; }
+#else
+static void api_tick(unsigned knob) { api_knob = knob; fw_knob(knob); }
+static unsigned api_level_now(void) { return fw_level(); }
+static void api_foot(int down) { if (down) fw_foot(); else fw_foot_release(); }
+static void api_para(int down) { if (down) fw_para_push(); else fw_para_release(); }
+static void api_para_poll(int down) { (void)down; }
+static uint32_t api_led_now(void) { return fw_active(); }
+static int api_draw(unsigned knob, int force) { return fw_draw(knob, force); }
+static int api_store_changed(uint32_t id) { return fw_store_changed(id); }
+#endif
+
 /* gp5_firmware.h: optional for firmwares */
+#ifndef GP5_API1
 __attribute__((weak)) void fw_para_release(void) {}
+#endif
+#ifdef GP5_FW_ID
+__attribute__((weak)) const char *fw_name(void) { return GP5_FW_ID; }     /* the manifest's id (1.0) */
+#else
 __attribute__((weak)) const char *fw_name(void) { return "opengp5"; }
+#endif
 void gp5_storage_claim(void);
+#ifndef GP5_API1
 __attribute__((weak)) int fw_store_changed(uint32_t id) { (void)id; return 0; }
+#endif
 __attribute__((weak)) int fw_param_get(uint32_t id, uint32_t *value) { (void)id; (void)value; return 0; }
 __attribute__((weak)) int fw_param_set(uint32_t id, uint32_t value) { (void)id; (void)value; return 0; }
 __attribute__((weak)) void fw_foot_release(void) {}
@@ -535,12 +700,26 @@ static void monitor(void)
     t_start = gp5_ms();
     enc = 0;
     enc_lab = (gp5_reg_get(GP5_GPIO_B_IN) >> 2) & 3;
+    __nds32__mtsr(1u, NDS32_SR_PFM_CTL);             /* performance counter 0 counts cycles (the load report) */
+    __nds32__isb();
     gp5_storage_claim();                             /* gp5_files.c: storage belongs to this firmware (0.5) */
+    gp5_log("OpenGP5 %s, firmware %s, control processor %u MHz, %u Hz", GP5_VERSION_TEXT, fw_name(), (unsigned)GP5_CTL_MHZ, (unsigned)GP5_SAMPLE_RATE);
+#ifdef GP5_HAS_PARAMS
+    gp5_params_init();                               /* defaults, then what was saved */
+    fw_init();
+    fx_all = gp5_params_dsp_mask();
+#else
     fw_init();
     n = fw_setting_count();
     fx_all = n >= 32 ? 0xFFFFFFFFu : (1u << n) - 1u;
+#endif
 
     for (;;) {
+        {   static uint32_t c_prev;                  /* the main loop's longest pass (7E 14) */
+            uint32_t c = __nds32__mfsr(NDS32_SR_PFMC0);
+            if (c_prev && !loop_skip && c - c_prev > loop_worst && gp5_ms() > 5000u) loop_worst = c - c_prev;
+            c_prev = c; loop_skip = 0;           /* (not the pass that answered 7E 14: it waited for the DSP) */
+        }
         a = gp5_reg_get(GP5_GPIO_A_IN);
         b = gp5_reg_get(GP5_GPIO_B_IN);
         enc_poll();
@@ -561,19 +740,17 @@ static void monitor(void)
                 dsp_link_send(0x7F05, 0, 0);
                 delay_ms(5);
                 dsp_link_send(0x7F05, 0, 0);
-                if (gp5_link_running()) {
-                    /* After the audio link has run, the factory loader crashes once the host connects (cause not
-                     * found, docs/platform/protocols.md). So: link off, restart the chip with the hand-over mark
-                     * set; the next start sees it and hands over before anything else runs. */
-                    delay_ms(100);
-                    gp5_link_stop();
-                    HANDOVER_MARK[0] = HANDOVER_MAGIC; HANDOVER_MARK[1] = ~HANDOVER_MAGIC;
-                    __nds32__gie_dis();
-                    *(volatile uint32_t *)0x40022008u = 1;   /* system reset (the vendor's Reset_McuSystem) */
-                    for (;;) ;
-                }
+                /* Always: restart the chip with the hand-over mark set; the next start sees it and hands over before
+                 * anything else runs. After the audio link has run, the factory loader crashes once the host connects
+                 * (cause not found, docs/platform/protocols.md); and handing over from here, with USB, the DSP link
+                 * and the timers live, failed now and then for firmwares without the link too (1.0, the tremolo:
+                 * the pedal came back in the app). The early hand-over has worked every time. */
                 delay_ms(100);                   /* as stock; the reply is already with the host */
-                loader_handover();
+                if (gp5_link_running()) gp5_link_stop();
+                HANDOVER_MARK[0] = HANDOVER_MAGIC; HANDOVER_MARK[1] = ~HANDOVER_MAGIC;
+                __nds32__gie_dis();
+                *(volatile uint32_t *)0x40022008u = 1;   /* system reset (the vendor's Reset_McuSystem) */
+                for (;;) ;
             }
             if (r == PROTO_DSP) {
                 if (proto_req[1] == 0x00) host_asked = 1;
@@ -604,17 +781,28 @@ static void monitor(void)
             knob = knob_value();
             knob_next = gp5_ms() + 10;
             /* the first readings ramp up from 0 (filter start): not a turn of the knob */
-            if (knob_reads < 60) knob_reads++; else fw_knob(knob);
+            if (knob_reads < 60) knob_reads++; else api_tick(knob);
         }
-        dsp_ctl_poll(dsp_ver != 0, fw_level());
+        dsp_ctl_poll(dsp_ver != 0, api_level_now());
         if (dsp_ctl_step != lstep) {
             lstep = dsp_ctl_step; dsp_show = 1;
-            if (dsp_ctl_step == DSP_CTL_DONE) fw_dsp_ready();   /* the DSP starts with its own defaults */
+            if (dsp_ctl_step == DSP_CTL_FAILED) gp5_log("DSP: start-up sync failed");
+            if (dsp_ctl_step == DSP_CTL_DONE) {          /* the DSP starts with its own defaults */
+                gp5_log("DSP ready, version %08lx", (unsigned long)dsp_ver);
+#ifdef GP5_HAS_PARAMS
+                gp5_params_dsp_restart();
+#endif
+                fw_dsp_ready();
+            }
         }
         /* effect settings to the DSP: one per pass, at most one every 20 ms (each waits for its ACK) */
         if (dsp_ctl_step == DSP_CTL_DONE && (int32_t)(gp5_ms() - fx_next) >= 0) {
             uint32_t id, val;
+#ifdef GP5_HAS_PARAMS
+            if (gp5_params_take(&id, &val) || fw_take(&id, &val)) {
+#else
             if (fw_take(&id, &val)) {
+#endif
                 uint8_t pl[12], rep[8], st;
                 pl[0] = 0x10; pl[1] = 0x7F; pl[2] = 12; pl[3] = 0;
                 for (i = 0; i < 4; i++) { pl[4 + i] = (uint8_t)(id >> (8 * i)); pl[8 + i] = (uint8_t)(val >> (8 * i)); }
@@ -624,6 +812,9 @@ static void monitor(void)
             }
         }
 
+#ifdef GP5_HAS_PARAMS
+        gp5_params_poll();                               /* saves the sound 2 s after the last change */
+#endif
         if (!gfx && !status && (int32_t)(gp5_ms() - t_start) >= STATUS_AFTER_MS) {
             clear_screen();
             put_line(0, "OPENGP5 " GP5_VERSION_TEXT, yellow, black);
@@ -648,16 +839,17 @@ static void monitor(void)
         foot = !(a & FOOT_PIN); para = !(b & PARA_PIN);
         if (foot != lfoot && (int32_t)(gp5_ms() - foot_quiet) >= 0) {
             midi_send(foot ? 0x90 : 0x80, 60, foot ? 100 : 0);
-            if (foot) fw_foot(); else fw_foot_release();
+            api_foot(foot);
             lfoot = foot;
             foot_quiet = gp5_ms() + DEBOUNCE_MS;
         }
         if (para != lpara && (int32_t)(gp5_ms() - para_quiet) >= 0) {
             midi_send(para ? 0x90 : 0x80, 62, para ? 100 : 0);
-            if (para) fw_para_push(); else fw_para_release();
+            api_para(para);
             lpara = para;
             para_quiet = gp5_ms() + DEBOUNCE_MS;
         }
+        api_para_poll(lpara);
         det = enc >> 1;                              /* a detent every 2 quadrature steps: at 11 and at 00 */
         if ((ab == 3 || ab == 0) && det != ldet) {
             midi_send(0xB0, 16, (uint8_t)(det & 0x7F));
@@ -665,13 +857,13 @@ static void monitor(void)
             ldet = det;
         }
 
-        led_set_effect(fw_active());
+        led_set_effect(api_led_now());
 
         /* The graphic effect screen takes over once the DSP is in sync (one band per pass); until then,
          * and for good if the sync fails, the text lines above and the USB line below stay. */
         if (!gfx && dsp_ctl_step == DSP_CTL_DONE) { gfx = 1; gforce = 1; clear_screen(); }
         if (gfx) {
-            if (!fw_draw(knob, gforce) && (fx_startup_acked & fx_all) == fx_all) led_start();
+            if (!api_draw(knob, gforce) && (fx_startup_acked & fx_all) == fx_all) led_start();
             gforce = 0;
         } else if (status) {
             usb = ((uint32_t)usb_midi_configured() << 31) ^ (usb_setups << 24) ^ rx;

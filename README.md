@@ -15,8 +15,10 @@
   <a href="GETTING-STARTED.md"><b>Getting started</b></a> ·
   <a href="https://github.com/OpenGP5/Launchpad"><b>Launchpad (desktop app)</b></a> ·
   <a href="docs/platform/first-effect.md"><b>Your first effect</b></a> ·
+  <a href="docs/platform/api.md"><b>API</b></a> ·
   <a href="docs/platform/protocols.md">Protocols</a> ·
-  <a href="docs/platform/hardware.md">Hardware</a>
+  <a href="docs/platform/hardware.md">Hardware</a> ·
+  <a href="CHANGELOG.md">Changelog</a>
 </p>
 
 ---
@@ -52,7 +54,7 @@ with the same maths, on your computer.
 ## Quick start
 
 **Try it without installing anything:** open the **[web flasher](https://opengp5.github.io/OpenGP5/flasher/)** in Chrome, Edge or Opera on a
-computer, plug the pedal in, pick one of the firmwares built with OpenGP5 (the strobe tuner demo, or
+computer, plug the pedal in, pick one of the firmwares built with OpenGP5 (the tremolo example, or
 [Dreamcatcher](https://github.com/OpenGP5/Dreamcatcher)), or upload a `.bin` (one you built, or Valeton's), and flash.
 (Read [Safety](#safety) first.)
 
@@ -60,8 +62,8 @@ computer, plug the pedal in, pick one of the firmwares built with OpenGP5 (the s
 
 ```bash
 release/setup-toolchain.sh                    # both compilers, pinned and checksum-checked (~190 MB)
-platform/build_firmware.sh tuner              # -> build/GP-5_tuner.bin
-python3 tools/gp5tool.py flash build/GP-5_tuner.bin --sections all
+platform/build_firmware.sh tremolo            # -> build/GP-5_tremolo.bin
+python3 tools/gp5tool.py flash build/GP-5_tremolo.bin --sections all
 ```
 
 Requirements per system, recovery and going back to Valeton's firmware: **[GETTING-STARTED.md](GETTING-STARTED.md)**.
@@ -71,7 +73,7 @@ Requirements per system, recovery and going back to Valeton's firmware: **[GETTI
 | | |
 |---|---|
 | **Platform** (`platform/`) | Runs on both chips. Control processor: start-up, drivers, USB-MIDI, colour screen, foot switch, knobs, LEDs, storage (settings and files), the link to the DSP. DSP: start-up, audio in / out, floating-point maths, the link back. A computer can read the controls and change your settings live over USB. |
-| **Firmwares** (`firmwares/`) | `passthrough`, the template to copy (start here) · `tuner`, a strobe tuner demo (guitar and 5-string bass) that uses every part of the platform, the audio link between the processors included. |
+| **Firmwares** (`firmwares/`) | `passthrough`, the template to copy (start here) · `tremolo`, the example: parameters, presets, the screen and the controls, with a screen preview that runs on the computer. |
 | **Built on OpenGP5** | [Dreamcatcher](https://github.com/OpenGP5/Dreamcatcher): ambient looper, glitch delay with grains, reverb, presets. [NAM Loader](https://github.com/OpenGP5/NAM-Loader): plays NAM A2 captures, 12 slots. Each in its own repository. |
 | **Desktop app** | [OpenGP5 Launchpad](https://github.com/OpenGP5/Launchpad): flash, back up and restore, manage presets and tones, with Valeton's firmware or any OpenGP5 one. |
 | **Flasher** (`tools/gp5tool.py`) | Flashes your build or Valeton's own firmware over USB-MIDI, on macOS, Linux and Windows. |
@@ -87,16 +89,18 @@ firmware on every supported system.
 flowchart LR
     pc["Computer: gp5tool.py"] -- "USB-MIDI" --> ctl
     subgraph pedal["Valeton GP-5"]
-        ctl["Control processor (BP1048)<br/>your fw_draw, fw_knob, fw_foot<br/>platform: drivers, USB-MIDI, screen"]
-        dsp["DSP (Cortex-M4F)<br/>your fw_process, fw_command<br/>platform: audio I/O, maths"]
-        ctl -- "settings (link command 0x7F10)" --> dsp
+        ctl["Control processor (BP1048)<br/>your fw_draw, fw_foot_down, fw_para_turn<br/>platform: drivers, USB-MIDI, screen"]
+        dsp["DSP (Cortex-M4F)<br/>your fw_process, fw_param<br/>platform: audio I/O, maths"]
+        ctl -- "parameters (params.h)" --> dsp
         dsp <-- "audio link: words each way per block" --> ctl
     end
     guitar(["Guitar in"]) --> dsp
     dsp --> out(["Out L / R"])
 ```
 
-You write the two firmware files (the sound and the controls); the platform does everything else.
+You write a manifest (`firmware.json`), your settings (`params.h`) and the two firmware files (the sound and the
+controls); the platform does everything else: it carries the settings to the DSP, saves them, keeps presets, and
+gives a computer an editor for them.
 Walkthrough: **[Your first effect](docs/platform/first-effect.md)**.
 
 ## Documentation
@@ -105,11 +109,14 @@ Walkthrough: **[Your first effect](docs/platform/first-effect.md)**.
 |---|---|
 | [GETTING-STARTED.md](GETTING-STARTED.md) | set up, build, flash, recover |
 | [docs/platform/first-effect.md](docs/platform/first-effect.md) | your first effect, step by step |
+| [docs/platform/api.md](docs/platform/api.md) | everything a firmware can use: manifest, callbacks, platform calls, log, load |
+| [docs/platform/params.md](docs/platform/params.md) | settings and presets: declared once, saved, editable from a computer |
 | [docs/platform/fonts.md](docs/platform/fonts.md) | text on the screen: the built-in font, smooth fonts, your own |
 | [docs/platform/storage.md](docs/platform/storage.md) | keeping settings and files on the pedal |
 | [platform/README.md](platform/README.md) | how a firmware plugs into the platform |
 | [docs/platform/protocols.md](docs/platform/protocols.md) | USB-MIDI, the firmware update, the image format, the link between the processors |
 | [docs/platform/hardware.md](docs/platform/hardware.md) | memory, pins and clocks of both processors |
+| [CHANGELOG.md](CHANGELOG.md) | what changed in each release, and how to upgrade a firmware |
 
 ## Safety
 

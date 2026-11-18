@@ -6,6 +6,14 @@
   gp5_link.py load                 DSP load: cycles of the last audio block, the worst since start-up, late
                                    blocks (278,000 cycles per 64-sample block is 100 %)
   gp5_link.py raw <hex payload>    send one DSP link payload [cmd u16][len u16][fields], print the reply
+  gp5_link.py log [-f]             the log (gp5_log on either processor, and the platform's own lines); -f: keep
+                                   following it (Ctrl-C to stop)
+  gp5_link.py status [--reset]     load and memory of both processors (1.0); --reset: start the worst values again
+  gp5_link.py info                 what the pedal runs: the firmware's name, version and author (OpenGP5 1.0)
+  gp5_link.py params               the firmware's parameters (1.0): name, group, value, range
+  gp5_link.py set <name|id> <value> set a parameter (a choice by its name too: set SHAPE Ramp)
+  gp5_link.py presets              the presets: which hold a sound, their names, the one loaded
+  gp5_link.py preset load|save <n>    /    preset name <n> <new name>
   gp5_link.py flash-read <addr> <length> [out.bin]
                                    read the control processor's flash (below 2 MB; reading only) and say
                                    whether it is erased (all FF); with out.bin, save the bytes
@@ -16,8 +24,8 @@ Commands of the control processor's USB protocol (platform/nds32/proto.c), SysEx
   7E 03 <off u16> <bytes>    stage up to 48 bytes of a payload
   7E 04 <len u16> <wait/10ms> send the staged payload to the DSP -> 7E 04 <status> <n> <reply>
   7E 05 <addr u32> <count>   read up to 64 bytes of flash -> 7E 05 <ok> <bytes>
-A firmware's own DSP commands start at 0x7F10 (platform/dsp/gp5_dsp.h); for example the tuner's
-`gp5_link.py raw 307f0400` reads how many DSP cycles it takes per block. Nothing here writes the pedal's flash.
+A firmware's own DSP commands start at 0x7F11 (platform/dsp/gp5_dsp.h; 0x7F10 carries parameters):
+`gp5_link.py raw <payload>` sends one and prints the reply. Nothing here writes the pedal's flash.
 Needs `pip install mido python-rtmidi`.
 """
 import struct, sys
@@ -25,6 +33,37 @@ import gp5tool
 from gp5tool import MidiPorts, ask as _ask
 
 STATUS = {0: "no answer", 1: "reply", 0x14: "ACK", 0x13: "NAK"}
+UNITS = {0: "", 1: " %", 2: " dB", 3: " ms", 4: " Hz", 5: " st", 6: " cents", 7: ""}
+FLAGS = [(1, "DSP"), (2, "preset"), (4, "saved"), (8, "read-only"), (16, "hidden")]
+
+
+def params(link):
+    """the firmware's parameter table (7E 12), with each value (7E 11): [dict]"""
+    out = []
+    while True:
+        pl = ask(link, [0x7E, 0x12, len(out) & 0xFF, len(out) >> 8])
+        if not pl or len(pl) < 15 or pl[2] != 1: break
+        cnt, pid, fl, unit, mn, mx, df = struct.unpack_from("<HHBBhhh", pl, 3)
+        name, group, choices = (bytes(pl[15:]).split(b"\0") + [b"", b"", b""])[:3]
+        out.append(dict(id=pid, flags=fl, unit=unit, min=mn, max=mx, default=df, name=name.decode(), group=group.decode(),
+                        choices=choices.decode().split("|") if fl & 0x80 else None))
+        if len(out) >= cnt: break
+    for k in range(0, len(out), 40):
+        pl = ask(link, [0x7E, 0x11, k & 0xFF, k >> 8, min(40, len(out) - k)])
+        for i in range(pl[2] if pl else 0):
+            out[k + i]["value"] = struct.unpack_from("<h", pl, 3 + 2 * i)[0]
+    return out
+
+
+def text(link, p):
+    v = p.get("value")
+    if v is None: return "?"
+    if p["choices"]: return p["choices"][v] if 0 <= v < len(p["choices"]) else str(v)
+    if p["unit"] == 7:
+        pl = ask(link, [0x7E, 0x15, p["id"] & 0xFF, p["id"] >> 8, v & 0xFF, (v >> 8) & 0xFF])
+        if pl and len(pl) > 3 and pl[2] == 1: return bytes(pl[3:]).split(b"\0")[0].decode()
+    if p["unit"] in (2, 6): return f"{v / 10:g}{UNITS[p['unit']]}"
+    return f"{v}{UNITS.get(p['unit'], '')}"
 
 
 def hx(b): return " ".join("%02x" % x for x in b)
@@ -83,7 +122,7 @@ def flash_read(link, addr, length):
 
 def main():
     a = sys.argv[1:] or ["stats"]
-    if a[0] not in ("version", "stats", "raw", "load", "flash-read"): sys.exit(__doc__)
+    if a[0] not in ("version", "stats", "raw", "load", "flash-read", "info", "params", "set", "presets", "preset", "log", "status"): sys.exit(__doc__)
     link = open_link()
     if a[0] == "version":
         pl = ask(link, [0x7E, 0x00])
@@ -98,6 +137,81 @@ def main():
             last, worst, late = struct.unpack_from("<3I", r[1], 4)
             print("DSP load: last block %d cycles (%.1f %%), worst %d (%.1f %%), late blocks %d"
                   % (last, 100 * last / 278000, worst, 100 * worst / 278000, late))
+    elif a[0] == "log":
+        import time
+        pos, follow = 0, "-f" in a[1:]
+        try:
+            while True:
+                pl = ask(link, [0x7E, 0x18, *struct.pack("<I", pos)])
+                if not pl or len(pl) < 12 or pl[2] != 1:
+                    print("no log (a firmware built before OpenGP5 1.0)"); break
+                at, end, n = struct.unpack_from("<IIB", pl, 3)
+                if at > pos: print(f"... ({at - pos} bytes overwritten before they were read)")
+                sys.stdout.write(bytes(pl[12:12 + n]).decode("ascii", "replace")); sys.stdout.flush()
+                pos = at + n
+                if pos >= end:
+                    if not follow: break
+                    time.sleep(0.3)
+        except KeyboardInterrupt:
+            pass
+    elif a[0] == "status":
+        pl = ask(link, [0x7E, 0x14] + ([1] if "--reset" in a[1:] else []))
+        if not pl or len(pl) < 63 or pl[2] != 1: print("no status (a firmware built before OpenGP5 1.0)")
+        else:
+            v = struct.unpack_from("<15I", pl, 3)
+            pct = lambda c, b: f"{100 * c / b:5.1f} %" if b else "?"
+            print(f"control processor  audio link handler: {pct(v[1], v[0])} last, {pct(v[2], v[0])} worst of a block ({v[0]:,} cycles)")
+            print(f"                   main loop longest pass: {v[3]:,} cycles ({100 * v[3] / v[0]:.0f} % of a block); RAM {v[4]:,} of {v[5]:,} bytes")
+            if v[6]:
+                print(f"DSP                {pct(v[8], v[7])} last, {pct(v[9], v[7])} worst of a block ({v[7]:,} cycles), {v[10]} late blocks")
+                print(f"                   variables {v[11]:,} of {v[12]:,} bytes, GP5_LARGE {v[13]:,} of {v[14]:,} bytes")
+            else: print("DSP                did not answer")
+    elif a[0] == "info":
+        pl = ask(link, [0x7E, 0x0D])
+        if not pl or len(pl) < 7 or pl[2] != 1: print("no answer (an OpenGP5 firmware before 0.5.2, or Valeton's)")
+        else:
+            print(f"platform {pl[3]}.{pl[4]}.{pl[5]}, firmware id {bytes(pl[6:]).split(bytes(1))[0].decode()}")
+            import json
+            first = ask(link, [0x7E, 0x16, 0, 0])
+            if first and len(first) >= 5 and first[2] == 1:
+                total = first[3] | (first[4] << 8); blob = bytes(first[5:])
+                while len(blob) < total:
+                    nxt = ask(link, [0x7E, 0x16, len(blob) & 0xFF, len(blob) >> 8]); blob += bytes(nxt[5:])
+                n = struct.unpack_from("<I", blob, 8)[0]
+                m = json.loads(blob[12:12 + n].rstrip(bytes(1)))
+                print(f"{m['name']} {m['version']}" + (f", by {m['author']}" if m.get("author") else "") + (f" ({m['url']})" if m.get("url") else ""))
+            else: print("(no manifest: a firmware built before OpenGP5 1.0)")
+    elif a[0] == "params":
+        ps = params(link)
+        if not ps: print("no parameters (a firmware without params.h, or before OpenGP5 1.0)")
+        for p in ps:
+            rng = "|".join(p["choices"]) if p["choices"] else f"{p['min']}..{p['max']}"
+            print(f"{p['id']:3d}  {p['group'] + ' / ' if p['group'] else ''}{p['name']:<12s} {text(link, p):>12s}   ({rng}; "
+                  + ", ".join(n for b, n in FLAGS if p["flags"] & b) + ")")
+    elif a[0] == "set":
+        if len(a) != 3: sys.exit(__doc__)
+        ps = params(link)
+        p = next((q for q in ps if q["name"].lower() == a[1].lower() or str(q["id"]) == a[1]), None)
+        if not p: sys.exit(f"no parameter {a[1]} (there are: {', '.join(q['name'] for q in ps)})")
+        v = p["choices"].index(next(c for c in p["choices"] if c.lower() == a[2].lower())) if p["choices"] and not a[2].lstrip("-").isdigit() else int(a[2], 0)
+        pl = ask(link, [0x7E, 0x10, p["id"] & 0xFF, p["id"] >> 8, *struct.pack("<i", v)])
+        p["value"] = params(link)[p["id"]]["value"]
+        print(f"{p['name']} = {text(link, p)}" if pl and pl[2] == 1 else f"refused (read-only?)")
+    elif a[0] == "presets":
+        pl = ask(link, [0x7E, 0x17, 0])
+        if not pl or pl[2] != 1: print("no presets"); return
+        cnt, cur, dirty = pl[3], pl[4], pl[5]; used = struct.unpack_from("<Q", pl, 6)[0]
+        for n in range(cnt):
+            nm = ask(link, [0x7E, 0x17, 3, n]); name = bytes(nm[3:]).split(bytes(1))[0].decode() if nm else ""
+            print(f"{n + 1:2d} {'*' if n == cur else ' '} {'(empty)' if not used >> n & 1 else name or '(no name)'}" + (" (changed)" if n == cur and dirty else ""))
+    elif a[0] == "preset":
+        if len(a) < 3 or a[1] not in ("load", "save", "name"): sys.exit(__doc__)
+        n = int(a[2]) - 1
+        if a[1] == "name":
+            pl = ask(link, [0x7E, 0x17, 4, n, *" ".join(a[3:]).encode("ascii", "replace")[:12]])
+        else:
+            pl = ask(link, [0x7E, 0x17, 1 if a[1] == "load" else 2, n])
+        print("done" if pl and pl[2] == 1 else "refused (an empty preset, or no such preset)")
     elif a[0] == "flash-read":
         if len(a) < 3: sys.exit(__doc__)
         addr, length = int(a[1], 0), int(a[2], 0)

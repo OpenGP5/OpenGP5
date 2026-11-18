@@ -1,7 +1,8 @@
 /* GP-5 open platform, control processor side: what a firmware implements and what it may use.
  *
- * A firmware supplies the C files in firmwares/<name>/nds32/ (all are compiled in). One of them
- * defines the fw_* functions below. The platform owns start-up, the display driver, the inputs,
+ * A firmware supplies the C files in firmwares/<name>/nds32/ (all are compiled in) and defines the fw_* functions
+ * below that it needs. A firmware with a firmware.json (OpenGP5 1.0) gets the 1.0 set (GP5_API1); one without, the
+ * 0.6 set, until it is ported. The platform owns start-up, the display driver, the inputs,
  * the LEDs, USB-MIDI, the DSP link and the hand-over to the factory loader; it calls the firmware
  * from its main loop, so none of these may block.
  *
@@ -12,14 +13,51 @@
 #include <stdint.h>
 
 #define GP5_VERSION_MAJOR 0           /* the platform's version (shown at start-up, told to the computer by 7E 0D) */
-#define GP5_VERSION_MINOR 6
+#define GP5_VERSION_MINOR 7
 #define GP5_VERSION_PATCH 0
-#define GP5_VERSION_TEXT "0.6.0"
+#define GP5_VERSION_TEXT "0.7.0"
 
 #define GP5_SCREEN_W 160
 #define GP5_SCREEN_H 80
 
 /* ---- implemented by the firmware ---- */
+#ifdef GP5_API1
+/* OpenGP5 1.0 (a firmware with a firmware.json: the build defines GP5_API1). Every callback is optional: the platform
+ * has an empty default for each. All run in the main loop, so none of them may wait. */
+void fw_init(void);                       /* once, before anything else (the DSP may not be ready yet) */
+int fw_draw(int force);                   /* draw (part of) the screen; return non-zero while more is left for the
+                                             next pass. force = redraw everything (the first call, for one) */
+void fw_tick(void);                       /* every 10 ms: the clock for timing things (gp5_ms(), gp5_knob()) */
+void fw_foot_down(void);                  /* the foot switch pressed / let go (debounced by the platform, 30 ms) */
+void fw_foot_up(void);
+void fw_para_down(void);                  /* the PARA knob pushed / let go */
+void fw_para_up(void);
+void fw_para_click(void);                 /* ... a push let go before 0.6 s (called just before fw_para_up) */
+void fw_para_hold(void);                  /* ... held for 0.6 s (called once while it is still held; no click follows) */
+void fw_para_turn(int detents);           /* PARA turned, +/- clicks */
+void fw_storage_changed(void);            /* the computer changed this firmware's files or store records: read them again */
+/* A firmware without params.h sends settings to the DSP through fw_take / fw_setting_count / fw_dsp_ready and gives
+ * the computer live access through fw_param_get / fw_param_set (below; all optional). With params.h the platform does
+ * both (gp5_params.h); fw_param_get / fw_param_set then answer only ids from GP5_NPARAMS up: a firmware's own extra
+ * live ids (Dreamcatcher's preset commands, for one). */
+void fw_dsp_ready(void);
+int fw_take(uint32_t *id, uint32_t *value);
+unsigned fw_setting_count(void);
+int fw_param_get(uint32_t id, uint32_t *value);
+int fw_param_set(uint32_t id, uint32_t value);
+
+/* ---- provided by the platform (1.0) ---- */
+unsigned gp5_knob(void);                  /* the volume knob, 0..255 (filtered) */
+void gp5_level_own(int own);              /* 1: the firmware sets the output level (gp5_level_set); 0 (the default):
+                                             the volume knob is the output level */
+void gp5_level_set(unsigned level);       /* output level 0..255, when owned */
+void gp5_led(uint32_t colour);            /* the LEDs: GP5_LED_BYPASS, GP5_LED_ON or GP5_LED_RGB(r, g, b) */
+#define GP5_LED_BYPASS 0u                 /* dim red */
+#define GP5_LED_ON     1u                 /* mint (the default) */
+#define GP5_LED_RGB(r, g, b) GP5_LED(r, g, b)
+const char *fw_name(void);                /* (the platform's: the manifest's id) */
+#else
+/* OpenGP5 0.6 and earlier (a firmware without firmware.json): these, as they were. */
 void fw_init(void);
 void fw_foot(void);                       /* foot switch pressed */
 void fw_foot_release(void);               /* optional: foot switch let go (empty default) */
@@ -43,21 +81,23 @@ const char *fw_name(void);                /* optional: a short ASCII name (up to
                                              (0.5: a firmware with another name wipes it at start-up). Default "opengp5" */
 int fw_store_changed(uint32_t id);        /* optional: the computer rewrote your store record `id` (7E 0E): load it
                                              again and return 1; return 0 if you can't (the user restarts the pedal) */
-const char *fw_name(void);                /* optional: a short ASCII name (up to 32 characters), e.g. "dreamcatcher":
-                                             OpenGP5 Launchpad asks for it (USB 7E 0D), and the storage belongs to it
-                                             (0.5: a firmware with another name wipes it at start-up). Default "opengp5" */
-int fw_store_changed(uint32_t id);        /* optional: the computer rewrote your store record `id` (7E 0E): load it again
-                                             and return 1; return 0 if you can't (the user restarts the pedal) */
 int fw_param_get(uint32_t id, uint32_t *value);   /* optional (0.5.4): live access from the computer (USB 7E 11 /
                                              7E 10): your settings by your own ids. get: 1 and *value if `id` is one */
 int fw_param_set(uint32_t id, uint32_t value);    /* of yours; set: 1 if taken. Both run in the main loop, like fw_take,
                                              so they may change what fw_take hands to the DSP. Defaults: 0 (none). */
+#endif
 
 /* A firmware's own LED colour, returned by fw_active(): r, g, b = brightness 0..32 (32 = fully lit) on each of
  * the LEDs' three colour lines. LEDs are not linear and their colours differ in strength: check on the pedal. */
 #define GP5_LED(r, g, b) (0x01000000u | (uint32_t)(r) | ((uint32_t)(g) << 8) | ((uint32_t)(b) << 16))
 
 /* ---- provided by the platform ---- */
+/* A line for the log (1.0): printf-style (%d %u %x %s %c %f, width and precision: platform/dsp/gp5_fmt.h), at most
+ * about 110 characters, with the time since start in front. A computer reads it: gp5_link.py log, Launchpad's
+ * console. The DSP has the same gp5_log (gp5_dsp.h); its lines arrive here marked "dsp: ". uint32_t is an unsigned
+ * long on both processors: print it with %lu / %lx (the compiler checks the format). */
+void gp5_log(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+uint32_t gp5_ms(void);                    /* milliseconds since start */
 /* Send w x h pixels (RGB565, big-endian bytes as the panel wants them) to the screen at x, y. */
 void gp5_blit(unsigned x, unsigned y, unsigned w, unsigned h, const uint16_t *px);
 /* One of five 13-character text lines in the built-in 5x7 pixel font, white on black. For smooth text in any font
@@ -94,18 +134,18 @@ int gp5_store_save(uint32_t id, const void *src, unsigned len);    /* 0 = saved 
  * (gp5_dsp.h) and exchanges GP5_LINK_WORDS words with this side after every audio block. Start it once (e.g. in
  * fw_init); on_block() then runs in the link's interrupt once per block (1.45 ms) with the words just received
  * and the words to fill for the DSP: keep it shorter than a block. Words sent here reach the DSP two exchanges
- * later. gp5_link_blocks counts the exchanges. GP5_LINK_WORDS comes from the DSP side's firmware.h when it sets
- * one (platform/nds32/build.sh passes it), else 128. */
+ * later. gp5_link_blocks counts the exchanges. GP5_LINK_WORDS comes from firmware.json ("audio": {"link_words": N}; before 1.0 the DSP
+ * side's firmware.h), else 128. */
 #ifndef GP5_LINK_WORDS
 #define GP5_LINK_WORDS 128u
 #endif
-/* The audio's sample rate: 44100, or 48000 when the DSP side's firmware.h sets #define GP5_SAMPLE_RATE 48000u
- * (0.5.6; platform/nds32/build.sh passes it). One block (on_block) is 64 samples: 1.45 ms or 1.33 ms. */
+/* The audio's sample rate: 44100, or 48000 when firmware.json says "audio": {"sample_rate": 48000}
+ * (0.5.6; before 1.0 the DSP side's firmware.h). One block (on_block) is 64 samples: 1.45 ms or 1.33 ms. */
 #ifndef GP5_SAMPLE_RATE
 #define GP5_SAMPLE_RATE 44100u
 #endif
-/* The control processor's clock in MHz: 288, or 320 (Valeton's own setting, with the core at 1.25 V) when the DSP side's
- * firmware.h sets #define GP5_CTL_MHZ 320 (0.6; platform/nds32/build.sh passes it): 11 % more cycles per block. */
+/* The control processor's clock in MHz: 288, or 320 (Valeton's own setting, with the core at 1.25 V) when firmware.json
+ * says "control": {"mhz": 320} (0.6; before 1.0 the DSP side's firmware.h): 11 % more cycles per block. */
 #ifndef GP5_CTL_MHZ
 #define GP5_CTL_MHZ 288u
 #endif

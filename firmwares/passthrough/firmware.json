@@ -1,0 +1,10 @@
+{
+  "id": "passthrough",
+  "name": "Passthrough",
+  "version": "1.0.0",
+  "author": "OpenGP5",
+  "url": "https://github.com/OpenGP5/OpenGP5",
+  "licence": "MIT",
+  "description": "The guitar straight through: the template to copy for a new firmware.",
+  "platform": "0.7"
+}

@@ -24,6 +24,7 @@ static int32_t rx[2][BUFW] __attribute__((aligned(32)));
 static int32_t tx[2][BUFW] __attribute__((aligned(32)));
 static int32_t in_copy[GP5_LINK_WORDS];
 static unsigned cur, waiting, started, resync;   /* resync: the last frame had no sync word: arm in the gap */
+volatile uint32_t gp5_link_cycles, gp5_link_worst;   /* the firmware's on_block: cycles last block, worst (7E 14) */
 static void (*on_block)(const int32_t *in, int32_t *out);
 volatile uint32_t gp5_link_blocks, gp5_link_early, gp5_link_failed, gp5_link_lost, gp5_link_lag;
 
@@ -79,7 +80,11 @@ void gp5_link_irq(void)
         unsigned i;
         resync = !in;
         if (!in) { for (i = 0; i < GP5_LINK_WORDS; i++) in_copy[i] = 0; in = in_copy; gp5_link_lost++; }
-        on_block(in, tx[k] + 1);
+        {   uint32_t c0 = __nds32__mfsr(NDS32_SR_PFMC0);          /* its cycles, for the load report (7E 14) */
+            on_block(in, tx[k] + 1);
+            gp5_link_cycles = __nds32__mfsr(NDS32_SR_PFMC0) - c0;
+            if (gp5_link_cycles > gp5_link_worst && gp5_link_blocks > 100u) gp5_link_worst = gp5_link_cycles;
+        }
     }
     LINES(tx[k], NDS32_CCTL_L1D_VA_WB);
     gp5_link_blocks++;

@@ -9,3 +9,10 @@ extern volatile uint32_t gp5_test_timer2_ctrl;
 #define __nds32__mtsr(value, reg) gp5_test_mtsr((value), (reg))
 #define __nds32__gie_dis() gp5_test_gie_dis()
 #endif
+/* (gp5_log.c) interrupts on / off and the status word: no-ops on the computer */
+#ifndef NDS32_SR_PSW
+#define NDS32_SR_PSW 0
+static inline unsigned __nds32__mfsr(int r) { (void)r; return 0; }
+static inline void __nds32__setgie_dis(void) {}
+static inline void __nds32__setgie_en(void) {}
+#endif

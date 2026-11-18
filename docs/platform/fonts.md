@@ -25,7 +25,7 @@ gp5_text_at(4, 10, &gp5_font_sans_24, "Delay", 0xFFFFFF, 0x101820);   /* straigh
   left. Colours are `0xRRGGBB`.
 - `gp5_draw_text(buffer, w, h, x, y, font, text, colour)` draws into a pixel buffer of your own (the screen's
   format, as `gp5_blit` takes it), blended into what is already there, so text sits on top of your graphics. Then
-  send the buffer with `gp5_blit`. The tuner (`firmwares/tuner/nds32/firmware.c`) draws this way.
+  send the buffer with `gp5_blit`. The tremolo (`firmwares/tremolo/nds32/firmware.c`) draws this way, a row at a time.
 - `gp5_text_width(font, text)` measures, for centring or right-aligning.
 - A font knows its line height (`font->h`) and where its baseline is (`font->base`, pixels below the top).
 
@@ -70,5 +70,5 @@ gp5_text_at(4, 4, &font_title, "My effect", 0xFFFFFF, 0x000000);
   give your converted copy another name.
 - Make as many sizes as you need; each is its own header.
 
-To check how text looks before flashing, the tuner's screen preview (`firmwares/tuner/test/screen.sh`) shows
+To check how text looks before flashing, the tremolo's screen preview (`firmwares/tremolo/test/screen.sh`) shows
 how to draw a firmware's screen into PNG files on the computer with the same code that runs on the pedal.

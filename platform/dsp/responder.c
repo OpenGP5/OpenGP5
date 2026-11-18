@@ -124,6 +124,19 @@ static void uart_put(uint8_t b) {
     uart_pump();
 }
 
+static void send_frame(const uint8_t *payload, uint32_t n);
+#include "gp5_fmt.h"
+#include <stdarg.h>
+static void gp5_log(const char *fmt, ...) {         /* gp5_dsp.h: a log line as frame 0x4F10 [cmd][len][text] */
+    uint8_t f[4 + 101];
+    va_list ap;
+    unsigned n;
+    va_start(ap, fmt);
+    n = gp5_vfmt((char *)f + 4, 101, fmt, ap);
+    va_end(ap);
+    f[0] = 0x10; f[1] = 0x4F; f[2] = (uint8_t)(4 + n); f[3] = 0;
+    send_frame(f, 4 + n);
+}
 static void send_frame(const uint8_t *payload, uint32_t n) {
     uint32_t len = n + 4u;
     uart_put(crc8(payload, n));
@@ -211,6 +224,20 @@ static void handle(const uint8_t *p, uint32_t n) {
     if (tp_handle(cmd, p, n)) return;
 #endif
 #if defined(GP5_FIRMWARE) && defined(AUDIO_LEVEL)
+#ifdef GP5_HAS_PARAMS
+    if (cmd == 0x7F10 && n >= 12) {                              /* a parameter (1.0): [id u32][value u32] */
+        uint32_t id = get32(p + 4);
+        if (id < GP5_NPARAMS) {
+            const gp5_param_desc_t *d = &gp5_param_table[id];
+            int32_t v = (int32_t)get32(p + 8);
+            v = v < d->min ? d->min : v > d->max ? d->max : v;
+            gp5_param_values[id] = v;
+            fw_param(id, v);
+        }
+        send_ack();
+        return;
+    }
+#endif
     if (cmd >= 0x7F10 && fw_command(cmd, p, n)) return;        /* the firmware's own commands */
 #endif
 #ifdef STOCK_REPLIES
@@ -235,10 +262,13 @@ static void handle(const uint8_t *p, uint32_t n) {
         send_ack();
         break;
 #endif
-    case 0x7F04: {                    /* DSP load: [cmd][16][cycles last block][worst since boot][late blocks] */
-        uint8_t r[16] = { 0x04, 0x7F, 16, 0 };
-        uint32_t v[3] = { ST[29], ST[30], ST[31] };
-        for (uint32_t i = 0; i < 12; i++) r[4 + i] = (uint8_t)(v[i / 4] >> (8 * (i % 4)));
+    case 0x7F04: {                    /* DSP load: [cmd][28][cycles last block][worst since boot][late blocks]
+                                         [variables in use, bytes][GP5_LARGE in use, bytes] (1.0: the last two) */
+        uint8_t r[24] = { 0x04, 0x7F, 24, 0 };
+        uint32_t v[5] = { ST[29], ST[30], ST[31], (uint32_t)((uintptr_t)__bss_end - (uintptr_t)__data_start),
+                         (uint32_t)((uintptr_t)__large_end - (uintptr_t)__large_start) };
+        for (uint32_t i = 0; i < 20; i++) r[4 + i] = (uint8_t)(v[i / 4] >> (8 * (i % 4)));
+        if (n >= 8 && get32(p + 4) == 1u) { ST[30] = 0; ST[31] = 0; }   /* [1]: start the worst and late counts again */
         send_frame(r, sizeof r);
         break;
     }
@@ -249,6 +279,15 @@ static void handle(const uint8_t *p, uint32_t n) {
                                        (uint8_t)(GP5_PLATFORM_VERSION >> 16), (uint8_t)(GP5_PLATFORM_VERSION >> 24) };
         send_frame(r, sizeof r);
         ST[7]++;
+#ifdef GP5_FW_ID
+        {   static int told;                  /* once: what runs here (it reaches the control processor's log) */
+            if (!told) {
+                told = 1;
+                gp5_log("firmware %s, variables %lu of 19968 bytes, GP5_LARGE %lu of 124928", GP5_FW_ID,
+                        (unsigned long)((uintptr_t)__bss_end - (uintptr_t)__data_start), (unsigned long)((uintptr_t)__large_end - (uintptr_t)__large_start));
+            }
+        }
+#endif
         break;
     }
     case 0x4001:

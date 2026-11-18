@@ -36,6 +36,9 @@ static const uint32_t ACH_DONE[4] = {1u << 2, 1u << 3, 1u << 0, 1u << 1}; /* don
 
 #ifdef GP5_FIRMWARE
 #include "gp5_dsp.h"          /* the firmware interface: fw_init / fw_process / fw_command */
+#ifdef GP5_HAS_PARAMS
+int32_t gp5_param_values[GP5_NPARAMS];
+#endif
 #endif
 
 static void audio_arm(uint32_t half) {
@@ -51,6 +54,9 @@ static void audio_arm(uint32_t half) {
 
 static void audio_init(void) {
 #ifdef GP5_FIRMWARE
+#ifdef GP5_HAS_PARAMS
+    for (uint32_t k = 0; k < GP5_NPARAMS; k++) gp5_param_values[k] = gp5_param_table[k].def;   /* until the control processor's */
+#endif
     fw_init();
     REG(0xE000EDFCu) |= 1u << 24;      /* DEMCR.TRCENA */
     REG(0xE0001004u) = 0;
@@ -167,7 +173,7 @@ static void spi1_init(void) {
 /* The firmware's view (gp5_dsp.h, GP5_AUDIO_LINK): during fw_process() gp5_link_in() holds the words the control
  * processor sent in the exchange started after the previous block (zeros if its sync word was not found), and
  * gp5_link_out() is free; spi1_block() starts the next exchange right after fw_process(). */
-static const int32_t *gp5_link_in(void) { return (const int32_t *)LINK_IN; }
+__attribute__((unused)) static const int32_t *gp5_link_in(void) { return (const int32_t *)LINK_IN; }
 #ifdef GP5_LINK_EARLY
 /* Early exchange (firmware.h: #define GP5_LINK_EARLY): one exchange takes about 105,000 cycles (38 % of a block,
  * measured 2026-11-14), so one started after a long fw_process() is still running when the next block begins and
@@ -176,10 +182,10 @@ static const int32_t *gp5_link_in(void) { return (const int32_t *)LINK_IN; }
  * of its own (gp5_link_out()), which goes out at the start of the next block; fw_link_early(), which the firmware
  * defines, may put words that are ready at once (the new input) straight into the exchange about to start. */
 #define LINK_OUT    LINK_OUT_AT
-static int32_t *gp5_link_out(void) { return (int32_t *)LINK_OUT; }
+__attribute__((unused)) static int32_t *gp5_link_out(void) { return (int32_t *)LINK_OUT; }
 static void fw_link_early(const int32_t *in, int32_t *out);
 #else
-static int32_t *gp5_link_out(void) { return (int32_t *)(RAW_TX + 4u); }
+__attribute__((unused)) static int32_t *gp5_link_out(void) { return (int32_t *)(RAW_TX + 4u); }
 #endif
 static void spi1_take(void) {                             /* before fw_process(): find the sync word, copy */
     const volatile uint8_t *r = (const volatile uint8_t *)RAW_RX;

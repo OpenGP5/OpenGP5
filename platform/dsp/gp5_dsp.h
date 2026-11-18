@@ -7,8 +7,8 @@
  * the DSP has no C library). Use float, not double: write 0.5f, not 0.5.
  *
  * Audio: mono in (the guitar, 32-bit signed, left-justified: full scale = +-2^31), stereo out, GP5_BLOCK
- * frames per call, GP5_SAMPLE_RATE Hz: 44100, or 48000 when firmware.h says #define GP5_SAMPLE_RATE 48000u (both
- * processors get it; 0.5.6). The platform applies the output level (the volume knob) after fw_process(). One
+ * frames per call, GP5_SAMPLE_RATE Hz: 44100, or 48000 when firmware.json says "audio": {"sample_rate": 48000}
+ * (both processors get it; 0.5.6). The platform applies the output level (the volume knob) after fw_process(). One
  * block is 1.45 ms at 44.1 kHz, 1.33 ms at 48 kHz; the core runs at about 191.9 MHz: 278,000 cycles per block
  * (255,900 at 48 kHz). The
  * platform counts cycles per block (GP5_CYCLES_*) and blocks that overran (GP5_LATE_BLOCKS).
@@ -38,18 +38,31 @@
 static void fw_init(void);
 static void fw_process(const int32_t *in, int32_t *out_left, int32_t *out_right);
 static int  fw_command(uint32_t cmd, const uint8_t *payload, uint32_t n);
+/* Parameters (1.0, a firmware with params.h; gp5_params.h): the platform keeps every value (gp5_param(id), the
+ * default until the control processor sends one) and calls fw_param() with each change, before the next
+ * fw_process(). A firmware with parameters defines it (even an empty one). Link command 0x7F10 is the platform's
+ * then; the firmware's own commands start at 0x7F11. */
+#include "gp5_params.h"
+#ifdef GP5_HAS_PARAMS
+static void fw_param(uint32_t id, int32_t value);
+#endif
 
 static void     gp5_reply(const uint8_t *payload, uint32_t n);   /* one link frame; payload starts with [cmd][len] */
 static void     gp5_ack(void);
 static uint32_t gp5_get32(const uint8_t *p);
+/* A line for the log (1.0): printf-style as on the control processor (gp5_fmt.h), at most 100 characters; it travels
+ * over the DSP link and shows up there marked "dsp: " (gp5_link.py log). It costs a few thousand cycles: not in
+ * every block. On the computer (run_effect.py) it prints to the terminal. */
+static void gp5_log(const char *fmt, ...) __attribute__((format(printf, 1, 2), unused));
 
-/* Audio link to the control processor: put  #define GP5_AUDIO_LINK  in firmware.h. After every block the
+/* Audio link to the control processor: "audio": {"link": true} in firmware.json (before 1.0: #define GP5_AUDIO_LINK
+ * in firmware.h). After every block the
  * platform exchanges GP5_LINK_WORDS 32-bit words each way with it (gp5_link_start() in gp5_firmware.h there).
  * In fw_process(), gp5_link_in() holds the words received in the last exchange and gp5_link_out() takes the
  * words for the next one. Words sent from here come back processed three blocks later at the earliest.
  * An exchange takes about 38 % of a block; a firmware whose fw_process() runs long should also
- * #define GP5_LINK_EARLY (the exchange then starts at the start of each block; see platform/dsp/audio.h).
- * A firmware that needs more words per exchange puts e.g.  #define GP5_LINK_WORDS 264u  in firmware.h: both
+ * set "link_early": true (the exchange then starts at the start of each block; see platform/dsp/audio.h).
+ * A firmware that needs more words per exchange sets e.g. "link_words": 264: both
  * sides are built with it (the exchange then takes longer: about 38 % of a block per 128 words). */
 #ifndef GP5_LINK_WORDS
 #define GP5_LINK_WORDS 128u

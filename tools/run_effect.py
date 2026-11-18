@@ -5,14 +5,15 @@
 
 <firmware> is a folder under firmwares/, or the path of a firmware folder elsewhere. The DSP half (dsp/firmware.h) is compiled for the computer with the
 platform's own maths functions, so it computes what the pedal computes (the pedal adds the volume knob).
-  --set ID=VALUE   a setting, sent as the control half would: link command 0x7F10 [id][value]
+  --set ID=VALUE   a parameter by its name or id (a choice by its name too: --set SHAPE=Square), sent as the
+                   control half would: link command 0x7F10 [id][value]
                    (VALUE is an integer; for a float setting write its bits, e.g. 0x3f000000 = 0.5)
   --cmd HEX        any link payload to fw_command(), e.g. 117f0400
   --tone           no input file needed: in.wav is ignored and 4 s of a plucked 110 Hz tone is used
 in.wav: 16-bit or 24-bit PCM; the first channel is the guitar. 44.1 kHz is what the pedal runs at.
 Needs a C compiler (cc).
 """
-import argparse, array, math, pathlib, struct, subprocess, sys, tempfile, wave
+import re, argparse, array, math, pathlib, struct, subprocess, sys, tempfile, wave
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 RATE = 44100
@@ -53,15 +54,29 @@ def main():
     fw = pathlib.Path(a.firmware).resolve() / "dsp"
     if not (fw / "firmware.h").is_file(): fw = ROOT / "firmwares" / a.firmware / "dsp"
     if not (fw / "firmware.h").is_file(): sys.exit(f"no {fw}/firmware.h")
+    sys.path.insert(0, str(ROOT / "platform")); import manifest
+    m = manifest.load(fw.parent)                         # firmware.json (1.0): its flags, its sample rate
+    mflags = (manifest.flags(m, fw.parent) + [f"-I{fw.parent}"]) if m else []
+    rate = m["audio"]["sample_rate"] if m else RATE
+    names, choices = [], {}                              # params.h: the parameters' names, in order (their ids)
+    if (fw.parent / "params.h").exists():
+        ptext = (fw.parent / "params.h").read_text()
+        names = re.findall(r"\b[PC]\(\s*([A-Z0-9_]+)\s*,", ptext)
+        choices = {k: c.split("|") for k, c in re.findall(r'\bC\(\s*([A-Z0-9_]+)\s*,\s*"[^"]*"\s*,\s*"[^"]*"\s*,\s*\d+\s*,\s*"([^"]*)"', ptext)}
     cmds = []
     for s in a.set:
         k, _, v = s.partition("=")
+        if k.upper() in names:
+            low = [c.lower() for c in choices.get(k.upper(), [])]
+            if v.lower() in low: v = str(low.index(v.lower()))         # a choice by its name: --set SHAPE=Square
+            k = str(names.index(k.upper()))
+        elif not re.match(r"^(0x)?[0-9a-fA-F]+$", k): sys.exit(f"--set {s}: no parameter {k} (params.h has {', '.join(names) or 'none'})")
         cmds.append(struct.pack("<HHIi" if not v.lower().startswith("0x") else "<HHII", 0x7F10, 12, int(k, 0), int(v, 0)).hex())
     cmds += [c.replace(" ", "") for c in a.cmd]
     samples = tone() if a.tone else read_wav(a.inp)
     with tempfile.TemporaryDirectory() as d:
         exe = pathlib.Path(d) / "run_effect"
-        subprocess.run(["cc", "-O2", "-std=c99", "-Wall", "-fno-builtin", f"-I{fw}", f"-I{ROOT/'platform/dsp'}",
+        subprocess.run(["cc", "-O2", "-std=c99", "-Wall", "-fno-builtin", *mflags, f"-I{fw}", f"-I{ROOT/'platform/dsp'}",
                         str(ROOT / "platform/host/run_effect.c"), str(ROOT / "platform/dsp/gp5_math.c"),
                         "-o", str(exe)], check=True)
         r = subprocess.run([str(exe), *cmds], input=samples.tobytes(), capture_output=True)
@@ -70,7 +85,7 @@ def main():
     pcm = array.array("i"); pcm.frombytes(r.stdout)
     clipped = sum(1 for v in pcm if v in (2147483647, -2147483648))
     with wave.open(a.out, "wb") as w:
-        w.setnchannels(2); w.setsampwidth(3); w.setframerate(RATE)
+        w.setnchannels(2); w.setsampwidth(3); w.setframerate(rate)
         w.writeframes(b"".join(struct.pack("<i", v)[1:] for v in pcm))
     peak = max((abs(v) for v in pcm), default=0) / 2 ** 31
     print(f"{a.out}: {len(pcm) // 2} frames, peak {20 * math.log10(peak) if peak else -999:.1f} dBFS"

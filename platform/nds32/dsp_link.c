@@ -25,6 +25,7 @@
  * Requests carry [cmd][len u16 = 8][u32 argument] (hardware sniff: ab 0c 00 01 00 60 08 00 00 00 00 00).
  * Status-only frame (4 bytes): 01 04 00 <code>, code 0x14 = ACK, 0x13 = NAK. */
 #include <stdint.h>
+void gp5_log_dsp(const uint8_t *text, unsigned len);       /* gp5_log.c */
 #include <stdbool.h>
 #include "hal/gpio.h"
 #include "hal/tick.h"
@@ -165,6 +166,7 @@ static void frame_in(const uint8_t *pl, unsigned n)
         for (i = 0; i < want_len; i++) want_buf[i] = pl[i];
         return;
     }
+    if (cmd == 0x4F10 && n > 4u) { gp5_log_dsp(pl + 4, n - 4u); return; }   /* a log line from the DSP (gp5_log there) */
     dsp_unsol_frames++;
     dsp_unsol_cmd = cmd;
     dsp_unsol_len = n > DSP_UNSOL_MAX ? DSP_UNSOL_MAX : n;

@@ -19,22 +19,53 @@ __attribute__((unused)) static void gp5_reply(const uint8_t *p, uint32_t n)
     fprintf(stderr, "\n");
 }
 __attribute__((unused)) static void gp5_ack(void) { fprintf(stderr, "ACK\n"); }
+#include <stdarg.h>
+static void gp5_log(const char *fmt, ...)
+{
+    va_list ap;
+    fprintf(stderr, "log: ");
+    va_start(ap, fmt); vfprintf(stderr, fmt, ap); va_end(ap);
+    fprintf(stderr, "\n");
+}
 __attribute__((unused)) static uint32_t gp5_get32(const uint8_t *p)
 {
     return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
 }
 
 #include "firmware.h"
+#ifdef GP5_HAS_PARAMS
+int32_t gp5_param_values[GP5_NPARAMS];
+#endif
+
+/* a link command, as the pedal's DSP takes it: 0x7F10 is a parameter (1.0) when the firmware has params.h */
+static int command(uint32_t cmd, const uint8_t *p, unsigned n)
+{
+#ifdef GP5_HAS_PARAMS
+    if (cmd == 0x7F10 && n >= 12) {
+        uint32_t id = gp5_get32(p + 4);
+        int32_t v = (int32_t)gp5_get32(p + 8);
+        if (id >= GP5_NPARAMS) { fprintf(stderr, "parameter %u: there are %u\n", id, (unsigned)GP5_NPARAMS); return 1; }
+        v = v < gp5_param_table[id].min ? gp5_param_table[id].min : v > gp5_param_table[id].max ? gp5_param_table[id].max : v;
+        gp5_param_values[id] = v; fw_param(id, v);
+        fprintf(stderr, "%s = %d\n", gp5_param_table[id].name, (int)v);
+        return 1;
+    }
+#endif
+    return fw_command(cmd, p, n);
+}
 
 int main(int argc, char **argv)
 {
     static int32_t in[GP5_BLOCK], l[GP5_BLOCK], r[GP5_BLOCK], out[2 * GP5_BLOCK];
+#ifdef GP5_HAS_PARAMS
+    for (unsigned k = 0; k < GP5_NPARAMS; k++) gp5_param_values[k] = gp5_param_table[k].def;
+#endif
     fw_init();
     for (int a = 1; a < argc; a++) {
         uint8_t p[256]; unsigned n = 0;
         for (const char *h = argv[a]; h[0] && h[1] && n < sizeof p; h += 2) { unsigned v; sscanf(h, "%2x", &v); p[n++] = (uint8_t)v; }
         uint32_t cmd = p[0] | (p[1] << 8);
-        if (!fw_command(cmd, p, n)) fprintf(stderr, "cmd %04x: not the firmware's (the platform would ACK it)\n", cmd);
+        if (!command(cmd, p, n)) fprintf(stderr, "cmd %04x: not the firmware's (the platform would ACK it)\n", cmd);
     }
     size_t got;
     while ((got = fread(in, sizeof in[0], GP5_BLOCK, stdin)) > 0) {
