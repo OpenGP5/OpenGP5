@@ -6,7 +6,7 @@ on:
     paths: [catalog/**, docs/catalog.json]
   push:
     branches: [main]
-    paths: [catalog/**, docs/catalog.json]
+    paths: [catalog/**, docs/catalog.json, docs/flasher/firmware/**, .github/workflows/catalog.yml]
 permissions:
   contents: read
 jobs:
@@ -22,4 +22,5 @@ jobs:
       - name: The index Launchpad and the web flasher read
         run: python3 tools/catalog.py index --check
       - name: Every release, downloaded and checked
-        run: python3 tools/catalog.py verify
+        # a push that changes an image on GitHub Pages runs this while Pages is still deploying it: wait for it
+        run: python3 tools/catalog.py verify ${{ github.event_name == 'push' && '--wait 600' || '' }}

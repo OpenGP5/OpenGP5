@@ -3,13 +3,16 @@
 
   catalog.py check                         every listing: fields, ids free and not reserved, URLs on the listing's
                                            own repository (offline)
-  catalog.py verify [ids...] [--local DIR] download each release (or read DIR/<file name>) and check its size,
-                                           checksum and the image's metadata (id, version, platform)
+  catalog.py verify [ids...] [--local DIR] [--wait S]
+                                           download each release (or read DIR/<file name>) and check its size,
+                                           checksum and the image's metadata (id, version, platform); --wait: a
+                                           download that doesn't match yet is tried again every 30 s for up to S
+                                           seconds (a release on GitHub Pages is served a minute or two after the push)
   catalog.py index [--check]               write docs/catalog.json, the list Launchpad and the web flasher read
                                            (--check: fail if it isn't up to date)
   catalog.py release <file.bin> <url>      the release entry for a built image, read from the image itself
 """
-import hashlib, json, pathlib, re, sys, urllib.request
+import hashlib, json, pathlib, re, sys, time, urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 CAT = ROOT / "catalog"
@@ -97,7 +100,7 @@ def index_text(entries):
     return json.dumps(out, indent=1, ensure_ascii=False) + "\n"
 
 
-def verify(entries, ids, local):
+def verify(entries, ids, local, wait=0):
     errs = []
     for e in entries:
         if ids and e["id"] not in ids: continue
@@ -106,8 +109,13 @@ def verify(entries, ids, local):
             try:
                 if local: data = (pathlib.Path(local) / r["url"].rsplit("/", 1)[1]).read_bytes()
                 else:
-                    req = urllib.request.Request(r["url"], headers={"User-Agent": "opengp5-catalog-check"})
-                    with urllib.request.urlopen(req, timeout=60) as f: data = f.read(3 * 1024 * 1024)
+                    until = time.time() + wait
+                    while True:
+                        req = urllib.request.Request(r["url"], headers={"User-Agent": "opengp5-catalog-check", "Cache-Control": "no-cache"})
+                        with urllib.request.urlopen(req, timeout=60) as f: data = f.read(3 * 1024 * 1024)
+                        if hashlib.sha256(data).hexdigest() == r["sha256"] or time.time() >= until: break
+                        print(f"wait {w}: {r['url']} doesn't match yet (still deploying?), again in 30 s", flush=True)
+                        time.sleep(30)
             except Exception as x:
                 errs.append(f"{w}: can't get {r['url']}: {x}"); continue
             if len(data) != r["size"]: errs.append(f"{w}: {len(data)} bytes, listed {r['size']}")
@@ -140,8 +148,9 @@ def main():
         print(f"{len(entries)} listings, {sum(len(e['releases']) for e in entries)} releases")
     elif a[0] == "verify":
         local = a[a.index("--local") + 1] if "--local" in a else None
-        ids = [x for x in a[1:] if not x.startswith("--") and x != local]
-        errs += verify(entries, ids, local)
+        wait = int(a[a.index("--wait") + 1]) if "--wait" in a else 0
+        ids = [x for x in a[1:] if not x.startswith("--") and x not in (local, str(wait))]
+        errs += verify(entries, ids, local, wait)
     elif a[0] == "index":
         text = index_text(entries)
         if "--check" in a:
