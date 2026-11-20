@@ -133,3 +133,26 @@ $og-pedal: #0f0f1a;   // the banner's pedal body
             mask-image: radial-gradient(ellipse 80% 45% at 50% 22%, #000 20%, transparent 80%); }
   .og-paths .og-wrap, .og-code__grid { grid-template-columns: 1fr; }
 }
+
+// ---- footer: room inside it, links big enough to tap (44 px), nothing wider than the screen ----
+.td-home .td-footer { margin-left: 0; margin-right: 0; }  // a .row: its negative margins cancel the docs
+                                                          // layout's padding, but the home page has none (they stuck out)
+.td-footer {
+  padding: 2rem 0 2.25rem;
+  > .container-fluid { padding-left: clamp(16px, 4vw, 40px); padding-right: clamp(16px, 4vw, 40px); }
+  .row { margin-left: 0; margin-right: 0; }
+  .td-footer__links-list { margin: 0; gap: 4px; }
+  .td-footer__links-item { margin: 0 !important; }
+  .td-footer__links-item a {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 44px; min-height: 44px; padding: 10px; border-radius: 10px;
+    &:hover, &:focus-visible { background: rgba(255, 255, 255, .08); }
+  }
+  .td-footer__copyright { margin: 0; }
+}
+
+// ---- diagrams: Mermaid's drawing fits the column; a code block scrolls inside itself, never the page ----
+.td-content .mermaid { max-width: 100%; overflow-x: auto; text-align: center;
+  svg { max-width: 100% !important; height: auto; } }
+.td-content pre { max-width: 100%; overflow-x: auto; }
+.td-outer { overflow-x: clip; }                         // a last guard: nothing can widen the page

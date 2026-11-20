@@ -22,13 +22,17 @@ The DSP is where sound happens. The control processor is the "brain" around it, 
 OpenGP5 is the code both processors share: start-up, drivers, USB, the screen, the link between the processors,
 storage. You never edit it. Your firmware is a few callbacks and calls into it:
 
-```
-                 ┌─────────── control processor ───────────┐        ┌──────────── DSP ────────────┐
-  knobs, foot ──►│ platform ──► fw_para_turn, fw_foot_down │        │ platform ──► fw_process      │◄── guitar
-  screen     ◄───│ gp5_blit ◄── fw_draw                    │        │ fw_param ◄── (parameters)    │──► out L / R
-  USB        ◄──►│ parameters, presets, storage, log ──────┼─ link ─┼─► gp5_param()                │
-                 │ on_block (optional) ◄───────────────────┼─ audio ┼─► gp5_link_in / out          │
-                 └─────────────────────────────────────────┘  link  └──────────────────────────────┘
+```mermaid
+flowchart TB
+    io(["Knobs, foot switch, screen, USB"]) <--> cp
+    subgraph ctl["Control processor"]
+        cp["Platform: drivers, USB, screen, storage, parameters, presets, log"] <--> cf["Your code: fw_para_turn, fw_foot_down, fw_draw, on_block (optional)"]
+    end
+    cf <== "the link: parameters, and audio (optional)" ==> df
+    subgraph dsp["DSP"]
+        df["Your code: fw_process, fw_param"] <--> dp["Platform: audio in and out"]
+    end
+    dp <--> audio(["Guitar in, out L / R"])
 ```
 
 **Your callbacks run when the platform calls them, and must return quickly.** Nothing in a firmware waits. Even
@@ -73,16 +77,16 @@ Parameters are stored there automatically. For anything else there are store rec
 
 ## From code to pedal
 
+```mermaid
+flowchart TB
+    src["Your firmware: firmware.json, params.h, dsp/firmware.h, nds32/*.c"]
+    src -- "platform/build_firmware.sh" --> bin["build/GP-5_&lt;id&gt;.bin: both parts, and a description of itself (name, version, author)"]
+    bin -- "Launchpad, the web flasher, or gp5tool.py flash" --> pedal(["The pedal"])
 ```
-firmware.json + params.h + dsp/firmware.h + nds32/*.c
-        │  tools/simulate.py       on the computer: both processors, the screen, the sound
-        │  platform/build_firmware.sh
-        ▼
-build/GP-5_<id>.bin   (both parts and a description of itself: name, version, author)
-        │  Launchpad, the web flasher, or gp5tool.py flash
-        ▼
-the pedal (Foot + PARA at power-on brings back update mode if something goes wrong)
-```
+
+Before you build, `tools/simulate.py` runs the whole firmware on the computer: both processors, the screen and the
+sound ([The simulator](simulator.md)). If something goes wrong on the pedal, holding the foot switch and pressing
+PARA in at power-on brings back update mode ([Recovery](../../GETTING-STARTED.md#recovery)).
 
 Next: [your first effect](first-effect.md), or the [firmware template](https://github.com/OpenGP5/firmware-template)
 for a repository of your own.
