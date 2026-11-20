@@ -1,4 +1,4 @@
-baseURL: https://opengp5.github.io/OpenGP5/
+baseURL: https://opengp5.github.io/
 title: OpenGP5
 locale: en
 theme: '@docsy/theme'

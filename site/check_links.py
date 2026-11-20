@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check every link and image on the built site: the page it points to exists, and so does the #anchor.
 
-  python3 site/check_links.py site/public [/OpenGP5/]
+  python3 site/check_links.py site/public [/base/]
 
 Links to other sites aren't fetched. The web flasher (flasher/) is its own app and is skipped.
 """
@@ -9,7 +9,7 @@ import os, sys
 from html.parser import HTMLParser
 from pathlib import Path
 
-root = Path(sys.argv[1]); base = sys.argv[2] if len(sys.argv) > 2 else "/OpenGP5/"
+root = Path(sys.argv[1]); base = sys.argv[2] if len(sys.argv) > 2 else "/"
 pages, links = {}, []
 
 

@@ -20,7 +20,7 @@ More on the [Flash page](../../launchpad/flash/).
 
 ## In your browser
 
-The [web flasher](https://opengp5.github.io/OpenGP5/flasher/) needs no installation.
+The [web flasher](https://opengp5.github.io/flasher/) needs no installation.
 
 1. Open it in **Chrome, Edge or Opera** on a computer. Safari can't talk to MIDI devices; Firefox asks for a
    permission first.

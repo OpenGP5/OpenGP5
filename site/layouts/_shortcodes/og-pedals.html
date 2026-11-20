@@ -1,0 +1,8 @@
+{{- /* Launchpad's GP-5 drawing, once per firmware (its LED colour and screen), stacked; the home page fades between them. */ -}}
+<div class="og-pedal__stack">
+{{- range slice "nam-loader" "dreamcatcher" "tremolo" -}}
+{{- with resources.Get (printf "pedal/%s.svg" .) -}}
+<div class="og-pedal__layer og-screen">{{ replace .Content "SCREENS/" (relURL "screens/") | safeHTML }}</div>
+{{- end -}}
+{{- end -}}
+</div>

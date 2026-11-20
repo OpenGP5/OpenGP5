@@ -1,4 +1,26 @@
-// Reading comfort: a calm measure, roomy lines, tables that breathe.
+// OpenGP5's site. The banner's black and teal for the top bar and the home page's hero; Launchpad's ink and
+// Atkinson Hyperlegible everywhere; quiet reading pages.
+
+$og-black: #090705;   // the banner's background
+$og-teal: #3cc0c1;    // the banner's "GP5"
+$og-white: #fffbfd;   // the banner's "Open"
+$og-pedal: #0f0f1a;   // the banner's pedal body
+
+// ---- top bar: the banner's black on every page, so the brand reads the same everywhere ----
+.td-navbar {
+  background: $og-black !important;
+  border-bottom: 1px solid rgba(255, 255, 255, .06);
+  .navbar-brand, .nav-link, .td-light-dark-menu .btn { color: rgba(255, 251, 253, .86) !important; }
+  .nav-link:hover, .nav-link.active { color: $og-white !important; }
+  .navbar-brand__name { font-weight: 700; letter-spacing: .01em; color: $og-white; }
+  .td-search__input {
+    background: rgba(255, 255, 255, .06); border-color: rgba(255, 255, 255, .14); color: $og-white;
+    &::placeholder { color: rgba(255, 251, 253, .55); }
+  }
+  .td-search__icon { color: rgba(255, 251, 253, .55); }
+}
+
+// ---- reading pages ----
 .td-content {
   font-size: 1.0625rem;
   line-height: 1.65;
@@ -9,10 +31,104 @@
   code { font-size: .9em; }
 }
 .td-content .lead { max-width: 72ch; }
-.og-hero-banner { max-width: min(760px, 100%); height: auto; border-radius: 14px; }
-.td-cover-block { background: radial-gradient(900px 500px at 80% 0%, #1f3b35 0%, transparent 60%), $dark; }
 [data-bs-theme="dark"] {
   --bs-link-color: #5fe3bd; --bs-link-hover-color: #8ff0d2;
   --bs-link-color-rgb: 95, 227, 189;
 }
-.td-navbar .navbar-brand__name { font-weight: 700; letter-spacing: .01em; }
+
+// ---- home page ----
+.td-home .td-outer { padding-left: 0; padding-right: 0; }
+.td-home .td-main { padding: 0; }
+.og-wrap { max-width: 1160px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px); }
+
+.og-hero {
+  position: relative; overflow: hidden; isolation: isolate;
+  background: $og-black; color: $og-white;
+  // the banner's contour lines, drawn as rings around the pedal and fading out before the text
+  &::before {
+    content: ""; position: absolute; inset: 0; z-index: -1;
+    background: repeating-radial-gradient(ellipse 46% 62% at 74% 52%,
+      rgba($og-teal, .26) 0 2px, transparent 2.5px 17px);
+    -webkit-mask-image: radial-gradient(ellipse 60% 85% at 74% 52%, #000 25%, transparent 78%);
+            mask-image: radial-gradient(ellipse 60% 85% at 74% 52%, #000 25%, transparent 78%);
+  }
+}
+.og-hero__inner {
+  max-width: 1160px; margin: 0 auto;
+  padding: clamp(40px, 8vw, 96px) clamp(16px, 4vw, 40px) clamp(48px, 8vw, 104px);
+  display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, .75fr); align-items: center;
+  gap: clamp(32px, 6vw, 80px);
+}
+.og-hero__title { margin: 0 0 1.75rem; line-height: 0;
+  img { width: min(100%, 560px); height: auto; }
+}
+.og-hero__lead { font-size: clamp(1.15rem, 1.6vw, 1.35rem); line-height: 1.5; max-width: 34ch;
+  color: rgba(255, 251, 253, .84); margin: 0 0 2rem; }
+.og-hero__actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.og-btn-primary, .og-btn-ghost { font-weight: 600; border-radius: 10px; padding: .7rem 1.25rem; font-size: 1.05rem; }
+.og-btn-primary { background: $og-teal; color: $og-black; border: 1px solid $og-teal;
+  &:hover, &:focus-visible { background: lighten($og-teal, 8%); border-color: lighten($og-teal, 8%); color: $og-black; } }
+.og-btn-ghost { background: transparent; color: $og-white; border: 1px solid rgba(255, 251, 253, .35);
+  &:hover, &:focus-visible { border-color: $og-white; color: $og-white; background: rgba(255, 255, 255, .05); } }
+.og-hero a:focus-visible { outline: 3px solid $og-white; outline-offset: 3px; }
+
+// the pedal: Launchpad's drawing, once per firmware, fading from one to the next
+.og-pedal { margin: 0; justify-self: center; width: min(100%, 230px); text-align: center; --font-ui: "Atkinson Hyperlegible Next"; }
+.og-pedal__stack { display: grid; filter: drop-shadow(0 24px 48px rgba(0, 0, 0, .55)); }
+.og-pedal__layer { grid-area: 1 / 1;
+  svg { width: 100%; height: auto; display: block; }
+}
+.og-pedal__caption { position: relative; height: 1.5em; margin-top: 1rem; color: rgba(255, 251, 253, .7);
+  font-size: .95rem;
+  span { position: absolute; inset: 0; }
+}
+.og-screen { opacity: 0; animation: og-cycle 12s infinite both; }
+.og-screen:nth-of-type(2) { animation-delay: 4s; }
+.og-screen:nth-of-type(3) { animation-delay: 8s; }
+@keyframes og-cycle { 0% { opacity: 0; } 4% { opacity: 1; } 31% { opacity: 1; } 35% { opacity: 0; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .og-screen { animation: none; }
+  .og-screen:first-of-type { opacity: 1; }
+}
+
+// three ways in: plain columns, an icon in the pedal's line style, the whole column is the link
+.og-paths { padding: clamp(48px, 7vw, 88px) 0; background: var(--bs-body-bg);
+  .og-wrap { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(24px, 4vw, 56px); }
+}
+.og-path { display: block; color: var(--bs-body-color); text-decoration: none !important;
+  h2 { font-size: 1.5rem; font-weight: 700; margin: 1rem 0 .5rem; }
+  p { color: var(--bs-secondary-color); line-height: 1.6; margin-bottom: .9rem; }
+  &:hover .og-path__more, &:focus-visible .og-path__more { text-decoration: underline; }
+  &:focus-visible { outline: 3px solid var(--bs-link-color); outline-offset: 8px; border-radius: 6px; }
+}
+.og-path__more { color: var(--bs-link-color); font-weight: 600; }
+.og-icon { width: 44px; height: 44px; fill: none; stroke: currentColor; stroke-width: 1.6;
+  stroke-linecap: round; stroke-linejoin: round; color: var(--bs-body-color); }
+
+.og-code { padding: clamp(48px, 7vw, 88px) 0; background: var(--bs-tertiary-bg);
+  border-top: 1px solid var(--bs-border-color); border-bottom: 1px solid var(--bs-border-color); }
+.og-code__grid { display: grid; grid-template-columns: minmax(0, .7fr) minmax(0, 1.3fr); gap: clamp(24px, 5vw, 64px);
+  align-items: center; }
+.og-code__text { h2 { font-size: clamp(1.5rem, 2.4vw, 2rem); font-weight: 700; margin-bottom: 1rem; }
+  p { line-height: 1.65; max-width: 46ch; } }
+.og-code__sample { min-width: 0;
+  .highlight, pre { margin: 0; border-radius: 12px; }
+  pre { padding: 1.4rem 1.5rem; font-size: .84rem; line-height: 1.6; background: $og-black !important; color: #e8e6e3;
+    border: 1px solid rgba(255, 255, 255, .08); overflow-x: auto; }
+  .highlight { position: relative; }
+  .td-click-to-copy { position: absolute; top: .5rem; right: .5rem; left: auto; border: 0; background: transparent; color: rgba(255, 251, 253, .55); }
+}
+
+.og-note { padding: clamp(40px, 6vw, 64px) 0 clamp(48px, 7vw, 80px);
+  p { max-width: 72ch; line-height: 1.6; }
+  .og-note__small { color: var(--bs-secondary-color); font-size: .9rem; }
+}
+
+@media (max-width: 860px) {
+  .og-hero__inner { grid-template-columns: 1fr; }
+  .og-pedal { width: min(46%, 170px); order: -1; }
+  .og-hero::before { background: repeating-radial-gradient(ellipse 70% 40% at 50% 22%, rgba($og-teal, .24) 0 2px, transparent 2.5px 16px);
+    -webkit-mask-image: radial-gradient(ellipse 80% 45% at 50% 22%, #000 20%, transparent 80%);
+            mask-image: radial-gradient(ellipse 80% 45% at 50% 22%, #000 20%, transparent 80%); }
+  .og-paths .og-wrap, .og-code__grid { grid-template-columns: 1fr; }
+}

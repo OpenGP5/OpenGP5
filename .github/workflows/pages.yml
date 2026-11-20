@@ -1,6 +1,11 @@
-# The website, https://opengp5.github.io/OpenGP5/: the docs (Hugo + Docsy, site/), the web flasher (docs/flasher/)
-# and the firmware catalog's index (docs/catalog.json), built and published on every push that changes them.
-# Repository settings: Pages > Source: GitHub Actions.
+# The website, built from site/ (Hugo + Docsy), docs/platform/, the web flasher (docs/flasher/) and the catalog's
+# index (docs/catalog.json), on every push that changes them. It goes to two places:
+#  - https://opengp5.github.io/ : the whole site. GitHub serves that address only from the repository
+#    OpenGP5/opengp5.github.io, so the built site is pushed there (its Pages: Deploy from a branch, main, / (root)).
+#    Needs the secret SITE_DEPLOY_KEY here: the private half of a deploy key with write access on that repository.
+#  - https://opengp5.github.io/OpenGP5/ (this repository's Pages, Source: GitHub Actions): what released Launchpads
+#    and catalog entries download (catalog.json, the web flasher and its images, assets) as they are, and a page
+#    that sends readers on for everything else (site/legacy.py).
 name: pages
 on:
   push:
@@ -35,18 +40,30 @@ jobs:
         run: |
           curl -sSL "https://github.com/sass/dart-sass/releases/download/${DART_SASS_VERSION}/dart-sass-${DART_SASS_VERSION}-linux-x64.tar.gz" | tar -xz -C "$RUNNER_TEMP"
           echo "$RUNNER_TEMP/dart-sass" >> "$GITHUB_PATH"
-      - id: pages
-        uses: actions/configure-pages@v5
       - name: Build
         working-directory: site
         run: |
           npm ci --no-audit --no-fund
-          hugo --gc --minify --baseURL "${{ steps.pages.outputs.base_url }}/"
+          hugo --gc --minify
       - name: Every link on the site
-        run: python3 site/check_links.py site/public
+        run: python3 site/check_links.py site/public /
+      - name: The old address
+        run: python3 site/legacy.py site/public site/legacy
+      - name: The site, to opengp5.github.io
+        env:
+          SITE_DEPLOY_KEY: ${{ secrets.SITE_DEPLOY_KEY }}
+        run: |
+          # without it, stop here: the old address keeps what it has rather than sending readers to an empty site
+          if [ -z "$SITE_DEPLOY_KEY" ]; then echo "::error::The secret SITE_DEPLOY_KEY isn't set (see the top of this file)"; exit 1; fi
+          install -m 600 /dev/null "$RUNNER_TEMP/key" && printf '%s\n' "$SITE_DEPLOY_KEY" > "$RUNNER_TEMP/key"
+          export GIT_SSH_COMMAND="ssh -o IdentityFile=$RUNNER_TEMP/key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+          cd site/public && touch .nojekyll
+          git init -q -b main && git add -A
+          git -c user.name=OpenGP5 -c user.email=noreply@opengp5.invalid commit -q -m "Site from OpenGP5 ${GITHUB_SHA::7}"
+          git push -q --force git@github.com:OpenGP5/opengp5.github.io.git main
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: site/public
+          path: site/legacy
   deploy:
     needs: build
     runs-on: ubuntu-24.04

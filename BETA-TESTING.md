@@ -12,7 +12,7 @@ something, whether everything works or nothing does. It takes about an hour. Rep
 
 - your GP-5, a USB cable, and a desktop or laptop computer;
 - [OpenGP5 Launchpad](https://github.com/OpenGP5/Launchpad), or Chrome / Edge for the
-  [web flasher](https://opengp5.github.io/OpenGP5/flasher/);
+  [web flasher](https://opengp5.github.io/flasher/);
 - if you want your Valeton setup back unchanged afterwards: export your SnapTones and user IRs in Valeton Suite
   first (OpenGP5 can't back those up). Launchpad backs up your 100 presets when you flash.
 

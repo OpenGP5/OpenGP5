@@ -11,11 +11,11 @@
 </p>
 
 <p align="center">
-  <a href="https://opengp5.github.io/OpenGP5/"><b>Documentation</b></a> ·
-  <a href="https://opengp5.github.io/OpenGP5/docs/get-started/"><b>Get started</b></a> ·
-  <a href="https://opengp5.github.io/OpenGP5/flasher/"><b>Flash from your browser</b></a> ·
+  <a href="https://opengp5.github.io/"><b>Documentation</b></a> ·
+  <a href="https://opengp5.github.io/docs/get-started/"><b>Get started</b></a> ·
+  <a href="https://opengp5.github.io/flasher/"><b>Flash from your browser</b></a> ·
   <a href="https://github.com/OpenGP5/Launchpad"><b>Launchpad (desktop app)</b></a> ·
-  <a href="https://opengp5.github.io/OpenGP5/docs/platform/first-effect/"><b>Your first effect</b></a> ·
+  <a href="https://opengp5.github.io/docs/platform/first-effect/"><b>Your first effect</b></a> ·
   <a href="CHANGELOG.md">Changelog</a>
 </p>
 
@@ -51,7 +51,7 @@ with the same maths, on your computer.
 
 ## Quick start
 
-**Try it without installing anything:** open the **[web flasher](https://opengp5.github.io/OpenGP5/flasher/)** in Chrome, Edge or Opera on a
+**Try it without installing anything:** open the **[web flasher](https://opengp5.github.io/flasher/)** in Chrome, Edge or Opera on a
 computer, plug the pedal in, pick one of the firmwares built with OpenGP5 (the tremolo example, or
 [Dreamcatcher](https://github.com/OpenGP5/Dreamcatcher)), or upload a `.bin` (one you built, or Valeton's), and flash.
 (Read [Safety](#safety) first.)
@@ -64,7 +64,7 @@ platform/build_firmware.sh tremolo            # -> build/GP-5_tremolo.bin
 python3 tools/gp5tool.py flash build/GP-5_tremolo.bin --sections all
 ```
 
-Requirements per system: **[Set up your computer](https://opengp5.github.io/OpenGP5/docs/platform/setup/)**. Recovery and going back to Valeton's firmware: **[Recovery](https://opengp5.github.io/OpenGP5/docs/get-started/recovery/)**.
+Requirements per system: **[Set up your computer](https://opengp5.github.io/docs/platform/setup/)**. Recovery and going back to Valeton's firmware: **[Recovery](https://opengp5.github.io/docs/get-started/recovery/)**.
 
 ## What's inside
 
@@ -104,17 +104,17 @@ and tested on every push, buildable in the browser: start from the **[firmware t
 
 ## Documentation
 
-**[opengp5.github.io/OpenGP5](https://opengp5.github.io/OpenGP5/)**: getting started, Launchpad, the firmwares,
+**[opengp5.github.io/OpenGP5](https://opengp5.github.io/)**: getting started, Launchpad, the firmwares,
 and building your own. The site is made from this repository: the pages for firmware authors are in
 [`docs/platform/`](docs/platform/) (readable here too), the rest in [`site/`](site/).
 
 | Read | For |
 |---|---|
-| [Get started](https://opengp5.github.io/OpenGP5/docs/get-started/) | flash a firmware, recover, go back to Valeton's |
-| [Launchpad](https://opengp5.github.io/OpenGP5/docs/launchpad/) | the desktop app, page by page |
-| [Firmwares](https://opengp5.github.io/OpenGP5/docs/firmwares/) | NAM Loader, Dreamcatcher, the tremolo: what they do, their controls |
-| [Build a firmware](https://opengp5.github.io/OpenGP5/docs/platform/) | set up, how it works, your first effect, every guide and reference |
-| [Help](https://opengp5.github.io/OpenGP5/docs/help/) | problems, beta testing, contributing |
+| [Get started](https://opengp5.github.io/docs/get-started/) | flash a firmware, recover, go back to Valeton's |
+| [Launchpad](https://opengp5.github.io/docs/launchpad/) | the desktop app, page by page |
+| [Firmwares](https://opengp5.github.io/docs/firmwares/) | NAM Loader, Dreamcatcher, the tremolo: what they do, their controls |
+| [Build a firmware](https://opengp5.github.io/docs/platform/) | set up, how it works, your first effect, every guide and reference |
+| [Help](https://opengp5.github.io/docs/help/) | problems, beta testing, contributing |
 | [catalog/README.md](catalog/README.md) | listing your firmware so Launchpad and the web flasher offer it |
 
 ## Safety

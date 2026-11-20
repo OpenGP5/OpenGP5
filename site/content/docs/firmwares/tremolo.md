@@ -20,7 +20,7 @@ the parts most firmwares need (settings, presets, a screen, the controls) and no
 
 ## Get it
 
-Flash it from the [web flasher](https://opengp5.github.io/OpenGP5/flasher/), or build it:
+Flash it from the [web flasher](https://opengp5.github.io/flasher/), or build it:
 
 ```bash
 platform/build_firmware.sh tremolo
