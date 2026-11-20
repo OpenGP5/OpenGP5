@@ -4,7 +4,7 @@ labels: [hardware report]
 body:
   - type: markdown
     attributes:
-      value: OpenGP5 has run on only a handful of GP-5s so far, so every report helps, especially the ones where everything worked.
+      value: OpenGP5 has run on several GP-5s so far, so every report helps, especially the ones where everything worked.
   - type: dropdown
     id: result
     attributes:
@@ -16,7 +16,7 @@ body:
     id: firmware
     attributes:
       label: What you flashed, and with what
-      placeholder: "Tremolo 1.0.0 with the web flasher / Launchpad 0.2.0 / gp5tool.py"
+      placeholder: "Tremolo 1.1.0 with the web flasher / Launchpad 0.3.0 / gp5tool.py"
     validations:
       required: true
   - type: input

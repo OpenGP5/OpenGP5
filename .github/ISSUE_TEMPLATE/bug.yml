@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         Thanks for reporting. If the pedal doesn't start after a flash, try
-        [recovery](https://github.com/OpenGP5/OpenGP5/blob/main/GETTING-STARTED.md#recovery) first.
+        [recovery](https://opengp5.github.io/docs/get-started/recovery/) first.
         A bug in a firmware from the catalog belongs in that firmware's own repository.
   - type: textarea
     id: what
