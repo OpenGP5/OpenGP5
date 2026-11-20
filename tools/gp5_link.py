@@ -226,4 +226,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(gp5tool.guarded(lambda argv: main(), sys.argv[1:]))

@@ -1,0 +1,11 @@
+{
+  "id": "my-effect",
+  "name": "My Effect",
+  "version": "0.1.0",
+  "author": "your name",
+  "url": "https://github.com/you/my-effect",
+  "licence": "MIT",
+  "description": "An overdrive: drive, tone and level, four presets.",
+  "platform": "0.7",
+  "presets": 4
+}

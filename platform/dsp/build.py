@@ -49,21 +49,9 @@ def main():
             assert (inc / "firmware.h").is_file(), f"no {inc}/firmware.h"
             fw = [f"-I{inc}", f"-I{HERE}", "-DGP5_FIRMWARE"]
             sys.path.insert(0, str(HERE.parent)); import manifest
-            m = manifest.load(inc.parent)                   # firmware.json (1.0): the settings come from it
-            if m:
-                fl = manifest.flags(m, inc.parent) + [f"-I{inc.parent}"]
-                fw += fl + (["-DAUDIO_SPI1"] if m["audio"]["link"] else [])
-            r = None if m else re.search(r"^\s*#\s*define\s+GP5_SAMPLE_RATE\s+(\d+)u?\b", (inc / "firmware.h").read_text(), re.M)
-            if r:                                           # the firmware's sample rate (0.5.6): 44100 or 48000
-                assert r.group(1) in ("44100", "48000"), f"GP5_SAMPLE_RATE {r.group(1)}: 44100 or 48000"
-                fw.append(f"-DGP5_SAMPLE_RATE={r.group(1)}u")
-            if not m and re.search(r"^\s*#\s*define\s+GP5_AUDIO_LINK\b", (inc / "firmware.h").read_text(), re.M):
-                fw.append("-DAUDIO_SPI1")                   # the firmware opts in to the audio link
-                if re.search(r"^\s*#\s*define\s+GP5_LINK_EARLY\b", (inc / "firmware.h").read_text(), re.M):
-                    fw.append("-DGP5_LINK_EARLY")           # ... with the exchange at the start of each block
-                w = re.search(r"^\s*#\s*define\s+GP5_LINK_WORDS\s+(\d+)u?\b", (inc / "firmware.h").read_text(), re.M)
-                if w:
-                    fw.append(f"-DGP5_LINK_WORDS={w.group(1)}u")   # ... with more words per exchange
+            m = manifest.load(inc.parent)                   # firmware.json: the settings come from it
+            assert m, f"no {inc.parent}/firmware.json: OpenGP5 1.0 firmwares describe themselves there (docs/platform/api.md)"
+            fw += manifest.flags(m, inc.parent) + [f"-I{inc.parent}"] + (["-DAUDIO_SPI1"] if m["audio"]["link"] else [])
         srcs = [str(HERE / a.src)] + ([str(HERE / "gp5_math.c")] if a.src == "responder.c" else [])
         subprocess.run([tool("arm-none-eabi-gcc"), *CFLAGS, f"-I{HERE}", *fw, *[f"-D{x}" for x in a.defines],
                         f"-Wl,-T,{HERE/'link.ld'}", "-Wl,--gc-sections", *srcs, *LIBS, "-o", str(elf)], check=True)

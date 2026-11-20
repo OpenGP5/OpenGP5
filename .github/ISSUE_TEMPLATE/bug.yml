@@ -1,0 +1,45 @@
+name: Bug
+description: Something in OpenGP5, a tool, Launchpad or the web flasher doesn't work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. If the pedal doesn't start after a flash, try
+        [recovery](https://github.com/OpenGP5/OpenGP5/blob/main/GETTING-STARTED.md#4-recovery-and-going-back-to-valetons-firmware) first.
+        A bug in a firmware from the catalog belongs in that firmware's own repository.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen again
+      placeholder: "1. Flash the tremolo\n2. Hold PARA\n3. ..."
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: OpenGP5 version, and the firmware and its version
+      placeholder: "0.8.0, Tremolo 1.1.0 (gp5_link.py info shows both)"
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      multiple: true
+      options: [On the pedal, The simulator or run_effect.py, Building, gp5tool / gp5_link, Launchpad, The web flasher, The docs]
+  - type: input
+    id: system
+    attributes:
+      label: Your computer's system
+      placeholder: macOS 15, Windows 11, Ubuntu 24.04 ...
+  - type: textarea
+    id: log
+    attributes:
+      label: Output, log or screenshots
+      description: "The command's output, `python3 tools/gp5_link.py log`, or a photo of the screen."
+      render: text

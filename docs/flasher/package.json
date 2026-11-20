@@ -1,0 +1,5 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test test/flasher.test.mjs test/catalog.test.mjs" }
+}

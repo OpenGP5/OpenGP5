@@ -1,19 +1,23 @@
 # OpenGP5 1.0 API
 
 Everything a firmware can use, in one place. The headers are the full reference (every function has its comment
-there); this page is the map.
+there); this page is the map. New here? [How a firmware works](concepts.md) first. Guides:
+[parameters](params.md), [UI kit](ui.md), [audio link](audio-link.md), [performance](performance.md),
+[debugging](debugging.md), [simulator](simulator.md), [releasing](releasing.md), [storage](storage.md),
+[fonts](fonts.md), [questions](faq.md).
 
 | header | processor | what |
 |---|---|---|
 | `platform/nds32/gp5_firmware.h` | control (NDS32) | callbacks, controls, screen, LEDs, storage, log, audio link |
 | `platform/nds32/gp5_font.h` | control | smooth text in any font (`fonts.md`) |
+| `platform/nds32/gp5_ui.h` | control | the UI kit: a settings page, a menu, value text, messages, knob pickup (`ui.md`) |
 | `platform/dsp/gp5_dsp.h` | DSP (Cortex-M4F) | `fw_init`, `fw_process`, `fw_command`, log, audio link, cycle counters |
 | `platform/dsp/gp5_params.h` | both | parameters and presets (`params.md`) |
 | `platform/dsp/gp5_math.h` | both | `sinf`, `expf`, `logf`, `tanhf`, … (neither processor has a C library) |
 | `platform/dsp/gp5_fmt.h` | both | a small printf (`gp5_log` uses it) |
 
-A firmware is "1.0" when its folder has a `firmware.json`. Firmwares without one build as before (the 0.6 API, kept
-for now, removed before 1.0 final).
+A firmware is a folder with a `firmware.json`; the build refuses one without it. (The 0.6 API, for firmwares without
+one, was removed in 0.8.)
 
 ## A firmware's folder
 
@@ -26,7 +30,10 @@ my-effect/
 ```
 
 The folder can live under `firmwares/` or in its own repository with OpenGP5 as a git submodule; then give the
-build its path instead of a name. `firmwares/tremolo` is the example that uses all of it.
+build its path instead of a name. The quickest start for your own repository is the
+[firmware template](https://github.com/OpenGP5/firmware-template): it builds, tests itself in the simulator on every
+push (GitHub Actions), publishes releases from tags, and opens ready to build in GitHub Codespaces.
+`firmwares/tremolo` is the example that uses all of it.
 
 ## firmware.json
 
@@ -39,7 +46,7 @@ build its path instead of a name. `firmwares/tremolo` is the example that uses a
   "url": "https://github.com/OpenGP5/OpenGP5",
   "licence": "MIT",
   "description": "The volume rises and falls.",
-  "platform": "0.7",
+  "platform": "0.8",
   "presets": 4
 }
 ```
@@ -90,12 +97,14 @@ of them may wait (a loop that waits more than 2 s turns the LEDs full red).
 |---|---|
 | `gp5_knob()` | the volume knob, 0..255, filtered |
 | `gp5_ms()` | milliseconds since start |
+| `GP5_CYCLE_COUNT()` | the core's cycle counter, for timing code ([performance](performance.md)) |
 | `gp5_level_own(1)`, `gp5_level_set(0..255)` | take over the output level (by default the volume knob sets it) |
 | `gp5_led(GP5_LED_ON / GP5_LED_BYPASS / GP5_LED_RGB(r, g, b))` | the LEDs: mint (default), dim red, or a colour (0..32 each) |
 | `gp5_blit(x, y, w, h, px)` | pixels to the 160 × 80 screen (`gp5_color(0xRRGGBB)` makes one) |
 | `gp5_text(line, s)` | the built-in 5×7 font, 5 lines of 13 characters |
 | `gp5_draw_text`, `gp5_text_at`, `gp5_text_width` | smooth text (`gp5_font.h`, `fonts.md`) |
 | `gp5_param`, `gp5_param_set`, `gp5_preset_*` | parameters and presets (`params.md`) |
+| `gp5_ui_page_*`, `gp5_ui_menu_*`, `gp5_param_format`, `gp5_pickup_*` | the UI kit (`ui.md`) |
 | `gp5_store_save(id, p, len)` / `gp5_store_load(id, p, max)` | a record of up to 1 KB, kept across power-off (`storage.md`) |
 | `gp5_file`, `gp5_file_check`, `gp5_file_each` | files the computer wrote (captures, IRs): read straight from flash |
 | `gp5_log(fmt, ...)` | a line for the log (below) |
@@ -114,7 +123,9 @@ One header, `dsp/firmware.h`, compiled into the platform's DSP program:
 
 It may use `gp5_param(id)` (the current value), `gp5_reply` / `gp5_ack` (answer a command), `gp5_log`,
 `gp5_link_in()` / `gp5_link_out()`, `GP5_LARGE` (put a buffer in the 122 KB block; ordinary variables have
-19.5 KB), and `GP5_CYCLES_LAST`, `GP5_CYCLES_WORST`, `GP5_LATE_BLOCKS`.
+19.5 KB), `GP5_CYCLES_LAST`, `GP5_CYCLES_WORST`, `GP5_LATE_BLOCKS`, `GP5_CYCLE_COUNT()` (the core's cycle
+counter now, for timing a piece of code), and `GP5_FAST` (put a function that runs for every sample in RAM:
+[performance](performance.md)).
 
 Budget: about 278,000 cycles per block at 44.1 kHz (255,900 at 48 kHz). Code runs from flash unless you put it
 in RAM; see "Speed" in `platform/README.md`.
@@ -153,11 +164,12 @@ a release.
 ## Trying things without a pedal
 
 ```
-python3 tools/run_effect.py tremolo in.wav out.wav --set Rate=800 --set Shape=Square
+python3 tools/simulate.py tremolo --script controls.txt --in guitar.wav
 ```
 
-runs the DSP half on the computer with the same parameters (by name or id; choices by name).
-`firmwares/tremolo/test/screen.sh` draws the control half's screen to a PNG.
+runs the whole firmware on the computer, both halves and the audio link, with scripted controls, the screen as
+PNGs and the sound as a WAV ([the simulator](simulator.md)). For the DSP half alone, `tools/run_effect.py` is
+quicker: `python3 tools/run_effect.py tremolo in.wav out.wav --set Rate=800 --set Shape=Square`.
 
 ## Talking to a running firmware
 
@@ -176,3 +188,16 @@ Launchpad's Live page shows the same for any firmware with parameters. The USB c
 
 The platform's version is `GP5_VERSION_TEXT` in `gp5_firmware.h`; `firmware.json`'s `platform` says which API a
 firmware needs. Until 1.0 final the API may still change; after it, a minor version only adds.
+
+What 1.0 promises, for all of 1.x:
+- a firmware written for 1.0 builds and behaves the same: every name on this page, every callback and when it is
+  called, every `firmware.json` field;
+- what a pedal has saved stays readable: parameters and presets, store records, files;
+- the USB commands keep their meaning and only grow at their end (`protocols.md`), so older tools keep working.
+- the memory a firmware has never shrinks: the platform stays within its share (`known-limits.md` lists the
+  firmware's; `tools/check_budget.py` checks it in CI).
+
+The examples as released with 1.0 are kept in `compat/1.0` and tested against every change (`tools/test_compat.sh`,
+CI). If something has to go, it is marked first: using it warns when you build (`GP5_DEPRECATED`) for at least a
+whole minor release, and only a 2.0 removes it. Not promised: the platform's internals, the layout of the UI kit's
+structs beyond the fields you set, and limits that only grow (link words, presets, store size).

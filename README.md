@@ -28,8 +28,8 @@ processors, plus a small framework for writing your own: your audio code, your s
 flashed over USB.
 
 > [!NOTE]
-> **Alpha.** Tested on one pedal so far. Expect rough edges, and expect interfaces to change. Reports from
-> other GP-5s are very welcome (see [Known limits](GETTING-STARTED.md#known-limits)); read the
+> **Alpha.** Running on at least four GP-5s so far (users' reports, November 2026), with no problems reported.
+> Expect rough edges, and expect interfaces to change. Reports from more GP-5s are very welcome (see [Known limits](GETTING-STARTED.md#known-limits)); read the
 > [Safety](#safety) warning before you flash.
 
 ## Write an effect in plain C
@@ -77,7 +77,7 @@ Requirements per system, recovery and going back to Valeton's firmware: **[GETTI
 | **Built on OpenGP5** | [Dreamcatcher](https://github.com/OpenGP5/Dreamcatcher): ambient looper, glitch delay with grains, reverb, presets. [NAM Loader](https://github.com/OpenGP5/NAM-Loader): plays NAM A2 captures, 12 slots. Each in its own repository. |
 | **Desktop app** | [OpenGP5 Launchpad](https://github.com/OpenGP5/Launchpad): flash, back up and restore, manage presets and tones, with Valeton's firmware or any OpenGP5 one. |
 | **Flasher** (`tools/gp5tool.py`) | Flashes your build or Valeton's own firmware over USB-MIDI, on macOS, Linux and Windows. |
-| **Off-pedal tools** | `run_effect.py` runs your audio code on a WAV file; `dsp_emu_check.py` boots the built DSP firmware in an emulator; `make_font.py` turns any TrueType or BDF font into smooth screen text for your firmware ([fonts](docs/platform/fonts.md)). |
+| **Off-pedal tools** | `simulate.py` runs a whole firmware on the computer (both processors, the screen, scripted controls; [simulator](docs/platform/simulator.md)); `run_effect.py` runs your audio code on a WAV file; `dsp_emu_check.py` boots the built DSP firmware in an emulator; `make_font.py` turns any TrueType or BDF font into smooth screen text for your firmware ([fonts](docs/platform/fonts.md)). |
 
 None of it comes from the chip vendor or from Valeton: no vendor SDK code, headers or libraries, and no
 Valeton code or data. It was written from what the hardware does. The same source builds byte-identical
@@ -101,22 +101,35 @@ flowchart LR
 You write a manifest (`firmware.json`), your settings (`params.h`) and the two firmware files (the sound and the
 controls); the platform does everything else: it carries the settings to the DSP, saves them, keeps presets, and
 gives a computer an editor for them.
-Walkthrough: **[Your first effect](docs/platform/first-effect.md)**.
+Walkthrough: **[Your first effect](docs/platform/first-effect.md)**. Your own firmware in its own repository, built
+and tested on every push, buildable in the browser: start from the **[firmware template](https://github.com/OpenGP5/firmware-template)**.
 
 ## Documentation
 
 | Read | For |
 |---|---|
 | [GETTING-STARTED.md](GETTING-STARTED.md) | set up, build, flash, recover |
+| [docs/platform/concepts.md](docs/platform/concepts.md) | how a firmware works: the two processors, the platform, settings, storage |
 | [docs/platform/first-effect.md](docs/platform/first-effect.md) | your first effect, step by step |
 | [docs/platform/api.md](docs/platform/api.md) | everything a firmware can use: manifest, callbacks, platform calls, log, load |
 | [docs/platform/params.md](docs/platform/params.md) | settings and presets: declared once, saved, editable from a computer |
+| [docs/platform/ui.md](docs/platform/ui.md) | the UI kit: a settings page, a menu, value text, messages, knob pickup |
+| [docs/platform/simulator.md](docs/platform/simulator.md) | the whole firmware on the computer: sound, screen, scripted controls |
+| [docs/platform/audio-link.md](docs/platform/audio-link.md) | sound on both processors |
+| [docs/platform/performance.md](docs/platform/performance.md) | making it fit: budgets, measuring, what's fast on each processor |
+| [docs/platform/debugging.md](docs/platform/debugging.md) | the log, the load report, symptoms and their causes, recovery |
+| [docs/platform/releasing.md](docs/platform/releasing.md) | versions, releases, getting listed |
+| [docs/platform/faq.md](docs/platform/faq.md) | questions |
+| [docs/platform/known-limits.md](docs/platform/known-limits.md) | what it can't do (yet) |
+| [BETA-TESTING.md](BETA-TESTING.md) | try OpenGP5 on your pedal and report how it went |
 | [docs/platform/fonts.md](docs/platform/fonts.md) | text on the screen: the built-in font, smooth fonts, your own |
 | [docs/platform/storage.md](docs/platform/storage.md) | keeping settings and files on the pedal |
 | [platform/README.md](platform/README.md) | how a firmware plugs into the platform |
 | [docs/platform/protocols.md](docs/platform/protocols.md) | USB-MIDI, the firmware update, the image format, the link between the processors |
 | [docs/platform/hardware.md](docs/platform/hardware.md) | memory, pins and clocks of both processors |
 | [CHANGELOG.md](CHANGELOG.md) | what changed in each release, and how to upgrade a firmware |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | reporting bugs and how your pedal did, pull requests, the tests |
+| [catalog/README.md](catalog/README.md) | listing your firmware so Launchpad and the web flasher offer it; claiming its id |
 
 ## Safety
 

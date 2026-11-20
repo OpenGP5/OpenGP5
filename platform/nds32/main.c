@@ -43,10 +43,12 @@ int gp5_params_store_changed(uint32_t id);
 #endif
 extern const uint8_t gp5_meta[] __attribute__((weak));
 extern volatile uint32_t gp5_link_cycles, gp5_link_worst;   /* audio_link.c */
+extern volatile uint32_t gp5_link_blocks, gp5_link_lost;
+void gp5_link_check(void);                                   /* audio_link.c */
 extern char _end[];                                          /* app.ld: the end of this firmware's RAM */
 static uint32_t loop_worst, loop_skip;
 unsigned gp5_log_read(uint32_t from, uint8_t *out, unsigned max, uint32_t *at, uint32_t *end);   /* gp5_log.c */
-static int api_store_changed(uint32_t id);              /* the firmware's callbacks, 1.0 or 0.6: below */   /* the manifest's metadata block (out/gen/gp5_meta.c), if any */
+static int api_store_changed(uint32_t id);              /* the firmware's callbacks: below */   /* the manifest's metadata block (out/gen/gp5_meta.c), if any */
 #include "led.h"
 
 
@@ -275,6 +277,7 @@ static char *hex(char *p, uint32_t v, unsigned digits)
 
 /* Control map, confirmed on hardware with an input monitor (2026-11-09) */
 #define DEBOUNCE_MS 30u          /* foot switch and PARA push: ignore contact bounce this long after a change */
+#define AUDIO_WAIT_MS 3000u                   /* the most the sound waits for the start-up settings */
 #define FOOT_PIN  GP5_PIN(17)    /* port A: foot switch, active low */
 #define PARA_PIN  GP5_PIN(6)     /* port B: PARA knob push button, active low */
 #define ENC_PINS  (GP5_PIN(2) | GP5_PIN(3))   /* port B: PARA knob quadrature (both high at a detent) */
@@ -570,10 +573,9 @@ static void host_dsp_cmd(void)
     proto_reply(0x01, 0, pl, n);
 }
 
-/* ---- the firmware's callbacks: OpenGP5 1.0 (GP5_API1, a firmware with a manifest) or 0.6 ---- */
+/* ---- the firmware's callbacks (OpenGP5 1.0) ---- */
 static unsigned api_knob;
 unsigned gp5_knob(void) { return api_knob; }
-#ifdef GP5_API1
 static unsigned api_level, api_level_owned;
 static uint32_t api_led = 1u;                       /* GP5_LED_ON */
 void gp5_level_own(int own) { api_level_owned = own != 0; }
@@ -609,33 +611,12 @@ static void api_para_poll(int down) { if (down && !para_held && gp5_ms() - para_
 static uint32_t api_led_now(void) { return api_led; }
 static int api_draw(unsigned knob, int force) { (void)knob; return fw_draw(force); }
 static int api_store_changed(uint32_t id) { (void)id; fw_storage_changed(); return 1; }
-#else
-static void api_tick(unsigned knob) { api_knob = knob; fw_knob(knob); }
-static unsigned api_level_now(void) { return fw_level(); }
-static void api_foot(int down) { if (down) fw_foot(); else fw_foot_release(); }
-static void api_para(int down) { if (down) fw_para_push(); else fw_para_release(); }
-static void api_para_poll(int down) { (void)down; }
-static uint32_t api_led_now(void) { return fw_active(); }
-static int api_draw(unsigned knob, int force) { return fw_draw(knob, force); }
-static int api_store_changed(uint32_t id) { return fw_store_changed(id); }
-#endif
 
 /* gp5_firmware.h: optional for firmwares */
-#ifndef GP5_API1
-__attribute__((weak)) void fw_para_release(void) {}
-#endif
-#ifdef GP5_FW_ID
-__attribute__((weak)) const char *fw_name(void) { return GP5_FW_ID; }     /* the manifest's id (1.0) */
-#else
-__attribute__((weak)) const char *fw_name(void) { return "opengp5"; }
-#endif
+const char *fw_name(void) { return GP5_FW_ID; }      /* the manifest's id */
 void gp5_storage_claim(void);
-#ifndef GP5_API1
-__attribute__((weak)) int fw_store_changed(uint32_t id) { (void)id; return 0; }
-#endif
 __attribute__((weak)) int fw_param_get(uint32_t id, uint32_t *value) { (void)id; (void)value; return 0; }
 __attribute__((weak)) int fw_param_set(uint32_t id, uint32_t value) { (void)id; (void)value; return 0; }
-__attribute__((weak)) void fw_foot_release(void) {}
 
 /* PARA encoder: quadrature on B2/B3, sampled wherever the code can spend time (main loop, screen rows) */
 static int enc;
@@ -685,6 +666,11 @@ static void monitor(void)
     uint32_t dsp_ver = 0, dsp_next = 0, dsp_tries = 0;
     uint32_t knob_next = 0, fx_next = 0;
     uint32_t fx_startup_acked = 0, fx_all;  /* decorative LEDs wait for every initial setting */
+    /* The sound stays muted (output level 0) until the DSP has every setting the firmware starts with: otherwise the
+     * first moments play the DSP's defaults, or the guitar dry. Unmuted once nothing is left to send after the DSP's
+     * start-up, or AUDIO_WAIT_MS after it at the latest; the DSP then fades in. */
+    int audio_on = 0;
+    uint32_t audio_wait = 0;
     unsigned knob = 0, lstep = ~0u, knob_reads = 0;
     int dsp_show = 0, host_asked, status = 0;
     uint32_t t_start;
@@ -759,6 +745,7 @@ static void monitor(void)
         }
 
         dsp_link_poll();
+        gp5_link_check();                            /* the audio link restarts itself if it stalls */
 
         /* DSP link: ask for the DSP's version once a second until it answers, and whenever the host asks.
          * Each query holds the loop for at most 30 ms. */
@@ -783,7 +770,7 @@ static void monitor(void)
             /* the first readings ramp up from 0 (filter start): not a turn of the knob */
             if (knob_reads < 60) knob_reads++; else api_tick(knob);
         }
-        dsp_ctl_poll(dsp_ver != 0, api_level_now());
+        dsp_ctl_poll(dsp_ver != 0, audio_on ? api_level_now() : 0u);
         if (dsp_ctl_step != lstep) {
             lstep = dsp_ctl_step; dsp_show = 1;
             if (dsp_ctl_step == DSP_CTL_FAILED) gp5_log("DSP: start-up sync failed");
@@ -793,10 +780,12 @@ static void monitor(void)
                 gp5_params_dsp_restart();
 #endif
                 fw_dsp_ready();
+                audio_wait = gp5_ms() + AUDIO_WAIT_MS;
             }
         }
-        /* effect settings to the DSP: one per pass, at most one every 20 ms (each waits for its ACK) */
-        if (dsp_ctl_step == DSP_CTL_DONE && (int32_t)(gp5_ms() - fx_next) >= 0) {
+        /* effect settings to the DSP: one per pass (each waits for its ACK), then at most one every 20 ms; while the
+         * sound is muted at start-up, back to back */
+        if (dsp_ctl_step == DSP_CTL_DONE && (!audio_on || (int32_t)(gp5_ms() - fx_next) >= 0)) {
             uint32_t id, val;
 #ifdef GP5_HAS_PARAMS
             if (gp5_params_take(&id, &val) || fw_take(&id, &val)) {
@@ -809,6 +798,14 @@ static void monitor(void)
                 dsp_link_raw(pl, sizeof pl, rep, sizeof rep, 100, &st);
                 if (st == 0x14 && id < 32) fx_startup_acked |= 1u << id;
                 fx_next = gp5_ms() + 20;
+            } else if (!audio_on) {
+                audio_on = 1;                            /* every start-up setting is with the DSP: sound on */
+                if (gp5_link_running()) gp5_log("sound on (audio link: %u exchanges, %u lost)", (unsigned)gp5_link_blocks, (unsigned)gp5_link_lost);
+                else gp5_log("sound on");
+            }
+            if (!audio_on && (int32_t)(gp5_ms() - audio_wait) >= 0) {
+                audio_on = 1;
+                gp5_log("sound on after %u ms: the firmware still had settings to send", (unsigned)AUDIO_WAIT_MS);
             }
         }
 

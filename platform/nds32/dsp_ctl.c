@@ -68,8 +68,8 @@ void dsp_ctl_poll(int dsp_ready, unsigned level)
         return;
     }
     if (level != sent_level) {
-        send_step(0, level);
-        sent_level = level;                                        /* not repeated if it was not acknowledged */
+        if (send_step(0, level)) sent_level = level;               /* else tried again in 20 ms: the sound coming on
+                                                                      after start-up must not be lost */
         next = gp5_ms() + 20;
     }
 }

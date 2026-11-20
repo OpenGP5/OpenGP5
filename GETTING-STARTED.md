@@ -41,6 +41,8 @@ macOS / Linux, `certutil -hashfile GP-5_tremolo.bin SHA256` on Windows).
   - **macOS**: `python3`, the Xcode command line tools (`xcode-select --install`, for `cc`) and **Docker
     Desktop** (the control processor's compiler is a Linux program; it
     runs in a small container).
+- Optional, for the computer-side checks: `pip install pillow unicorn` (the simulator's screens as PNG; the DSP
+  emulator check).
 - For flashing: `python3` with `pip install mido python-rtmidi`, on the computer the pedal is plugged into
   (on Windows: Windows' own Python, not WSL, which cannot see USB-MIDI devices).
 
@@ -98,20 +100,12 @@ python3 tools/gp5tool.py flash <Valeton GP-5 firmware .bin> --sections all
 
 ## 5. Write your own
 
-`docs/platform/first-effect.md`. Try your audio code on the computer first:
-`python3 tools/run_effect.py <name> in.wav out.wav`.
+`docs/platform/first-effect.md`, after [how a firmware works](docs/platform/concepts.md). Try it on the computer
+first: `python3 tools/simulate.py <name>` runs the whole firmware ([simulator](docs/platform/simulator.md)).
 
 ## Known limits
 
-- **Tested on one pedal.** That pedal had a fault in Valeton's DSP updater (the part of the DSP that every
-  update goes through, Valeton's own included): every update stalled at its start. It was fixed on that
-  unit with a 4-byte patch, applied once (`platform/dsp/tickpatch.h`). Valeton ships updates to every
-  customer through the same updater, so the fault is most likely limited to some units, but no second pedal
-  has been tried yet. **If your pedal has it,** the flash stops at the start of the DSP part, before
-  anything is written ("stalled" / timeout from `gp5tool.py`): unplug the pedal, plug it back in, and it
-  runs what it ran before. Please report it; such pedals need a debug probe for the one-time patch.
-- Bluetooth, the audio models and Valeton's presets are not used by these firmwares. Audio is mono in,
-  stereo out, 44.1 kHz (48 kHz for firmwares that ask for it).
-- To report: your pedal's hardware version if you know it, whether `--sections all` completed, and
-  the output of `python3 tools/gp5tool.py status` and `python3 tools/gp5_link.py stats`.
-- No drawing helpers beyond text (the built-in font, smooth fonts) and raw pixels yet.
+The main ones: OpenGP5 has run on only a handful of pedals so far (at least four, none with a problem reported), and
+a pedal with a fault in Valeton's DSP updater stops at the start of the DSP part of every flash (unplug and replug: it runs what it ran before; please report it).
+Everything else: [known limits](docs/platform/known-limits.md). Want to help find more?
+[Beta testing](BETA-TESTING.md).

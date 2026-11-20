@@ -8,7 +8,8 @@ A firmware's settings, declared once in `params.h`. From that one list the platf
 - lets a computer list, read and set them: Launchpad's Live page builds its editor from them, with no code of
   its own for your firmware.
 
-The firmware's own code only reads values and sets them from the pedal's controls.
+The firmware's own code only reads values and sets them from the pedal's controls, and the
+[UI kit](ui.md) can do even that: a settings page that picks and adjusts parameters with PARA.
 
 ## Declaring them
 
@@ -30,8 +31,10 @@ C(id, name, group, count, "A|B|C", default, flags)     a choice, 0..count-1
 Each line gives an id, `GP5_P_RATE`, `GP5_P_DEPTH` and so on (0, 1, 2 …, in order), and `GP5_NPARAMS` counts them.
 Names and groups have at most 15 characters; a choice list at most 47. Launchpad shows each group as a card.
 
-Values are whole numbers. Pick the step the user needs and say it in the unit: 1/100 Hz for a rate, ms for a time,
-tenths of a dB for a gain.
+Values are whole numbers from -32,768 to 32,767, kept as 2 bytes in saved settings and presets; this range is fixed
+for all of 1.x. Pick the step the user needs and say it in the unit: 1/100 Hz for a rate, ms for a time, tenths of a
+dB for a gain. Something that needs more (a length in samples, say) is better stored in a coarser unit, or as two
+parameters.
 
 ### Units
 

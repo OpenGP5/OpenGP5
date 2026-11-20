@@ -1,0 +1,11 @@
+{
+  "about": "Firmware ids nobody can list: OpenGP5's own examples and names, and the template's placeholder id.",
+  "ids": {
+    "opengp5": "the platform's default name",
+    "passthrough": "OpenGP5's template firmware",
+    "tremolo": "OpenGP5's example firmware",
+    "my-effect": "the firmware template's placeholder: give your firmware its own id",
+    "granular-delay": "an early OpenGP5 example",
+    "tuner": "an early OpenGP5 example"
+  }
+}

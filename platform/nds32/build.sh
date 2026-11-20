@@ -17,29 +17,16 @@ INC="-I$APP -I$FW -I$FW/.. -I$APP/../dsp"   # $FW/..: the firmware's params.h (1
 CF="-std=gnu99 -DUI_PANEL -mcpu=d1088-spu -mext-dsp -mext-zol -mcmodel=medium -Os -g -Wall -fmessage-length=0 -fsingle-precision-constant -ffunction-sections -fdata-sections $INC"
 if [ -n "${GP5_DEBUG_PEEK:-}" ]; then CF="$CF -DGP5_DEBUG_PEEK"; fi     # debug builds: 7E 0A / 7E 0B read registers over USB
 GEN=$O/gen                          # firmware.json -> flags + metadata block (platform/manifest.py, run by build_firmware.sh)
-if [ -f "$GEN/manifest.flags" ]; then
-  CF="$CF $(cat "$GEN/manifest.flags")"; META="$GEN/gp5_meta.c"
-else META=                           # a firmware without a manifest (before 1.0): its #defines, as before
-LW=$(sed -n 's/^[[:space:]]*#[[:space:]]*define[[:space:]]\{1,\}GP5_LINK_WORDS[[:space:]]\{1,\}\([0-9]\{1,\}\)u\{0,1\}\b.*/\1/p' "$FW/../dsp/firmware.h" 2>/dev/null | head -1)
-if [ -n "$LW" ]; then CF="$CF -DGP5_LINK_WORDS=${LW}u"; fi    # the audio link's size, as the DSP side's firmware.h sets it
-SR=$(sed -n 's/^[[:space:]]*#[[:space:]]*define[[:space:]]\{1,\}GP5_SAMPLE_RATE[[:space:]]\{1,\}\([0-9]\{1,\}\)u\{0,1\}\b.*/\1/p' "$FW/../dsp/firmware.h" 2>/dev/null | head -1)
-if [ -n "$SR" ]; then CF="$CF -DGP5_SAMPLE_RATE=${SR}u"; fi    # the sample rate, as the DSP side's firmware.h sets it
-MHZ=$(sed -n 's/^[[:space:]]*#[[:space:]]*define[[:space:]]\{1,\}GP5_CTL_MHZ[[:space:]]\{1,\}\([0-9]\{1,\}\)u\{0,1\}\b.*/\1/p' "$FW/../dsp/firmware.h" 2>/dev/null | head -1)
-if [ -n "$MHZ" ]; then
-  [ "$MHZ" = 288 ] || [ "$MHZ" = 320 ] || { echo "GP5_CTL_MHZ $MHZ: 288 or 320"; exit 1; }
-  CF="$CF -DGP5_CTL_MHZ=${MHZ}u"                   # the control processor's clock (0.6): 320 = stock's, core at 1.25 V
-fi
-fi
-FMA=; grep -qE '^[[:space:]]*#[[:space:]]*define[[:space:]]+GP5_CTL_FMA\b' "$FW/../dsp/firmware.h" 2>/dev/null && FMA=-mext-fpu-fma
-                                  # the firmware's own files with fused multiply-adds (the FPU has them; 0.5.6)
+[ -f "$GEN/manifest.flags" ] || { echo "no $GEN/manifest.flags: build with platform/build_firmware.sh (it reads firmware.json)"; exit 1; }
+CF="$CF $(cat "$GEN/manifest.flags")"; META="$GEN/gp5_meta.c"
+# (No fused multiply-adds, -mext-fpu-fma: this processor's float unit hangs on them, measured 2026-11-16.)
 
 # Platform (start-up, drivers in hal/, USB-MIDI, DSP link, LEDs, screen) + the firmware's own code.
-for f in "$APP/main.c" "$APP/led.c" "$APP/usb_midi.c" "$APP/proto.c" "$APP/dsp_link.c" "$APP/dsp_ctl.c" "$APP/hal/gpio.c" "$APP/hal/wdg.c" "$APP/hal/spim.c" "$APP/hal/adc.c" "$APP/hal/uart0.c" "$APP/hal/timer.c" "$APP/hal/tick.c" "$APP/hal/backlight.c" "$APP/hal/clock.c" "$APP/hal/usb.c" "$APP/hal/flash.c" "$APP/hal/spis.c" "$APP/audio_link.c" "$APP/text.c" "$APP/gp5_store.c" "$APP/gp5_files.c" "$APP/gp5_params.c" "$APP/gp5_log.c" ${META:+"$META"} "$FW"/*.c \
+for f in "$APP/main.c" "$APP/led.c" "$APP/usb_midi.c" "$APP/proto.c" "$APP/dsp_link.c" "$APP/dsp_ctl.c" "$APP/hal/gpio.c" "$APP/hal/wdg.c" "$APP/hal/spim.c" "$APP/hal/adc.c" "$APP/hal/uart0.c" "$APP/hal/timer.c" "$APP/hal/tick.c" "$APP/hal/backlight.c" "$APP/hal/clock.c" "$APP/hal/usb.c" "$APP/hal/flash.c" "$APP/hal/spis.c" "$APP/audio_link.c" "$APP/text.c" "$APP/gp5_store.c" "$APP/gp5_files.c" "$APP/gp5_params.c" "$APP/gp5_ui.c" "$APP/gp5_log.c" ${META:+"$META"} "$FW"/*.c \
          "$APP/start/vectors.S" "$APP/start/startup.c" "$APP/start/irq.c" "$APP/start/cache.c"; do
   b=$(basename "$f"); X=
   [ "$b" = cache.c ] && X=-mno-ext-zol      # no hardware-loop registers touched on the way to the factory loader
   [ "$b" = flash.c ] && X=-fno-toplevel-reorder   # keeps its no-EX9 / no-IFC brackets around the code
-  case "$f" in "$FW"/*) X="$X $FMA";; esac
   nds32le-elf-gcc $CF $X -I"$APP/start" -c "$f" -o "${b%.*}.o"
 done
 nds32le-elf-gcc -Os -nostartfiles -static -mcmodel=medium -mext-dsp -mvh -T "$APP/start/app.ld" -Wl,--gc-sections -Wl,-Map,app.map \

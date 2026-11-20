@@ -1,14 +1,14 @@
 # Tremolo
 
 The example firmware of OpenGP5 1.0: the guitar's volume rises and falls with a wave. It shows the parts most
-firmwares need: settings declared once as parameters (`params.h`), four presets, a screen in the platform's smooth
-font that redraws only what changed, PARA turn, click and hold, and a screen preview on the computer.
+firmwares need: settings declared once as parameters (`params.h`), four presets, the UI kit's settings page
+(`gp5_ui.h`: smooth font, only what changed is redrawn), PARA turn, click and hold, and a screen preview on the computer.
 [Your first effect](../../docs/platform/first-effect.md) builds a smaller version of it step by step.
 
 | control | does |
 |---|---|
-| turn PARA | change the selected row: rate (0.5 … 15 Hz), depth, shape (sine, triangle, square), or which preset (loads it) |
-| click PARA | select the next row |
+| turn PARA | pick a row: rate, depth, shape, preset |
+| click PARA | adjust the row picked: turn to change rate (0.5 … 15 Hz), depth, shape (sine, triangle, square), or which preset (loads it); click again when done |
 | hold PARA | save the sound into the preset shown |
 | foot switch | tremolo on / off (LEDs mint = on, dim red = off) |
 | volume knob | output level |

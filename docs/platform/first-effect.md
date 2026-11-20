@@ -21,7 +21,7 @@ Then give it its own identity in `firmwares/my-tremolo/firmware.json`:
   "name": "My Tremolo",
   "version": "0.1.0",
   "author": "you",
-  "platform": "0.7"
+  "platform": "0.8"
 }
 ```
 
@@ -72,7 +72,7 @@ static int  fw_command(uint32_t cmd, const uint8_t *payload, uint32_t n);       
   floating-point unit. `gp5_math.h` gives you `sinf`, `cosf`, `expf`, `logf`, `powf`, `tanhf`, `sqrtf` and more.
 - Write `0.5f`, not `0.5`. A plain `0.5` is a `double`, which the DSP does slowly in software (the build warns).
 - Big buffers (delay lines, loopers) go in the 122 KB block: `static int16_t line[44100] GP5_LARGE;`. Ordinary
-  variables have 19.5 KB. The build prints what you use and refuses what doesn't fit.
+  variables have 19,712 bytes. The build prints what you use and refuses what doesn't fit.
 - `gp5_param(GP5_P_DEPTH)` reads a setting's current value anywhere. Until the control half sends its values, it
   holds the defaults from `params.h`.
 
@@ -131,7 +131,9 @@ python3 tools/run_effect.py my-tremolo guitar.wav out.wav --set Rate=400 --set D
 python3 tools/run_effect.py my-tremolo x out.wav --tone           # no recording? a plucked test tone
 ```
 
-`--set` sends a setting exactly as the control half would. The program is your `firmware.h` compiled for the
+`--set` sends a setting exactly as the control half would. Once you have the control half too (section 5), the
+[simulator](simulator.md) runs both halves with the screen and scripted controls:
+`python3 tools/simulate.py my-tremolo`. The program is your `firmware.h` compiled for the
 computer with the platform's own maths functions, so it computes what the pedal computes. `gp5_log("...")` in the
 DSP code prints to the terminal here.
 
@@ -207,7 +209,7 @@ The screen here is five lines of 13 characters (`gp5_text`). For smooth text in 
 ```
 python3 platform/manifest.py firmwares/my-tremolo --check   # is firmware.json right?
 platform/build_firmware.sh my-tremolo                       # -> build/GP-5_my-tremolo.bin
-python3 tools/dsp_emu_check.py build/GP-5_my-tremolo.bin    # boots the built DSP code in an emulator
+python3 tools/dsp_emu_check.py build/GP-5_my-tremolo.bin    # boots the built DSP code in an emulator (pip install unicorn)
 python3 tools/gp5tool.py flash build/GP-5_my-tremolo.bin --sections all
 ```
 
@@ -232,6 +234,8 @@ If anything goes wrong on the pedal: unplug, hold Foot + PARA, plug in, and flas
 - **Presets:** add `"presets": 4` to `firmware.json`, and `GP5_P_PRESET` instead of `GP5_P_SAVE` on the settings
   that make a sound. `gp5_preset_load(n)` / `gp5_preset_save(n)` from your controls; Launchpad can load, save and
   rename them too. `firmwares/tremolo` uses PARA hold to save ([Parameters and presets](params.md)).
+- **A settings page:** the [UI kit](ui.md) draws a page of your parameters and handles PARA for you, in about
+  ten lines. `firmwares/tremolo` uses it.
 - **Your own text for a value:** `GP5_U_CUSTOM` and `fw_param_text()`, so the screen and Launchpad say "5.00 Hz".
 - **More sound:** a drive (`tanhf`), a filter (a biquad is 5 multiplies per sample), an echo (a `GP5_LARGE`
   buffer), a chorus (a short delay whose length follows a slow `sinf`).

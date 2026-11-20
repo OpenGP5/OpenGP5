@@ -22,6 +22,7 @@ FIELDS = {"id": str, "name": str, "version": str, "author": str, "url": str, "li
 REQUIRED = ("id", "name", "version")
 AUDIO = {"sample_rate": (44100, 48000), "link_words": None, "link_early": (False, True), "link": (False, True)}
 CONTROL = {"mhz": (288, 320)}
+LINK_WORDS_MAX = 264                                     # the most measured to run reliably (48 kHz, 2026-11-16)
 
 
 class ManifestError(Exception):
@@ -69,8 +70,9 @@ def load(folder):
     a.setdefault("sample_rate", 44100)
     if "link_words" in a:
         w = a["link_words"]
-        if not isinstance(w, int) or isinstance(w, bool) or w < 8 or w > 512 or w % 8:
-            raise ManifestError(f"{p}: audio.link_words = {w!r}: a multiple of 8, 8..512")
+        if not isinstance(w, int) or isinstance(w, bool) or w < 8 or w > LINK_WORDS_MAX or w % 8:
+            raise ManifestError(f"{p}: audio.link_words = {w!r}: a multiple of 8, 8..{LINK_WORDS_MAX} (more words don't fit "
+                                "in a block reliably: measured at 48 kHz, 296 dropped out now and then)")
         a.setdefault("link", True)
     a.setdefault("link", bool(a.get("link_early")))
     c = m.setdefault("control", {})

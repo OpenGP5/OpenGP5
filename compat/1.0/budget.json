@@ -1,0 +1,8 @@
+{
+  "_": "What the platform may take of each memory for all of 1.x (tools/check_budget.py); a firmware is promised the rest (docs/platform/known-limits.md). Measured 2026-11-18 plus a reserve for 1.x fixes: DSP code 7,800 + 2,248; DSP variables 20 + 236; DSP buffers 2,048 (none); control code 29,840 + 33,696; control RAM 17,492 + 2,988. Check again when 1.0.0 is tagged; after that, never raise these.",
+  "dsp_code": 10048,
+  "dsp_vars": 256,
+  "dsp_large": 2048,
+  "ctl_code": 63536,
+  "ctl_ram": 20480
+}

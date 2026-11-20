@@ -91,6 +91,10 @@
   .choice input { margin-top: 4px; }
   .choice small { display: block; color: var(--text-2); font-size: 13px; }
   input[type="radio"], input[type="checkbox"] { accent-color: var(--world); width: 16px; height: 16px; flex: none; }
+  .subhead { font-size: 14px; color: var(--text-2); margin: 14px 0 8px; font-weight: 700; }
+  .badge { display: inline-block; margin-left: 6px; padding: 0 8px; border-radius: var(--r-pill); font-size: 11.5px; font-weight: 700;
+           background: var(--surface-3); color: var(--text-2); vertical-align: 1px; }
+  .badge.warn { background: color-mix(in srgb, var(--warn) 18%, var(--surface)); color: var(--text); }
   .drop { border: 1.5px dashed var(--line-strong); border-radius: var(--r-md); padding: 14px; text-align: center; color: var(--text-2); font-size: 14px; }
   .drop.over { border-color: var(--world); color: var(--text); background: var(--surface-2); }
   .drop label { color: var(--world); cursor: pointer; text-decoration: underline; font-weight: 650; }
@@ -155,6 +159,11 @@
   <section class="card">
     <h2><span class="step">2</span>Choose firmware</h2>
     <div class="choices" id="releases"></div>
+    <div id="catalogwrap" hidden>
+      <p class="subhead">More from the catalog</p>
+      <div class="choices" id="catalog"></div>
+    </div>
+    <div class="note warn" id="catalognote" hidden></div>
     <div class="drop" id="drop">Or use your own <code>.bin</code> (one you built, another OpenGP5 firmware, or Valeton's):
       drop it here or <label>choose a file<input type="file" id="file" accept=".bin" hidden></label>.
     </div>
@@ -193,6 +202,7 @@
 <script type="module">
 import * as F from "./gp5flash.js";
 import { webMidiPorts } from "./webmidi.js";
+import * as C from "./catalog.js";
 
 const $ = (id) => document.getElementById(id);
 let ports = null, image = null, busy = false, pick = 0;   // pick: the latest choice; older downloads are ignored
@@ -273,7 +283,7 @@ async function loadReleases() {
       el.innerHTML = `<input type="radio" name="fw"><span><b>${fw.title}</b><small>${fw.description} · ${fw.version}</small></span>`;
       el.querySelector("input").onchange = async () => {
         const mine = ++pick;
-        image = null; $("imageinfo").hidden = true; update();
+        image = null; $("imageinfo").hidden = true; $("catalognote").hidden = true; update();
         const bytes = new Uint8Array(await (await fetch(`firmware/${fw.file}`, { cache: "no-cache" })).arrayBuffer());
         if (mine !== pick) return;                            // another choice was made meanwhile
         const sum = [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -286,12 +296,67 @@ async function loadReleases() {
 }
 loadReleases();
 
+// ---- the firmware catalog (../catalog.json beside this page on OpenGP5's site; catalog/README.md)
+let catalog = null;
+const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+function cautionNote(entry, extra = "") {
+  $("catalognote").className = "note" + (entry.official ? "" : " warn");
+  $("catalognote").innerHTML = `<span>${extra}${esc(C.caution(entry))} <a href="${esc(entry.repo)}" target="_blank" rel="noopener">Source and releases</a>.</span>`;
+  $("catalognote").hidden = false;
+}
+async function loadCatalog() {
+  try {
+    const r = await fetch(new URLSearchParams(location.search).get("catalog") || "../catalog.json", { cache: "no-cache" });
+    catalog = await r.json();
+    const bundled = new Map((await (await fetch("firmware/manifest.json", { cache: "no-cache" })).json()).map((m) => [m.id, (m.version.match(/\d+\.\d+\.\d+/) || [""])[0]]));
+    const list = C.entries(catalog).filter((e) => bundled.get(e.id) !== e.latest.version);
+    for (const e of list) {
+      const r0 = e.latest, direct = C.fetchable(r0, location.origin);
+      const el = document.createElement("label");
+      el.className = "choice";
+      el.innerHTML = `<input type="radio" name="fw"><span><b>${esc(e.name)}</b> <span class="badge ${e.official ? "" : "warn"}">${e.official ? "OpenGP5" : "Not reviewed"}</span>` +
+        `<small>${esc(e.description)} · ${esc(r0.version)} · by ${esc(e.author)}</small></span>`;
+      el.querySelector("input").onchange = async () => {
+        const mine = ++pick;
+        image = null; $("imageinfo").hidden = true; $("imageerror").hidden = true; update();
+        if (!direct) {                                   // a GitHub release file: the person downloads it, then chooses it here
+          cautionNote(e, `<b>${esc(e.name)} ${esc(r0.version)}:</b> <a href="${esc(r0.url)}">download it</a> (a .bin from its GitHub releases), then drop it below: this page checks it is the file listed. `);
+          return;
+        }
+        cautionNote(e);
+        try {
+          const bytes = new Uint8Array(await (await fetch(r0.url, { cache: "no-cache" })).arrayBuffer());
+          if (mine !== pick) return;
+          const errs = await C.check(bytes, e, r0);
+          if (errs.length) throw new Error(`the download isn't what the catalog lists: ${errs.join("; ")}`);
+          showImage(`${e.name} ${r0.version}`, bytes);
+        } catch (x) { $("imageerror").textContent = `${e.name}: ${x.message}`; $("imageerror").hidden = false; }
+      };
+      $("catalog").appendChild(el);
+    }
+    $("catalogwrap").hidden = !list.length;
+  } catch { /* no catalog beside this page: the bundled firmwares and own files only */ }
+}
+loadCatalog();
+
 async function takeFile(file) {
   if (!file) return;
   const mine = ++pick;
+  const chosen = [...document.querySelectorAll('#catalog input[name="fw"]')].findIndex((r) => r.checked);
   for (const r of document.querySelectorAll('input[name="fw"]')) r.checked = false;
   const bytes = new Uint8Array(await file.arrayBuffer());
-  if (mine === pick) showImage(file.name, bytes);
+  if (mine !== pick) return;
+  $("catalognote").hidden = true;
+  const hit = catalog && C.findBySha(catalog, await C.sha256(bytes));     // a file from the catalog: say which, and check it
+  if (hit) {
+    const errs = await C.check(bytes, hit.entry, hit.release);
+    cautionNote(hit.entry, `<b>${esc(file.name)} is ${esc(hit.entry.name)} ${esc(hit.release.version)} from the catalog${errs.length ? "" : ": it matches"}.</b> `);
+    if (errs.length) { $("imageerror").textContent = `${file.name}: ${errs.join("; ")}`; $("imageerror").hidden = false; return; }
+  } else if (chosen >= 0) {
+    $("catalognote").className = "note bad"; $("catalognote").hidden = false;
+    $("catalognote").textContent = `${file.name} is not the file the catalog lists (its checksum differs). Check you downloaded the right file before flashing it.`;
+  }
+  showImage(file.name, bytes);
 }
 $("file").onchange = (ev) => takeFile(ev.target.files[0]);
 $("drop").ondragover = (ev) => { ev.preventDefault(); $("drop").classList.add("over"); };

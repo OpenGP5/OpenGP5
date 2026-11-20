@@ -1,0 +1,44 @@
+# OpenGP5's own checks on every push and pull request: every test that runs on the computer, the example firmwares
+# built for the pedal, and the web flasher's bundled images rebuilt byte for byte from this source.
+name: ci
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  ci:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: The control-processor compiler's 32-bit C library; Pillow (screens), Unicorn (the DSP emulator check)
+        run: sudo apt-get update && sudo apt-get install -y libc6-i386 && pip install pillow unicorn
+      - uses: actions/cache@v4
+        with:
+          path: fw-build
+          key: toolchain-${{ runner.os }}-${{ hashFiles('release/setup-toolchain.sh') }}
+      - name: Compilers (pinned, checksum-checked)
+        run: release/setup-toolchain.sh
+      - name: Tests on the computer
+        run: tools/test_all.sh
+      - name: Build the examples
+        run: |
+          platform/build_firmware.sh passthrough build/GP-5_passthrough.bin
+          platform/build_firmware.sh tremolo build/GP-5_tremolo.bin
+          python3 tools/dsp_emu_check.py build/GP-5_tremolo.bin
+      - name: Firmwares written for OpenGP5 1.0 still build for the pedal (compat/1.0, kept as released)
+        run: for f in compat/1.0/*/; do platform/build_firmware.sh "$f" "build/compat-$(basename "$f").bin"; done
+      - name: The platform still leaves a firmware the memory 1.0 promised (compat/1.0/budget.json)
+        run: python3 tools/check_budget.py
+      - name: The web flasher's tremolo is this source, byte for byte
+        run: cmp build/GP-5_tremolo.bin docs/flasher/firmware/GP-5_tremolo.bin
+      - uses: actions/upload-artifact@v4
+        with:
+          name: examples
+          path: build/GP-5_*.bin

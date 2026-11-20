@@ -25,7 +25,7 @@ the foot switch and the PARA knob, then flash again.
 
 Needs Python 3.9+, `pip install mido python-rtmidi`. Protocol and container code: gp5_proto.py, htfw.py.
 """
-import argparse, re, struct, sys, time
+import argparse, os, re, struct, sys, time
 from pathlib import Path
 
 import htfw
@@ -203,10 +203,66 @@ def port_base(name):
     return re.sub(r"\s+\d+$", "", name.split(":")[0]).strip()
 
 
+# ---- surviving "RtMidi -304" (macOS) ----
+# Now and then (seen right after a flash, while the pedal re-enumerates, and with tools run back to back) macOS can't
+# create a MIDI client. python-rtmidi then ends the whole program from C++ (std::terminate, SIGABRT): Python can't catch
+# it. So on macOS a tool runs its command in a child process. If the child is ended that way BEFORE it sent anything to
+# the pedal, the command runs again (up to 3 times, a moment apart). If it had already sent something (a flash under
+# way), it is not run again: the pedal may be part-way through, and the person decides (gp5tool.py status, recovery).
+# Test switches: GP5_MIDI_GUARD=1 (the child process on any system), GP5_TEST_MIDI_ABORT=n (the first n attempts end
+# like -304 before sending), GP5_TEST_MIDI_ABORT_AFTER_SEND=1 (every attempt ends that way after a send),
+# GP5_MIDI_RETRY_WAIT=s (the wait before a retry, times the attempt; default 1 s).
+MIDI_TRIES = 3
+
+
+def _mark_sent():
+    """the child has sent something to the pedal: never run it again on an abort"""
+    p = os.environ.get("GP5_MIDI_MARK")
+    if p and not os.path.exists(p):
+        open(p, "w").close()
+
+
+def guarded(fn, argv):
+    """Run fn(argv) (a tool's command) so that an RtMidi abort before anything was sent is retried; returns its exit code."""
+    if os.environ.get("GP5_MIDI_CHILD") or not (sys.platform == "darwin" or os.environ.get("GP5_MIDI_GUARD")):
+        return fn(argv)
+    import signal, subprocess, tempfile
+    script = os.path.abspath(sys.argv[0])
+    for attempt in range(1, MIDI_TRIES + 1):
+        fd, mark = tempfile.mkstemp(prefix="gp5-midi-"); os.close(fd); os.unlink(mark)
+        env = dict(os.environ, GP5_MIDI_CHILD="1", GP5_MIDI_MARK=mark, GP5_MIDI_ATTEMPT=str(attempt))
+        try:
+            rc = subprocess.call([sys.executable, script, *argv], env=env)
+        except KeyboardInterrupt:
+            return 130
+        sent = os.path.exists(mark)
+        if sent: os.unlink(mark)
+        if rc not in (-signal.SIGABRT, 128 + signal.SIGABRT):     # finished (or failed) normally: its own exit code
+            return rc if rc >= 0 else 128 - rc
+        if sent:
+            print("ERROR: the MIDI library stopped the program (RtMidi) after it had already talked to the pedal, so it "
+                  "isn't run again by itself. Check the pedal with  gp5tool.py status  and run the command again if "
+                  "needed (if the screen stays dark: unplug, hold the foot switch and PARA, plug in, flash again).", file=sys.stderr)
+            return 128 + signal.SIGABRT
+        if attempt < MIDI_TRIES:
+            print("note: the computer's MIDI system wasn't ready (RtMidi -304); nothing was sent. "
+                  "Trying again (%d of %d)." % (attempt + 1, MIDI_TRIES), file=sys.stderr)
+            time.sleep(float(os.environ.get("GP5_MIDI_RETRY_WAIT", "1.0")) * attempt)
+    print("ERROR: the computer's MIDI system didn't start (RtMidi -304), %d times; nothing was sent to the pedal. Wait a "
+          "moment and run it again, or unplug the pedal and plug it back in." % MIDI_TRIES, file=sys.stderr)
+    return 128 + signal.SIGABRT
+
+
 class MidiPorts:
     """Real USB-MIDI through mido."""
 
     def __init__(self):
+        # (test switches, see guarded(): they end the child with the exit status an abort gives, 134, without really
+        # crashing, so macOS shows no crash report)
+        if os.environ.get("GP5_TEST_MIDI_ABORT_AFTER_SEND"):
+            _mark_sent(); os._exit(134)
+        if int(os.environ.get("GP5_MIDI_ATTEMPT", "1")) <= int(os.environ.get("GP5_TEST_MIDI_ABORT", "0") or 0):
+            os._exit(134)
         try:
             import mido
         except ImportError:
@@ -229,6 +285,7 @@ class MidiLink:
         self.mido, self.out, self.inp = mido, out, inp
 
     def send(self, raw):
+        _mark_sent()
         self.out.send(self.mido.Message.from_bytes(list(raw)))
 
     def recv(self, timeout):
@@ -564,4 +621,4 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(guarded(main, sys.argv[1:]))

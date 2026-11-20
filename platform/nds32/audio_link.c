@@ -90,15 +90,15 @@ void gp5_link_irq(void)
     gp5_link_blocks++;
 }
 
-void gp5_link_start(void (*fn)(const int32_t *in, int32_t *out))
+static void link_arm(void)                         /* (re)start the exchanges from a clean state */
 {
     unsigned i;
-    on_block = fn;
+    gp5_irq_disable(GP5_IRQ_SPIS_DMA);
     for (i = 0; i < BUFW; i++) { rx[0][i] = rx[1][i] = 0; tx[0][i] = tx[1][i] = 0; }
     tx[0][0] = tx[1][0] = (int32_t)SYNC_N;
     LINES(rx[0], NDS32_CCTL_L1D_VA_WBINVAL); LINES(rx[1], NDS32_CCTL_L1D_VA_WBINVAL);
     LINES(tx[0], NDS32_CCTL_L1D_VA_WB); LINES(tx[1], NDS32_CCTL_L1D_VA_WB);
-    cur = 0; started = 1;
+    cur = 0; waiting = 0; resync = 0; gp5_link_failed = 0;
     gp5_spis_init();
     /* Lowest priority: a heavy on_block() can take most of a block, and the 1 ms tick (0) and the DSP link's
      * receive (2, a 4-byte FIFO that overruns after ~80 us) must be able to interrupt it. The handler re-arms
@@ -108,6 +108,37 @@ void gp5_link_start(void (*fn)(const int32_t *in, int32_t *out))
     wait_gap();                                     /* start between two exchanges too */
     gp5_spis_start(tx[0], rx[0], BYTES);
     gp5_irq_enable(GP5_IRQ_SPIS_DMA);
+}
+
+void gp5_link_start(void (*fn)(const int32_t *in, int32_t *out))
+{
+    on_block = fn;
+    started = 1;
+    link_arm();
+}
+
+/* The main loop calls this every pass. If the exchanges stop for LINK_STALL_MS while the link should run, they are
+ * started again and the log says so. On the pedal (2026-11-19) some builds of Dreamcatcher 1.4.0 never got a single
+ * exchange after start-up, every time, while the same code with two more log lines ran every time: the cause
+ * depends on where the code lands and was not found. Whatever stops the link, it must not stay stopped: a firmware
+ * whose sound runs here would play dry with no sign of why. (A flash write holds interrupts and this loop alike, so
+ * it is not mistaken for a stall.) */
+#define LINK_STALL_MS 50u                           /* ~34 blocks */
+uint32_t gp5_link_restarts;
+void gp5_link_check(void)
+{
+    static uint32_t seen, since;
+    uint32_t now = gp5_ms(), b = gp5_link_blocks;
+    if (!started) return;
+    if (b != seen || !since) { seen = b; since = now ? now : 1u; return; }
+    if (now - since < LINK_STALL_MS) return;
+    gp5_link_restarts++;
+    if (gp5_link_restarts <= 5u)
+        gp5_log("audio link: no exchange for %u ms (%u so far, %s, %u waits, %u lost): starting it again",
+                (unsigned)(now - since), (unsigned)b, gp5_link_failed ? "handler gave up" : "no interrupt",
+                (unsigned)gp5_link_early, (unsigned)gp5_link_lost);
+    link_arm();
+    seen = gp5_link_blocks; since = gp5_ms() ? gp5_ms() : 1u;
 }
 
 /* Before the hand-over to the factory loader (main.c): no more link interrupts, the slave stopped, and pins

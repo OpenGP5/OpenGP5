@@ -8,7 +8,7 @@
  *
  * Audio: mono in (the guitar, 32-bit signed, left-justified: full scale = +-2^31), stereo out, GP5_BLOCK
  * frames per call, GP5_SAMPLE_RATE Hz: 44100, or 48000 when firmware.json says "audio": {"sample_rate": 48000}
- * (both processors get it; 0.5.6). The platform applies the output level (the volume knob) after fw_process(). One
+ * (both processors get it). The platform applies the output level (the volume knob) after fw_process(). One
  * block is 1.45 ms at 44.1 kHz, 1.33 ms at 48 kHz; the core runs at about 191.9 MHz: 278,000 cycles per block
  * (255,900 at 48 kHz). The
  * platform counts cycles per block (GP5_CYCLES_*) and blocks that overran (GP5_LATE_BLOCKS).
@@ -28,11 +28,26 @@
 #define GP5_DSP_H
 #include <stdint.h>
 
+/* Something the platform will retire (in a later major version only): using it warns when you build, with what to use
+ * instead. 1.x keeps it working; a deprecation warns for at least one whole minor release before 2.0 removes it. */
+#ifndef GP5_DEPRECATED
+#define GP5_DEPRECATED(instead) __attribute__((deprecated(instead)))
+#endif
+
 #define GP5_BLOCK       64u
 #ifndef GP5_SAMPLE_RATE
 #define GP5_SAMPLE_RATE 44100u
 #endif
 #define GP5_LARGE __attribute__((section(".large")))     /* put a big buffer in the 122 KB block */
+/* Code that runs for every sample, in RAM: GP5_FAST static void my_filter(...). The DSP runs code straight from flash
+ * otherwise, which is several times slower for loops bigger than its small fetch cache (Dreamcatcher's audio loop:
+ * 110 % of a block from flash, 42 % from RAM). It takes room from the 19.5 KB of variables, so only the hot parts.
+ * (The build's warning about a "LOAD segment with RWX permissions" is expected then.) */
+#if defined(__arm__) && !defined(GP5_HOST)
+#define GP5_FAST __attribute__((section(".data_fast"), noinline))
+#else
+#define GP5_FAST
+#endif
 #define GP5_FULL_SCALE 2147483648.0f                     /* in[] / GP5_FULL_SCALE = -1.0 .. 1.0 */
 
 static void fw_init(void);
@@ -55,11 +70,10 @@ static uint32_t gp5_get32(const uint8_t *p);
  * every block. On the computer (run_effect.py) it prints to the terminal. */
 static void gp5_log(const char *fmt, ...) __attribute__((format(printf, 1, 2), unused));
 
-/* Audio link to the control processor: "audio": {"link": true} in firmware.json (before 1.0: #define GP5_AUDIO_LINK
- * in firmware.h). After every block the
+/* Audio link to the control processor: "audio": {"link": true} in firmware.json. After every block the
  * platform exchanges GP5_LINK_WORDS 32-bit words each way with it (gp5_link_start() in gp5_firmware.h there).
  * In fw_process(), gp5_link_in() holds the words received in the last exchange and gp5_link_out() takes the
- * words for the next one. Words sent from here come back processed three blocks later at the earliest.
+ * words for the next one. Words sent from here come back processed 3 blocks later.
  * An exchange takes about 38 % of a block; a firmware whose fw_process() runs long should also
  * set "link_early": true (the exchange then starts at the start of each block; see platform/dsp/audio.h).
  * A firmware that needs more words per exchange sets e.g. "link_words": 264: both
@@ -67,7 +81,7 @@ static void gp5_log(const char *fmt, ...) __attribute__((format(printf, 1, 2), u
 #ifndef GP5_LINK_WORDS
 #define GP5_LINK_WORDS 128u
 #endif
-#ifdef AUDIO_SPI1                                     /* set by build.py when firmware.h defines GP5_AUDIO_LINK */
+#ifdef AUDIO_SPI1                                     /* set by build.py when firmware.json asks for the link */
 static const int32_t *gp5_link_in(void);
 static int32_t *gp5_link_out(void);
 #endif
@@ -76,8 +90,10 @@ static int32_t *gp5_link_out(void);
 #define GP5_CYCLES_LAST  (*(volatile uint32_t *)0x20007F74u)     /* core cycles of the last audio block */
 #define GP5_CYCLES_WORST (*(volatile uint32_t *)0x20007F78u)     /* worst block since boot */
 #define GP5_LATE_BLOCKS  (*(volatile uint32_t *)0x20007F7Cu)     /* blocks that finished after the next one was ready */
+#define GP5_CYCLE_COUNT() (*(volatile uint32_t *)0xE0001004u)    /* the core's cycle counter now: time code with it */
 #else                                                             /* tools/run_effect.py, on the computer */
-static uint32_t GP5_CYCLES_LAST, GP5_CYCLES_WORST, GP5_LATE_BLOCKS;
+static __attribute__((unused)) uint32_t GP5_CYCLES_LAST, GP5_CYCLES_WORST, GP5_LATE_BLOCKS;
+#define GP5_CYCLE_COUNT() 0u                                       /* (no cycles counted on the computer) */
 static int32_t gp5_host_link[2][GP5_LINK_WORDS];                  /* no control processor here: words in stay 0 */
 static __attribute__((unused)) const int32_t *gp5_link_in(void) { return gp5_host_link[0]; }
 static __attribute__((unused)) int32_t *gp5_link_out(void) { return gp5_host_link[1]; }

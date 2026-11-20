@@ -1,0 +1,17 @@
+{
+  "id": "dreamcatcher",
+  "name": "Dreamcatcher",
+  "author": "OpenGP5",
+  "repo": "https://github.com/OpenGP5/Dreamcatcher",
+  "description": "Ambient looper, glitch delay with grains and pitch shifting, and reverb, free or in time with a tempo. 8 presets.",
+  "licence": "MIT",
+  "releases": [
+    {
+      "version": "1.4.0",
+      "platform": "0.8",
+      "url": "https://opengp5.github.io/OpenGP5/flasher/firmware/GP-5_dreamcatcher.bin",
+      "sha256": "caba2a3b43cefc05008f38dd2bd1824e22a81933388a11a88c612efc264d09ab",
+      "size": 124184
+    }
+  ]
+}

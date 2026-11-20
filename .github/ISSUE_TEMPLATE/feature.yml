@@ -1,0 +1,17 @@
+name: Platform feature
+description: Something the platform should offer firmwares (an API, a tool, a doc).
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: For an idea for a new effect or firmware, start a [Discussion](https://github.com/OpenGP5/OpenGP5/discussions) instead, so others can join in.
+  - type: textarea
+    id: need
+    attributes:
+      label: What do you want to make, and what's missing for it?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How you imagine it (optional)

@@ -21,10 +21,25 @@ static void fw_param(uint32_t id, int32_t value)
     if (id == GP5_P_RATE) set_rate(value);       /* DEPTH, SHAPE and ON are read where they are used */
 }
 
+#define EDGE_MS 5.0f              /* the square's edges glide over this long: a hard jump in the volume clicks */
+
+static float smooth(float x)     /* 0 .. 1 along an S-curve (smoothstep): no corner where it starts or ends */
+{
+    if (x <= 0.0f) return 0.0f;
+    if (x >= 1.0f) return 1.0f;
+    return x * x * (3.0f - 2.0f * x);
+}
+
 static float wave(float ph, int shape)           /* 0 .. 1 */
 {
     if (shape == 1) return ph < 0.5f ? 2.0f * ph : 2.0f - 2.0f * ph;       /* triangle */
-    if (shape == 2) return ph < 0.5f ? 1.0f : 0.0f;                         /* square */
+    if (shape == 2) {                                                       /* square, its edges at 0 and 0.5 smoothed */
+        float w = step * (EDGE_MS * 0.001f * (float)GP5_SAMPLE_RATE);      /* the edge's width in phase */
+        if (w > 0.2f) w = 0.2f;                                             /* (fast rates: still mostly square) */
+        if (ph < 0.25f) return smooth((ph + 0.5f * w) / w);                 /* rising, centred on 0 */
+        if (ph < 0.75f) return smooth((0.5f + 0.5f * w - ph) / w);          /* falling, centred on 0.5 */
+        return smooth((ph - 1.0f + 0.5f * w) / w);                          /* rising again, towards 1 */
+    }
     return 0.5f + 0.5f * sinf(2.0f * GP5_PI * ph);                          /* sine */
 }
 

@@ -1,0 +1,39 @@
+name: Hardware report
+description: Tried OpenGP5 on your pedal? Tell us how it went, whether it worked or not.
+labels: [hardware report]
+body:
+  - type: markdown
+    attributes:
+      value: OpenGP5 has run on only a handful of GP-5s so far, so every report helps, especially the ones where everything worked.
+  - type: dropdown
+    id: result
+    attributes:
+      label: How did it go?
+      options: [Everything worked, Worked with problems (below), "Flashing failed, but recovery worked", The pedal didn't recover]
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: What you flashed, and with what
+      placeholder: "Tremolo 1.0.0 with the web flasher / Launchpad 0.2.0 / gp5tool.py"
+    validations:
+      required: true
+  - type: input
+    id: valeton
+    attributes:
+      label: The Valeton firmware version that was on it before
+      placeholder: "V1.0.6"
+  - type: input
+    id: hardware
+    attributes:
+      label: Hardware version or anything printed on the box or label (if you know it)
+  - type: textarea
+    id: status
+    attributes:
+      label: "The output of `python3 tools/gp5tool.py status` and `python3 tools/gp5_link.py stats`"
+      render: text
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else (what didn't work, sound, screen, LEDs, the knobs)

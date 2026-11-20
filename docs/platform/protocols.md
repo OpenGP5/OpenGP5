@@ -57,6 +57,11 @@ Valeton's own firmware and the factory loader answer the state query `12 30` wit
 (Valeton's app) or `11 30 01 01` (update mode); the open firmware does not answer it. `gp5tool.py status`
 uses this, plus the USB port name ("GP-5 Open FW"), to tell the three apart.
 
+**How the commands grow (from 1.0):** an answer only ever gets longer, by fields added at its end; a field never
+moves or changes meaning, and a command keeps its number. Readers take the fields they know and ignore any bytes after
+them (Launchpad, `gp5_link.py` and the web flasher do). New things get new commands, or new sub-commands such as
+`7E 17 5`. So an older Launchpad keeps working with a newer pedal, and the other way round.
+
 ## 3. Firmware update session (factory loader)
 
 Started by `11 6F` from the open firmware (or Valeton's), or by holding the foot switch and the PARA knob

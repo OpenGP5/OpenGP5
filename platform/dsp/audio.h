@@ -230,6 +230,7 @@ static void spi1_block(void) {
 
 /* Poll: when all 4 channels finished a block, arm the other half and pass the finished input
  * half straight to the finished output half (it plays one block later). Returns 1 per block. */
+#define LEVEL_GLIDE 4096                                       /* Q16 level per block */
 static int audio_poll(void) {
     ST[18] = REG(ADMA + 0x1C);
     if (!REG(ADMA + 0x00)) return 0;
@@ -281,9 +282,18 @@ static int audio_poll(void) {
 #endif
             fw_process(blk, bl, br);
         }
-        for (int i = 0; i < 64; i++) {
-            outL[i] = (uint32_t)(int32_t)(((int64_t)bl[i] * g) >> 16);
-            outR[i] = (uint32_t)(int32_t)(((int64_t)br[i] * g) >> 16);
+        /* The level glides to the one the NDS32 sent, at most LEVEL_GLIDE per block (full scale in 16 blocks, 23 ms):
+         * the sound fades in when it comes on after start-up, and a change makes no click. */
+        {
+            static int32_t g_now;                              /* the level applied (0 at start: muted) */
+            int32_t d = g - g_now;
+            if (d > LEVEL_GLIDE) d = LEVEL_GLIDE; else if (d < -LEVEL_GLIDE) d = -LEVEL_GLIDE;
+            for (int i = 0; i < 64; i++) {
+                int32_t gi = g_now + (d * (i + 1)) / 64;
+                outL[i] = (uint32_t)(int32_t)(((int64_t)bl[i] * gi) >> 16);
+                outR[i] = (uint32_t)(int32_t)(((int64_t)br[i] * gi) >> 16);
+            }
+            g_now += d;
         }
         uint32_t dt = REG(0xE0001004u) - t0;
         ST[29] = dt;                                           /* core cycles for this block */

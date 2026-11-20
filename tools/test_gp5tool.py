@@ -356,5 +356,35 @@ class FlashRuns(unittest.TestCase):
         self.assertEqual(got, want)
 
 
+class MidiAbortRetry(unittest.TestCase):
+    """macOS 'RtMidi -304' ends the program from C++; gp5tool.guarded() runs the command again only if nothing was sent
+    yet. The aborts are simulated (test switches in gp5tool.py), on any system (GP5_MIDI_GUARD)."""
+
+    def run_tool(self, script, args, **env):
+        import os, subprocess, sys
+        e = dict(os.environ, GP5_MIDI_GUARD="1", GP5_MIDI_RETRY_WAIT="0.05", **env)
+        e.pop("GP5_MIDI_CHILD", None)
+        r = subprocess.run([sys.executable, str(Path(__file__).parent / script), *args], env=e, capture_output=True, text=True)
+        return r.returncode, r.stderr
+
+    def test_an_abort_before_sending_is_retried(self):
+        rc, err = self.run_tool("gp5tool.py", ["check", str(Path(__file__).parent / "nonexistent.bin")], GP5_TEST_MIDI_ABORT="2")
+        self.assertNotIn("Trying again", err)                 # (check opens no MIDI: never aborts)
+        rc, err = self.run_tool("gp5tool.py", ["status"], GP5_TEST_MIDI_ABORT="2")
+        self.assertEqual(err.count("Trying again"), 2)
+        self.assertNotEqual(rc, 134)                          # the third attempt ran (pedal or not, mido or not)
+
+    def test_it_gives_up_after_three(self):
+        rc, err = self.run_tool("gp5_link.py", ["info"], GP5_TEST_MIDI_ABORT="9")
+        self.assertEqual(rc, 134)
+        self.assertIn("3 times; nothing was sent", err)
+
+    def test_an_abort_after_sending_is_not_retried(self):
+        rc, err = self.run_tool("gp5tool.py", ["status"], GP5_TEST_MIDI_ABORT_AFTER_SEND="1")
+        self.assertEqual(rc, 134)
+        self.assertNotIn("Trying again", err)
+        self.assertIn("already talked to the pedal", err)
+
+
 if __name__ == "__main__":
     unittest.main()

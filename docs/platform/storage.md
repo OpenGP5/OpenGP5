@@ -66,8 +66,7 @@ Each file starts with a 64-byte header in its first sector; the data follows at 
 **Writing** (the computer): first free run of sectors, erase, data, then the header **last**, read back, then erase
 the first sector of any older copy. A power cut leaves the old file or the new one, never a broken one.
 **Deleting** erases the header sector. **Reading** (firmware): `gp5_file()`, `gp5_file_check()`, `gp5_file_each()`.
-After the computer changes a firmware's files or settings it sends `7E 0E <id>`: the platform reloads parameters and presets itself, then calls `fw_storage_changed()` (before 1.0:
-`fw_store_changed(id)`) to reload the rest.
+After the computer changes a firmware's files or settings it sends `7E 0E <id>`: the platform reloads parameters and presets itself, then calls `fw_storage_changed()` to reload the rest.
 
 ## Backups
 

@@ -9,8 +9,11 @@ Needs `pip install unicorn`. Timing is not modelled: use GP5_CYCLES_* on the ped
 """
 import argparse, math, struct, sys
 from pathlib import Path
-from unicorn import Uc, UC_ARCH_ARM, UC_MODE_THUMB, UC_MODE_MCLASS, UC_HOOK_MEM_READ, UC_HOOK_MEM_WRITE
-from unicorn.arm_const import UC_ARM_REG_PC, UC_ARM_REG_SP
+try:
+    from unicorn import Uc, UC_ARCH_ARM, UC_MODE_THUMB, UC_MODE_MCLASS, UC_HOOK_MEM_READ, UC_HOOK_MEM_WRITE
+    from unicorn.arm_const import UC_ARM_REG_PC, UC_ARM_REG_SP
+except ImportError:
+    sys.exit("dsp_emu_check needs the Unicorn emulator: pip install unicorn")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import gp5tool

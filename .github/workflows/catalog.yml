@@ -1,0 +1,25 @@
+# A pull request that changes the catalog: check every listing, and download and check every release it lists
+# (size, checksum, the image's own id, version and platform). tools/catalog.py; catalog/README.md.
+name: catalog
+on:
+  pull_request:
+    paths: [catalog/**, docs/catalog.json]
+  push:
+    branches: [main]
+    paths: [catalog/**, docs/catalog.json]
+permissions:
+  contents: read
+jobs:
+  catalog:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: The listings
+        run: python3 tools/catalog.py check
+      - name: The index Launchpad and the web flasher read
+        run: python3 tools/catalog.py index --check
+      - name: Every release, downloaded and checked
+        run: python3 tools/catalog.py verify
