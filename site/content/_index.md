@@ -26,26 +26,21 @@ description: Open firmware for the Valeton GP-5 guitar pedal, and a framework fo
 <section class="og-paths">
   <div class="og-wrap">
     <a class="og-path" href="docs/firmwares/">
-      <svg class="og-icon" viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(32 12 12)">
-        <path d="M11 13.6c-.9-1.8-1.6-3.4-2.5-3.1-1.1.4-.5 3.4-1.4 5.1-.9 1.5-1.9 2.8-1.3 4.7.7 2 3.7 2.7 6.2 2.5 2.5.2 5.5-.6 6.2-2.6.6-1.8-.6-3-1-4.2-.4-1.4 0-3.4-1.2-4-1-.5-1.8.9-3 1.6"/>
-        <path d="M11 13.6V3.8M13 13.6V3.8M11 3.8l-.4-2.6 3-.4-.6 3"/>
-        <path d="M10.3 17h3.4M10.3 19.2h3.4"/></g></svg>
+      <svg class="og-icon" viewBox="0 0 24 24" aria-hidden="true"><!-- Lucide "guitar-electric", ISC licence --><path d="m12.172 11.828 4.242-4.242" /><path d="M16.414 7.586A2 2 0 0017 6.172V5a2 2 0 011.177-1.823L20.59 2.09a1 1 0 011.32 1.32l-1.088 2.412A2 2 0 0119 7h-1a2 2 0 00-1.586.586" /><path d="m6 16 2 2" /><path d="M8.23 9.85a3 3 0 011.28-1.454 1 1 0 011.496.815 4 4 0 003.783 3.783 1 1 0 01.815 1.496 3 3 0 01-1.454 1.28l-.92.38A2 2 0 0012 18a4 4 0 01-4 4 6 6 0 01-6-6 4 4 0 014-4 2 2 0 001.85-1.23z" /></svg>
       <h2>Play</h2>
       <p>NAM captures with their own cab IRs, or Dreamcatcher's looper, glitch delay and reverb. Each firmware turns
       the pedal into something new.</p>
       <span class="og-path__more">The firmwares</span>
     </a>
     <a class="og-path" href="docs/launchpad/">
-      <svg class="og-icon" viewBox="0 0 24 24" aria-hidden="true">
-        <rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 19h20"/><path d="M9 10.5l2 2 4-4"/></svg>
+      <svg class="og-icon" viewBox="0 0 24 24" aria-hidden="true"><!-- Lucide "laptop", ISC licence --><path d="M18 5a2 2 0 0 1 2 2v8.526a2 2 0 0 0 .212.897l1.068 2.127a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45l1.068-2.127A2 2 0 0 0 4 15.526V7a2 2 0 0 1 2-2z" /><path d="M20.054 15.987H3.946" /></svg>
       <h2>Manage</h2>
       <p>Launchpad flashes firmware, loads your captures and IRs, edits presets while you play, and backs everything
       up. On macOS, Windows and Linux.</p>
       <span class="og-path__more">Launchpad</span>
     </a>
     <a class="og-path" href="docs/platform/">
-      <svg class="og-icon" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M8 8l-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14"/></svg>
+      <svg class="og-icon" viewBox="0 0 24 24" aria-hidden="true"><!-- Lucide "code-xml", ISC licence --><path d="m18 16 4-4-4-4" /><path d="m6 8-4 4 4 4" /><path d="m14.5 4-5 16" /></svg>
       <h2>Build</h2>
       <p>Write an effect in plain C: your sound, your screen, your controls. Hear it on your computer before it goes
       on the pedal.</p>

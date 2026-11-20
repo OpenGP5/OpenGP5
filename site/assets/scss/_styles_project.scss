@@ -102,7 +102,8 @@ $og-pedal: #0f0f1a;   // the banner's pedal body
   &:focus-visible { outline: 3px solid var(--bs-link-color); outline-offset: 8px; border-radius: 6px; }
 }
 .og-path__more { color: var(--bs-link-color); font-weight: 600; }
-.og-icon { width: 44px; height: 44px; fill: none; stroke: currentColor; stroke-width: 1.6;
+// icons: Lucide (lucide.dev, ISC licence), as drawn there
+.og-icon { width: 40px; height: 40px; fill: none; stroke: currentColor; stroke-width: 1.75;
   stroke-linecap: round; stroke-linejoin: round; color: var(--bs-body-color); }
 
 .og-code { padding: clamp(48px, 7vw, 88px) 0; background: var(--bs-tertiary-bg);
