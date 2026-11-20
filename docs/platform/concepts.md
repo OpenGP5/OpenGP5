@@ -24,15 +24,19 @@ storage. You never edit it. Your firmware is a few callbacks and calls into it:
 
 ```mermaid
 flowchart TB
-    io(["Knobs, foot switch, screen, USB"]) <--> cp
-    subgraph ctl["Control processor"]
-        cp["Platform: drivers, USB, screen, storage, parameters, presets, log"] <--> cf["Your code: fw_para_turn, fw_foot_down, fw_draw, on_block (optional)"]
-    end
-    cf <== "the link: parameters, and audio (optional)" ==> df
-    subgraph dsp["DSP"]
-        df["Your code: fw_process, fw_param"] <--> dp["Platform: audio in and out"]
-    end
-    dp <--> audio(["Guitar in, out L / R"])
+    io(["Knobs, foot switch, screen, USB"]) <--> ctl
+    ctl["`**Control processor**
+
+    _The platform:_ drivers, USB, screen, storage, parameters, presets, log
+
+    _Your code:_ fw_para_turn, fw_foot_down, fw_draw, on_block (optional)`"]
+    ctl <== "the link: parameters, and audio (optional)" ==> dsp
+    dsp["`**DSP**
+
+    _Your code:_ fw_process, fw_param
+
+    _The platform:_ audio in and out`"]
+    dsp <--> audio(["Guitar in, out L / R"])
 ```
 
 **Your callbacks run when the platform calls them, and must return quickly.** Nothing in a firmware waits. Even
