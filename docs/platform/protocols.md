@@ -74,14 +74,24 @@ sections; every frame waits for its `14 08 00`:
 > and the next start, which sees the mark before the link or the firmware runs, hands over. It takes about
 > one second longer; the tool and the web flasher wait for it.
 
+```mermaid
+sequenceDiagram
+    participant PC as Computer
+    participant L as Loader
+    PC->>L: ENTER<br/>11 60
+    loop each section
+        PC->>L: BEGIN<br/>11 61 …
+        Note over PC,L: the loader erases the section
+        PC->>L: DATA × n<br/>class 0xFF
+        PC->>L: END<br/>11 6E type 00
+    end
+    PC->>L: END_IMAGE<br/>11 6E 6E 00
+    Note over PC,L: the pedal restarts
 ```
-ENTER        11 60
-BEGIN        11 61 <type> 00 00 00 <packet count u32> <length u32>      the loader erases the section
-DATA × n     class 0xFF, index = packet number: the bytes [11 <type>] + section data, 19 bytes per packet
-END          11 6E <type> 00
-… BEGIN … END for the next section …
-END_IMAGE    11 6E 6E 00                                                the pedal restarts
-```
+
+- **BEGIN**: `11 61 <type> 00 00 00 <packet count u32> <length u32>`.
+- **DATA**: class `0xFF`, index = the packet number; each packet carries 19 bytes: `11 <type>`, then the section's data.
+- **END**: `11 6E <type> 00`. Then BEGIN … END for the next section (dsp, app, …).
 
 `length` counts the two leading bytes `11 <type>`. The loader can only write the sections below; its own
 code (flash `0x0`–`0xFFFF`) is out of reach, which is why recovery with Foot + PARA always works.
