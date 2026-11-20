@@ -152,7 +152,18 @@ $og-pedal: #0f0f1a;   // the banner's pedal body
 }
 
 // ---- diagrams: Mermaid's drawing fits the column; a code block scrolls inside itself, never the page ----
-.td-content .mermaid { max-width: 100%; overflow-x: auto; text-align: center;
-  svg { max-width: 100% !important; height: auto; } }
+.td-content .mermaid { max-width: 100%; overflow-x: auto; text-align: center; }   // Mermaid caps each svg at its natural width
 .td-content pre { max-width: 100%; overflow-x: auto; }
 .td-outer { overflow-x: clip; }                         // a last guard: nothing can widen the page
+
+// ---- diagrams: dark panels like the home page's code sample, in both modes; rounded boxes ----
+.td-content pre.mermaid {                              // (as specific as Docsy's own pre.mermaid rule)
+  background: $og-black; border: 1px solid rgba(255, 255, 255, .06); border-radius: 14px;
+  padding: 28px 14px !important; margin: 1.5rem 0;
+  .node rect { rx: 10px; ry: 10px; stroke-width: 1.5px; }
+  .node path, .node polygon { stroke-width: 1.5px; }
+  .edgeLabel, .edgeLabel p, .edgeLabel span { color: #9fe6e6 !important; font-size: 14px; }
+  .edgeLabel rect, .labelBkg { fill: $og-black !important; background: $og-black !important; }
+  .nodeLabel strong { color: #fff; letter-spacing: .01em; }
+  .nodeLabel em { color: #9fe6e6; font-style: normal; }
+}
