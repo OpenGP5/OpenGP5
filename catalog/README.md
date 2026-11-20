@@ -9,7 +9,7 @@ with no releases yet (`"releases": []`) is fine, to claim one early. `reserved.j
 
 > **Firmwares listed here are not reviewed by OpenGP5.** The checks below make sure a download is the file its
 > author listed, says what it is, and was built for a platform it says. They don't check what the code does. Install
-> what you trust, and know how to [recover your pedal](../GETTING-STARTED.md#4-recovery-and-going-back-to-valetons-firmware).
+> what you trust, and know how to [recover your pedal](../GETTING-STARTED.md#recovery).
 > Listings from OpenGP5's own repositories are marked as such.
 
 ## How Launchpad and the web flasher use it

@@ -55,7 +55,7 @@ overwritten over USB.
 3. Flash a firmware that worked (`gp5tool.py flash`, Launchpad or the web flasher).
 
 Flashing the same firmware (the same `id`) keeps its storage; another firmware starts with empty storage. For the rare
-cases where USB recovery isn't enough, see Known limits in GETTING-STARTED.md.
+cases where USB recovery isn't enough, see [Known limits](known-limits.md).
 
 ## Asking for help
 

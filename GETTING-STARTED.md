@@ -1,111 +1,15 @@
 # Getting started
 
-## Just want to try it? Flash a prebuilt release
+The guide is on the website now: **[Get started](https://opengp5.github.io/OpenGP5/docs/get-started/)**.
 
-No compilers needed. Read the [Safety](README.md#safety) warning first.
+- [Before you flash](https://opengp5.github.io/OpenGP5/docs/get-started/safety/): what can go wrong, and what to back up
+- [Flash a firmware](https://opengp5.github.io/OpenGP5/docs/get-started/flash/): with Launchpad, in your browser, or from the command line
+- [Recovery and going back to Valeton's firmware](https://opengp5.github.io/OpenGP5/docs/get-started/recovery/)
+- [Set up your computer](https://opengp5.github.io/OpenGP5/docs/platform/setup/) to build your own
 
-**With the desktop app:** [OpenGP5 Launchpad](https://github.com/OpenGP5/Launchpad) (macOS, Windows, Linux) flashes
-the firmwares below, backs up and restores what's on the pedal, and manages presets and tones. It isn't signed: on
-macOS right-click it and choose Open the first time; on Windows choose More info > Run anyway.
+## Recovery
 
-**In your browser:** open the [web flasher](https://opengp5.github.io/OpenGP5/flasher/) in Chrome, Edge or Opera on a computer
-(Safari can't talk to MIDI devices; Firefox asks for a permission first). Plug the pedal in, click
-Connect, allow MIDI access, pick a firmware built with OpenGP5 (the tremolo example, or Dreamcatcher), or upload a `.bin` file
-(one you built, or Valeton's firmware), tick the box and click Flash.
-
-**From the command line:**
-
-1. Get a firmware image: build one (below), take one from a firmware's own releases (for example
-   [Dreamcatcher](https://github.com/OpenGP5/Dreamcatcher/releases)), or from the web flasher's files
-   (`docs/flasher/firmware/` in this repository). Download this repository (**Code > Download ZIP**, or a release's
-   **Source code (zip)**), which contains the flasher, and unzip it.
-2. Install Python 3.9 or newer, then: `pip install mido python-rtmidi`
-3. Plug the pedal in and, from the unzipped folder:
-
-   ```
-   python3 tools/gp5tool.py status
-   python3 tools/gp5tool.py flash GP-5_tremolo.bin --sections all
-   ```
-
-Optional: check the download against the release's `SHA256SUMS` (`shasum -a 256 GP-5_tremolo.bin` on
-macOS / Linux, `certutil -hashfile GP-5_tremolo.bin SHA256` on Windows).
-
-## 1. What you need
-
-- A Valeton GP-5 and a USB cable.
-- For building, one of:
-  - **Linux** (x86_64) or **Windows with WSL** (Ubuntu): `python3`, `curl`, a C compiler (`cc`, for the
-    computer-side tools) and the **32-bit C library** the control processor's compiler needs:
-    Debian / Ubuntu / WSL `sudo apt install libc6-i386`, Arch `sudo pacman -S lib32-glibc`,
-    Fedora `sudo dnf install glibc.i686`.
-  - **macOS**: `python3`, the Xcode command line tools (`xcode-select --install`, for `cc`) and **Docker
-    Desktop** (the control processor's compiler is a Linux program; it
-    runs in a small container).
-- Optional, for the computer-side checks: `pip install pillow unicorn` (the simulator's screens as PNG; the DSP
-  emulator check).
-- For flashing: `python3` with `pip install mido python-rtmidi`, on the computer the pedal is plugged into
-  (on Windows: Windows' own Python, not WSL, which cannot see USB-MIDI devices).
-
-Then fetch both compilers into `fw-build/` (about 190 MB, from Andes' and Arm's own download pages,
-checksum-checked, nothing installed system-wide). The versions are pinned, so every machine builds the same
-bytes:
-
-```
-release/setup-toolchain.sh
-```
-
-## 2. Build
-
-```
-platform/build_firmware.sh tremolo
-```
-
-This builds both halves and packs them into one image, `build/GP-5_tremolo.bin`, which holds only the
-two parts we replace: the DSP firmware and the control-processor app. Valeton's other data on the pedal
-(audio models, presets) is not touched.
-
-## 3. Flash
-
-Plug the pedal in, then:
-
-```
-python3 tools/gp5tool.py status                                        # finds the pedal
-python3 tools/gp5tool.py flash build/GP-5_tremolo.bin --sections all
-```
-
-The tool checks the whole image before it sends anything, restarts the pedal into its update mode by
-itself, writes, and waits for the pedal to come back (about 40 s). Keep it connected and powered.
-
-## 4. Recovery, and going back to Valeton's firmware
-
-The pedal's factory loader cannot be overwritten over USB, so in the usual case a bad flash is
-recoverable:
-
-1. Unplug the pedal. Hold the **foot switch** and the **PARA knob** pressed, plug it back in. The screen
-   stays dark: that is update mode.
-2. Flash again: your previous image, or Valeton's firmware.
-
-To go back to Valeton's firmware, download the GP-5 update from Valeton and flash all of it with this
-tool (Valeton's own updater, Valeton Suite, is not reliable for this):
-
-```
-python3 tools/gp5tool.py flash <Valeton GP-5 firmware .bin> --sections all
-```
-
-> [!WARNING]
-> **In some circumstances USB recovery is not enough** (for example a pedal whose DSP updater stalls, see
-> Known limits). Recovering those needs an FT232H USB adapter wired to the pedal's internal debug pads,
-> which takes some soldering experience. Only flash if you are comfortable with the possibility of a
-> bricked pedal.
-
-## 5. Write your own
-
-`docs/platform/first-effect.md`, after [how a firmware works](docs/platform/concepts.md). Try it on the computer
-first: `python3 tools/simulate.py <name>` runs the whole firmware ([simulator](docs/platform/simulator.md)).
-
-## Known limits
-
-The main ones: OpenGP5 has run on only a handful of pedals so far (at least four, none with a problem reported), and
-a pedal with a fault in Valeton's DSP updater stops at the start of the DSP part of every flash (unplug and replug: it runs what it ran before; please report it).
-Everything else: [known limits](docs/platform/known-limits.md). Want to help find more?
-[Beta testing](BETA-TESTING.md).
+If a flash fails or the pedal doesn't start: unplug it, hold the **foot switch** and press the **PARA knob** in,
+and plug it back in while holding both. The screen stays dark: that's update mode. Flash again, with Launchpad, the
+[web flasher](https://opengp5.github.io/OpenGP5/flasher/) or `python3 tools/gp5tool.py flash <file> --sections all`.
+More, including when USB isn't enough: [Recovery](https://opengp5.github.io/OpenGP5/docs/get-started/recovery/).

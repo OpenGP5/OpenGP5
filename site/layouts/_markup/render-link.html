@@ -1,0 +1,47 @@
+{{- /* Links written for GitHub (relative paths to .md files and source files) made to work on the site:
+       a page that exists on the site links there; anything else goes to the file on GitHub. */ -}}
+{{- $dest := .Destination -}}
+{{- $u := urls.Parse $dest -}}
+{{- $href := $dest -}}
+{{- $ext := false -}}
+{{- if $u.Scheme -}}
+  {{- $ext = true -}}
+{{- else if and $u.Path (not (hasPrefix $u.Path "/")) (or .Page.Params.repo_path (and .Page.File (hasPrefix .Page.File.Path "docs/platform/") (not (strings.Contains .Page.File.Filename "/site/content/")))) -}}
+  {{- /* only the repository's own Markdown (written for GitHub); the site's own pages use site links */ -}}
+  {{- $frag := cond (ne $u.Fragment "") (printf "#%s" $u.Fragment) "" -}}
+  {{- $dir := "" -}}
+  {{- with .Page.File }}{{ $dir = path.Dir .Path }}{{ end -}}
+  {{- with .Page.Params.repo_path }}{{ $dir = path.Dir . }}{{ end -}}
+  {{- $repo := path.Clean (path.Join $dir $u.Path) -}}
+  {{- $map := dict
+      "README.md" "/docs/"
+      "GETTING-STARTED.md" "/docs/get-started/"
+      "CHANGELOG.md" "/docs/help/changelog/"
+      "BETA-TESTING.md" "/docs/help/beta-testing/"
+      "CONTRIBUTING.md" "/docs/help/contributing/"
+      "CODE_OF_CONDUCT.md" "/docs/help/code-of-conduct/"
+      "firmwares/tremolo/README.md" "/docs/firmwares/tremolo/"
+      "firmwares/tremolo" "/docs/firmwares/tremolo/" -}}
+  {{- if and (eq $repo "README.md") (eq $u.Fragment "safety") -}}
+    {{- $href = relURL "docs/get-started/safety/" -}}
+  {{- else if and (eq $repo "GETTING-STARTED.md") (eq $u.Fragment "known-limits") -}}
+    {{- $href = relURL "docs/platform/known-limits/" -}}
+  {{- else if and (eq $repo "GETTING-STARTED.md") (in $u.Fragment "recovery") -}}
+    {{- $href = relURL "docs/get-started/recovery/" -}}
+  {{- else if and (eq $repo "GETTING-STARTED.md") (in $u.Fragment "build") -}}
+    {{- $href = relURL "docs/platform/setup/" -}}
+  {{- else if index $map $repo -}}
+    {{- $href = printf "%s%s" (relURL (strings.TrimPrefix "/" (index $map $repo))) $frag -}}
+  {{- else if hasSuffix $repo ".md" -}}
+    {{- with site.GetPage (printf "/%s" (strings.TrimSuffix ".md" $repo)) -}}
+      {{- $href = printf "%s%s" .RelPermalink $frag -}}
+    {{- else -}}
+      {{- $href = printf "%s/blob/main/%s%s" site.Params.github_repo $repo $frag -}}{{- $ext = true -}}
+    {{- end -}}
+  {{- else -}}
+    {{- $kind := cond (hasSuffix $u.Path "/") "tree" "blob" -}}
+    {{- $href = printf "%s/%s/main/%s%s" site.Params.github_repo $kind $repo $frag -}}{{- $ext = true -}}
+  {{- end -}}
+{{- end -}}
+<a href="{{ $href | safeURL }}"{{ with .Title }} title="{{ . }}"{{ end }}{{ if $ext }} rel="noopener"{{ end }}>{{ .Text }}</a>
+{{- /* no trailing newline */ -}}

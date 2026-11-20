@@ -11,13 +11,11 @@
 </p>
 
 <p align="center">
+  <a href="https://opengp5.github.io/OpenGP5/"><b>Documentation</b></a> ·
+  <a href="https://opengp5.github.io/OpenGP5/docs/get-started/"><b>Get started</b></a> ·
   <a href="https://opengp5.github.io/OpenGP5/flasher/"><b>Flash from your browser</b></a> ·
-  <a href="GETTING-STARTED.md"><b>Getting started</b></a> ·
   <a href="https://github.com/OpenGP5/Launchpad"><b>Launchpad (desktop app)</b></a> ·
-  <a href="docs/platform/first-effect.md"><b>Your first effect</b></a> ·
-  <a href="docs/platform/api.md"><b>API</b></a> ·
-  <a href="docs/platform/protocols.md">Protocols</a> ·
-  <a href="docs/platform/hardware.md">Hardware</a> ·
+  <a href="https://opengp5.github.io/OpenGP5/docs/platform/first-effect/"><b>Your first effect</b></a> ·
   <a href="CHANGELOG.md">Changelog</a>
 </p>
 
@@ -29,7 +27,7 @@ flashed over USB.
 
 > [!NOTE]
 > **Alpha.** Running on at least four GP-5s so far (users' reports, November 2026), with no problems reported.
-> Expect rough edges, and expect interfaces to change. Reports from more GP-5s are very welcome (see [Known limits](GETTING-STARTED.md#known-limits)); read the
+> Expect rough edges, and expect interfaces to change. Reports from more GP-5s are very welcome (see [Known limits](docs/platform/known-limits.md)); read the
 > [Safety](#safety) warning before you flash.
 
 ## Write an effect in plain C
@@ -66,7 +64,7 @@ platform/build_firmware.sh tremolo            # -> build/GP-5_tremolo.bin
 python3 tools/gp5tool.py flash build/GP-5_tremolo.bin --sections all
 ```
 
-Requirements per system, recovery and going back to Valeton's firmware: **[GETTING-STARTED.md](GETTING-STARTED.md)**.
+Requirements per system: **[Set up your computer](https://opengp5.github.io/OpenGP5/docs/platform/setup/)**. Recovery and going back to Valeton's firmware: **[Recovery](https://opengp5.github.io/OpenGP5/docs/get-started/recovery/)**.
 
 ## What's inside
 
@@ -74,7 +72,7 @@ Requirements per system, recovery and going back to Valeton's firmware: **[GETTI
 |---|---|
 | **Platform** (`platform/`) | Runs on both chips. Control processor: start-up, drivers, USB-MIDI, colour screen, foot switch, knobs, LEDs, storage (settings and files), the link to the DSP. DSP: start-up, audio in / out, floating-point maths, the link back. A computer can read the controls and change your settings live over USB. |
 | **Firmwares** (`firmwares/`) | `passthrough`, the template to copy (start here) · `tremolo`, the example: parameters, presets, the screen and the controls, with a screen preview that runs on the computer. |
-| **Built on OpenGP5** | [Dreamcatcher](https://github.com/OpenGP5/Dreamcatcher): ambient looper, glitch delay with grains, reverb, presets. [NAM Loader](https://github.com/OpenGP5/NAM-Loader): plays NAM A2 captures, 12 slots. Each in its own repository. |
+| **Built on OpenGP5** | [Dreamcatcher](https://github.com/OpenGP5/Dreamcatcher): ambient looper, glitch delay with grains, reverb, presets. [NAM Loader](https://github.com/OpenGP5/NAM-Loader): plays NAM A2 captures: 30 slots, 12 cab IRs. Each in its own repository. |
 | **Desktop app** | [OpenGP5 Launchpad](https://github.com/OpenGP5/Launchpad): flash, back up and restore, manage presets and tones, with Valeton's firmware or any OpenGP5 one. |
 | **Flasher** (`tools/gp5tool.py`) | Flashes your build or Valeton's own firmware over USB-MIDI, on macOS, Linux and Windows. |
 | **Off-pedal tools** | `simulate.py` runs a whole firmware on the computer (both processors, the screen, scripted controls; [simulator](docs/platform/simulator.md)); `run_effect.py` runs your audio code on a WAV file; `dsp_emu_check.py` boots the built DSP firmware in an emulator; `make_font.py` turns any TrueType or BDF font into smooth screen text for your firmware ([fonts](docs/platform/fonts.md)). |
@@ -106,30 +104,18 @@ and tested on every push, buildable in the browser: start from the **[firmware t
 
 ## Documentation
 
+**[opengp5.github.io/OpenGP5](https://opengp5.github.io/OpenGP5/)**: getting started, Launchpad, the firmwares,
+and building your own. The site is made from this repository: the pages for firmware authors are in
+[`docs/platform/`](docs/platform/) (readable here too), the rest in [`site/`](site/).
+
 | Read | For |
 |---|---|
-| [GETTING-STARTED.md](GETTING-STARTED.md) | set up, build, flash, recover |
-| [docs/platform/concepts.md](docs/platform/concepts.md) | how a firmware works: the two processors, the platform, settings, storage |
-| [docs/platform/first-effect.md](docs/platform/first-effect.md) | your first effect, step by step |
-| [docs/platform/api.md](docs/platform/api.md) | everything a firmware can use: manifest, callbacks, platform calls, log, load |
-| [docs/platform/params.md](docs/platform/params.md) | settings and presets: declared once, saved, editable from a computer |
-| [docs/platform/ui.md](docs/platform/ui.md) | the UI kit: a settings page, a menu, value text, messages, knob pickup |
-| [docs/platform/simulator.md](docs/platform/simulator.md) | the whole firmware on the computer: sound, screen, scripted controls |
-| [docs/platform/audio-link.md](docs/platform/audio-link.md) | sound on both processors |
-| [docs/platform/performance.md](docs/platform/performance.md) | making it fit: budgets, measuring, what's fast on each processor |
-| [docs/platform/debugging.md](docs/platform/debugging.md) | the log, the load report, symptoms and their causes, recovery |
-| [docs/platform/releasing.md](docs/platform/releasing.md) | versions, releases, getting listed |
-| [docs/platform/faq.md](docs/platform/faq.md) | questions |
-| [docs/platform/known-limits.md](docs/platform/known-limits.md) | what it can't do (yet) |
-| [BETA-TESTING.md](BETA-TESTING.md) | try OpenGP5 on your pedal and report how it went |
-| [docs/platform/fonts.md](docs/platform/fonts.md) | text on the screen: the built-in font, smooth fonts, your own |
-| [docs/platform/storage.md](docs/platform/storage.md) | keeping settings and files on the pedal |
-| [platform/README.md](platform/README.md) | how a firmware plugs into the platform |
-| [docs/platform/protocols.md](docs/platform/protocols.md) | USB-MIDI, the firmware update, the image format, the link between the processors |
-| [docs/platform/hardware.md](docs/platform/hardware.md) | memory, pins and clocks of both processors |
-| [CHANGELOG.md](CHANGELOG.md) | what changed in each release, and how to upgrade a firmware |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | reporting bugs and how your pedal did, pull requests, the tests |
-| [catalog/README.md](catalog/README.md) | listing your firmware so Launchpad and the web flasher offer it; claiming its id |
+| [Get started](https://opengp5.github.io/OpenGP5/docs/get-started/) | flash a firmware, recover, go back to Valeton's |
+| [Launchpad](https://opengp5.github.io/OpenGP5/docs/launchpad/) | the desktop app, page by page |
+| [Firmwares](https://opengp5.github.io/OpenGP5/docs/firmwares/) | NAM Loader, Dreamcatcher, the tremolo: what they do, their controls |
+| [Build a firmware](https://opengp5.github.io/OpenGP5/docs/platform/) | set up, how it works, your first effect, every guide and reference |
+| [Help](https://opengp5.github.io/OpenGP5/docs/help/) | problems, beta testing, contributing |
+| [catalog/README.md](catalog/README.md) | listing your firmware so Launchpad and the web flasher offer it |
 
 ## Safety
 

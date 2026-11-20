@@ -1,0 +1,60 @@
+baseURL: https://opengp5.github.io/OpenGP5/
+title: OpenGP5
+locale: en
+theme: '@docsy/theme'
+themesDir: node_modules
+enableGitInfo: false
+enableRobotsTXT: true
+disableKinds: [taxonomy, term, rss]
+
+module:
+  mounts:
+    - { source: content, target: content }
+    - { source: ../docs/platform, target: content/docs/platform }
+    - { source: ../CHANGELOG.md, target: content/docs/help/changelog.md }
+    - { source: ../BETA-TESTING.md, target: content/docs/help/beta-testing.md }
+    - { source: ../CONTRIBUTING.md, target: content/docs/help/contributing.md }
+    - { source: ../CODE_OF_CONDUCT.md, target: content/docs/help/code-of-conduct.md }
+    - { source: ../docs/assets, target: static/assets }
+    - { source: ../docs/flasher, target: static/flasher }
+    - { source: ../docs/catalog.json, target: static/catalog.json }
+    - { source: static, target: static }
+    - { source: assets, target: assets }
+    - { source: layouts, target: layouts }
+
+markup:
+  goldmark:
+    renderer: { unsafe: true }
+    parser: { attribute: { block: true } }
+  highlight: { noClasses: false, style: github }
+
+outputs:
+  home: [HTML]
+  section: [HTML]
+
+params:
+  github_repo: https://github.com/OpenGP5/OpenGP5
+  github_branch: main
+  github_subdir: ''
+  ui:
+    sidebar_menu_compact: false
+    sidebar_menu_foldable: true
+    sidebar_search_disable: true
+    breadcrumb_disable: false
+    navbar_logo: false
+    showLightDarkModeMenu: true
+    feedback: { enable: false }
+    readingtime: { enable: false }
+  links:
+    developer:
+      - { name: GitHub, url: https://github.com/OpenGP5, icon: fab fa-github, desc: The code }
+    user:
+      - { name: Issues, url: https://github.com/OpenGP5/OpenGP5/issues, icon: fas fa-bug, desc: Report a problem }
+  offlineSearch: true
+  copyright: { authors: OpenGP5 | MIT licence, from_year: 2026 }
+
+menu:
+  main:
+    - { name: Docs, url: /docs/, weight: 10 }
+    - { name: Web flasher, url: /flasher/, weight: 20 }
+    - { name: GitHub, url: https://github.com/OpenGP5, weight: 30, pre: <i class='fab fa-github'></i> }

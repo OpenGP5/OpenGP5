@@ -1,0 +1,11 @@
+{{- /* Edit this page and Report a problem, pointing at the file in the repository (mounted pages included). */ -}}
+{{- with .File -}}
+{{- $repo := "" -}}
+{{- with $.Params.repo_path }}{{ $repo = . }}{{ else }}
+  {{- if hasPrefix .Path "docs/platform/" }}{{ $repo = .Path }}{{ else }}{{ $repo = printf "site/content/%s" .Path }}{{ end -}}
+{{- end -}}
+<div class="td-page-meta ms-2 pb-1 pt-2 mb-0">
+  <a href="{{ site.Params.github_repo }}/edit/main/{{ $repo }}" target="_blank" rel="noopener"><i class="fa-solid fa-pen-to-square fa-fw"></i> Edit this page</a>
+  <a href="{{ site.Params.github_repo }}/issues/new?title={{ printf "Docs: %s" $.Title | urlquery }}" target="_blank" rel="noopener"><i class="fa-solid fa-circle-exclamation fa-fw"></i> Report a problem</a>
+</div>
+{{- end -}}

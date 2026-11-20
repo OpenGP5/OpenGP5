@@ -1,0 +1,13 @@
+{
+  "name": "opengp5-docs",
+  "private": true,
+  "description": "OpenGP5's documentation site (Hugo + Docsy)",
+  "scripts": {
+    "serve": "hugo server",
+    "build": "hugo --gc --minify"
+  },
+  "devDependencies": {
+    "@docsy/theme": "0.18.1",
+    "sass-embedded": "1.106.1"
+  }
+}

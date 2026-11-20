@@ -1,0 +1,17 @@
+{{- $dest := .Destination -}}
+{{- $u := urls.Parse $dest -}}
+{{- $src := $dest -}}
+{{- if and (not $u.Scheme) (not (hasPrefix $u.Path "/")) -}}
+  {{- $dir := "" -}}{{- with .Page.File }}{{ $dir = path.Dir .Path }}{{ end -}}
+  {{- with .Page.Params.repo_path }}{{ $dir = path.Dir . }}{{ end -}}
+  {{- $repo := path.Clean (path.Join $dir $u.Path) -}}
+  {{- if hasPrefix $repo "docs/assets/" -}}
+    {{- $src = relURL (strings.TrimPrefix "docs/" $repo) -}}
+  {{- else if fileExists (printf "static/%s" $u.Path) -}}
+    {{- $src = relURL $u.Path -}}
+  {{- else -}}
+    {{- $src = printf "%s/raw/main/%s" site.Params.github_repo $repo -}}
+  {{- end -}}
+{{- end -}}
+<img src="{{ $src | safeURL }}" alt="{{ .PlainText }}"{{ with .Title }} title="{{ . }}"{{ end }} loading="lazy">
+{{- /**/ -}}

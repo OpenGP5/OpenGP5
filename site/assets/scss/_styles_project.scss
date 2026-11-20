@@ -1,0 +1,18 @@
+// Reading comfort: a calm measure, roomy lines, tables that breathe.
+.td-content {
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  > p, > ul, > ol, > blockquote { max-width: 72ch; }
+  table { font-size: .95rem; }
+  table td, table th { padding: .5rem .75rem; vertical-align: top; }
+  h2 { margin-top: 2.25rem; }
+  code { font-size: .9em; }
+}
+.td-content .lead { max-width: 72ch; }
+.og-hero-banner { max-width: min(760px, 100%); height: auto; border-radius: 14px; }
+.td-cover-block { background: radial-gradient(900px 500px at 80% 0%, #1f3b35 0%, transparent 60%), $dark; }
+[data-bs-theme="dark"] {
+  --bs-link-color: #5fe3bd; --bs-link-hover-color: #8ff0d2;
+  --bs-link-color-rgb: 95, 227, 189;
+}
+.td-navbar .navbar-brand__name { font-weight: 700; letter-spacing: .01em; }

@@ -4,5 +4,5 @@ contact_links:
     url: https://github.com/OpenGP5/OpenGP5/discussions
     about: Discussions are the place for questions and conversation.
   - name: My pedal won't start after flashing
-    url: https://github.com/OpenGP5/OpenGP5/blob/main/GETTING-STARTED.md#4-recovery-and-going-back-to-valetons-firmware
+    url: https://github.com/OpenGP5/OpenGP5/blob/main/GETTING-STARTED.md#recovery
     about: "Usually fixable: unplug, hold the foot switch and PARA, plug in, flash again. Read this first."

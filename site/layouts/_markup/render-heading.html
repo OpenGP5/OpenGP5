@@ -1,0 +1,4 @@
+{{- /* The page's own "# Title" line is for reading on GitHub; the site shows the title from the front matter. */ -}}
+{{- if ne .Level 1 -}}
+<h{{ .Level }} id="{{ .Anchor }}">{{ .Text }}</h{{ .Level }}>
+{{- end -}}
