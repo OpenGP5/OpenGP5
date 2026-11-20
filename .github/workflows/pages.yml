@@ -16,6 +16,7 @@ concurrency:
   cancel-in-progress: false
 env:
   HUGO_VERSION: 0.170.1
+  DART_SASS_VERSION: 1.106.1   # Docsy's tested version; the npm sass-embedded wrapper doesn't work with Hugo on Linux
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -30,13 +31,17 @@ jobs:
         run: |
           curl -sSLo hugo.deb "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.deb"
           sudo dpkg -i hugo.deb && hugo version
+      - name: Dart Sass
+        run: |
+          curl -sSL "https://github.com/sass/dart-sass/releases/download/${DART_SASS_VERSION}/dart-sass-${DART_SASS_VERSION}-linux-x64.tar.gz" | tar -xz -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/dart-sass" >> "$GITHUB_PATH"
       - id: pages
         uses: actions/configure-pages@v5
       - name: Build
         working-directory: site
         run: |
           npm ci --no-audit --no-fund
-          PATH="$PWD/node_modules/.bin:$PATH" hugo --gc --minify --baseURL "${{ steps.pages.outputs.base_url }}/"
+          hugo --gc --minify --baseURL "${{ steps.pages.outputs.base_url }}/"
       - name: Every link on the site
         run: python3 site/check_links.py site/public
       - uses: actions/upload-pages-artifact@v3
