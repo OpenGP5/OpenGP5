@@ -66,7 +66,7 @@ them (Launchpad, `gp5_link.py` and the web flasher do). New things get new comma
 
 Started by `11 6F` from the open firmware (or Valeton's), or by holding the foot switch and the PARA knob
 while plugging the pedal in. In update mode the screen stays dark. One session writes one or more
-sections; every frame waits for its `14 08 00`:
+sections.
 
 > A firmware that has run the audio link (`gp5_link_start`) cannot hand over to the loader directly: the
 > loader starts, but crashes once the computer connects (cause not found yet). So for `11 6F` the platform
@@ -74,24 +74,15 @@ sections; every frame waits for its `14 08 00`:
 > and the next start, which sees the mark before the link or the firmware runs, hands over. It takes about
 > one second longer; the tool and the web flasher wait for it.
 
-```mermaid
-sequenceDiagram
-    participant PC as Computer
-    participant L as Loader
-    PC->>L: ENTER<br/>11 60
-    loop each section
-        PC->>L: BEGIN<br/>11 61 …
-        Note over PC,L: the loader erases the section
-        PC->>L: DATA × n<br/>class 0xFF
-        PC->>L: END<br/>11 6E type 00
-    end
-    PC->>L: END_IMAGE<br/>11 6E 6E 00
-    Note over PC,L: the pedal restarts
-```
+The computer sends these in order; every frame waits for the loader's `14 08 00`:
 
-- **BEGIN**: `11 61 <type> 00 00 00 <packet count u32> <length u32>`.
-- **DATA**: class `0xFF`, index = the packet number; each packet carries 19 bytes: `11 <type>`, then the section's data.
-- **END**: `11 6E <type> 00`. Then BEGIN … END for the next section (dsp, app, …).
+| Step | Bytes | What happens |
+|---|---|---|
+| ENTER | `11 60` | the session starts |
+| BEGIN | `11 61 <type> 00 00 00 <packet count u32> <length u32>` | the loader erases that section |
+| DATA, once per packet | class `0xFF`, index = the packet number; 19 bytes each: `11 <type>`, then the section's data | the data is written |
+| END | `11 6E <type> 00` | the section is done; BEGIN … END again for each further section (dsp, app, …) |
+| END_IMAGE | `11 6E 6E 00` | the pedal restarts |
 
 `length` counts the two leading bytes `11 <type>`. The loader can only write the sections below; its own
 code (flash `0x0`–`0xFFFF`) is out of reach, which is why recovery with Foot + PARA always works.
