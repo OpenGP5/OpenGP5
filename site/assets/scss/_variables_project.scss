@@ -1,7 +1,7 @@
-// OpenGP5's colours and type: the ink and mint of the banner, Launchpad's Atkinson Hyperlegible.
-$primary: #0b7a63;          // links and buttons: mint, dark enough to read on white (5.3:1)
-$secondary: #3ee8b5;        // the banner's mint
-$dark: #17151b;             // Launchpad's ink
+// OpenGP5's colours (docs/platform/palette.md) and type: the banner's teal, Launchpad's ink, Atkinson Hyperlegible.
+$primary: #247475;          // Teal dark: links and buttons on light backgrounds (5.5:1 on white)
+$secondary: #3cc0c1;        // Teal: the banner's "GP5"
+$dark: #17151b;             // Ink
 $td-enable-google-fonts: false;
 $font-family-sans-serif: "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 $font-family-monospace: "Atkinson Hyperlegible Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;

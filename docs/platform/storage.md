@@ -1,54 +1,65 @@
-# Storage on the GP-5 (OpenGP5 platform 0.5)
+# Storage on the GP-5
 
-**The pedal's storage belongs to the firmware that is installed.** Installing a different firmware starts with
-empty storage; going back to Valeton's firmware gives Valeton's preset area back. Keeping presets, tones or settings
-across firmware changes is up to the user: OpenGP5 Launchpad offers a backup before every firmware change, marks each
-backup with the firmware it came from, and only restores a backup onto that firmware.
+The installed build owns the pedal's saved data. A build with a different ID starts with no data.
+An update with the same ID keeps it. If you rename a setting, that setting can reset to its default.
+
+Back up before switching. Launchpad offers a backup when it can read the running firmware.
+A backup belongs to the firmware that made it; install that firmware before you restore the data.
+
+## Who owns it
+
+Before `fw_init()`, the platform reads `GP5O`, the record of who owns the data.
+It checks that record against the string `id` in `firmware.json`:
+
+- If the ID matches, the platform keeps the data.
+- If another ID owns the area, the platform clears it and marks it with the new ID.
+- If the area has no mark, the platform keeps the data and adds the mark.
+
+Older builds used `fw_name()` to claim storage. Since 0.5.3, the default name `opengp5` does not claim storage.
+A mark with that default name from 0.5.2 counts as no mark. This lets a later named build keep that data.
+
+Launchpad also clears storage when switching firmware. From a running OpenGP5 build, it does this **before flashing**.
+From Valeton's firmware, it clears the area after the new build starts.
+Back up before you start, since a flash failure does not undo a storage erase.
+
+### Returning to Valeton
+
+Launchpad clears the shared area and writes Valeton's preset-order table at `0x170000`.
+The table is 100 bytes, numbered 0 through 99. Without it, Valeton's firmware can refuse to save presets.
+
+Valeton then shows its **factory presets**. Restore your preset backup to get your saved presets back.
+Import exported SnapTones and user IRs in Valeton Suite; Launchpad cannot back them up.
 
 ## The map (control processor flash)
 
 | Flash | Size | What |
 |---|---|---|
-| 0x000000–0x00FFFF | 64 KB | factory loader (never erased) |
-| 0x010000–0x13EFFF | ≤ 1.2 MB | the firmware's code (OpenGP5 firmwares 60–110 KB; Valeton's 1.2 MB) |
+| 0x000000–0x00FFFF | 64 KB | factory loader (USB updates leave it in place) |
+| 0x010000–0x13EFFF | ≤ 1.2 MB | the firmware's code (OpenGP5 builds 60–110 KB; Valeton's 1.2 MB) |
 | **0x13F000–0x15FFFF** | 132 KB | **files**, run A (33 sectors) |
 | **0x160000–0x161FFF** | 8 KB | **settings** (`gp5_store`) |
 | **0x162000–0x189FFF** | 160 KB | **files**, run B (40 sectors). 0x170000–0x189FFF is Valeton's user-preset area when Valeton's firmware is installed |
-| 0x190000–… | | Valeton's factory presets, models, global settings (0x1D0000): never touched by OpenGP5 |
+| 0x190000–… | | Valeton's factory presets, models, global settings (0x1D0000): outside the platform storage area |
 
-The storage area is 0x13F000–0x189FFF (300 KB). The platform lets the firmware and the computer write nowhere else.
-
-## Who owns it
-
-At start-up, before `fw_init()`, the platform checks the claim (settings record `GP5O` = the firmware's
-name: the `id` in its `firmware.json`, or `fw_name()` for a firmware from before 1.0):
-
-- **the same name:** nothing happens (updating a firmware keeps its data);
-- **another name:** the whole area is wiped and the mark becomes this firmware's;
-- **no mark** (a fresh pedal, or a firmware from before 0.5): the data is kept and marked.
-
-A firmware from before 1.0 without its own `fw_name()` gets the platform's default, `opengp5`. That name doesn't claim the storage (0.5.3):
-such a firmware doesn't mark the area, and a stored `opengp5` mark (written by 0.5.2) counts as no mark. So a
-later build of the same firmware that does name itself keeps the data.
-
-OpenGP5 Launchpad also wipes the area when it installs a different firmware (before flashing, through the running
-OpenGP5 platform; coming from Valeton's firmware, right after), so firmwares from before 0.5 behave the same.
-
-**Back to Valeton:** Launchpad erases the area and writes Valeton's preset order table (100 bytes 0, 1, … 99 at
-0x170000), as on a pedal that never left stock. Valeton's firmware then shows its factory presets (erased user
-slots read as factory ones) and saves normally. Without the table it would silently refuse to save presets.
+The shared storage spans `0x13F000–0x189FFF`, about 300 KB.
+Storage-write commands cannot write outside that range.
 
 ## Settings: small, saved often
 
-`gp5_store_save(id, data, len)` / `gp5_store_load(id, …)`: up to 1 KB per record, appended to a log in two 4 KB
-sectors so frequent saves don't wear one place. For presets, options, the last selection.
+Use `gp5_store_save(id, data, len)` and `gp5_store_load(id, …)` for records up to 1 KB.
+These records suit presets, options and the last selected item.
+The store appends records to a log across two 4 KB sectors to spread flash wear.
 
-## Files: bigger, written rarely
+## Files: larger data
 
-Captures, samples, IRs. A file has a firmware id, a name (up to 31 ASCII characters, e.g. `tone-03`), and occupies
-whole 4 KB sectors, consecutive within one run, so a firmware reads it straight from flash. 73 sectors in all.
+Use files for captures, samples and IRs that a computer writes.
+Each file has a numeric firmware ID and a name of up to 31 ASCII characters, such as `tone-03`.
+This numeric file ID is separate from the firmware's string ID in `firmware.json`.
 
-Each file starts with a 64-byte header in its first sector; the data follows at +64:
+A file occupies whole 4 KB sectors, in one consecutive run. There are 73 file sectors across two runs.
+The firmware can read the data from flash without copying the whole file into RAM.
+
+Each file starts with a 64-byte header. Data starts at offset `+64`:
 
 | Offset | Size | Field |
 |---|---|---|
@@ -63,14 +74,25 @@ Each file starts with a 64-byte header in its first sector; the data follows at 
 | 56 | 4 | CRC-32 of bytes 0–55 |
 | 60 | 4 | 0xFFFFFFFF |
 
-**Writing** (the computer): first free run of sectors, erase, data, then the header **last**, read back, then erase
-the first sector of any older copy. A power cut leaves the old file or the new one, never a broken one.
-**Deleting** erases the header sector. **Reading** (firmware): `gp5_file()`, `gp5_file_check()`, `gp5_file_each()`.
-After the computer changes a firmware's files or settings it sends `7E 0E <id>`: the platform reloads parameters and presets itself, then calls `fw_storage_changed()` to reload the rest.
+### Write, delete and read files
+
+The computer writes a new copy in this order:
+
+1. Find and erase a free run of sectors.
+2. Write the data, then write the header last.
+3. Read the new file back to check it.
+4. Erase the first sector of the old copy, if one exists.
+
+Writing the header last lets readers reject an incomplete new copy after a power cut.
+Deleting a file erases its header sector. Firmware reads files with `gp5_file()`, `gp5_file_check()` and `gp5_file_each()`.
+
+After you write files or settings, send `7E 0E <id>`.
+The platform reads the saved settings and presets, then calls `fw_storage_changed()` to load other data.
 
 ## Backups
 
-A backup (Launchpad format 2) holds only the installed firmware's own data: its files, its settings record, its
-tones or presets. It records which firmware it came from. Launchpad restores it only onto that same firmware: a
-backup from another firmware, or an old backup that doesn't say where it came from, is refused. Launchpad checks
-again with the pedal locked just before it writes anything.
+A format 2 backup names the build it came from. It saves that build's files, settings and presets.
+The app rejects a backup from a different build, or one that lacks a build ID.
+It checks the ID again while it holds the pedal link for the restore.
+
+A backup holds data, not a firmware installer. See [Launchpad Backups](https://opengp5.github.io/docs/launchpad/backups/) for the supported data types.

@@ -1,15 +1,16 @@
 # Parameters and presets
 
-A firmware's settings, declared once in `params.h`. From that one list the platform:
+Declare your firmware's settings in `params.h`. The platform uses that list to:
 
-- sends each value to the DSP when it changes, and all of them again when the DSP restarts;
-- keeps them across power-off;
-- keeps presets, with names, if the manifest asks for them;
-- lets a computer list, read and set them: Launchpad's Live page builds its editor from them, with no code of
-  its own for your firmware.
+- send DSP-marked values when they change and after a DSP restart;
+- keep values marked `SAVE` or `PRESET` across power-off;
+- keep named presets if the manifest defines slots;
+- let a computer read and change values.
 
-The firmware's own code only reads values and sets them from the pedal's controls, and the
-[UI kit](ui.md) can do even that: a settings page that picks and adjusts parameters with PARA.
+Launchpad uses the list to build its Live editor. Parameter support began in platform 0.7 as part of the planned 1.0 API.
+
+Your control code can read and set these values. The [UI kit](ui.md) supplies a settings page
+that lets users select and edit them with PARA.
 
 ## Declaring them
 
@@ -49,11 +50,11 @@ How a computer shows a value:
 | `GP5_U_HZ` | `440 Hz` |
 | `GP5_U_SEMITONES` | `+7 st` |
 | `GP5_U_CENTS10` | tenths of a cent |
-| `GP5_U_CUSTOM` | your own text: `fw_param_text()` on the control processor writes it (below) |
+| `GP5_U_CUSTOM` | your own text: `fw_param_text()` on the control chip writes it (below) |
 
 ### Flags
 
-| flag | |
+| Flag | Effect |
 |---|---|
 | `GP5_P_DSP` | the DSP gets it: `fw_param(id, value)` there, and `gp5_param(id)` |
 | `GP5_P_PRESET` | part of a preset; also kept across power-off as part of the current sound |
@@ -73,9 +74,9 @@ void fw_foot_down(void)  { gp5_param_set(GP5_P_ON, !gp5_param(GP5_P_ON)); }
 ```
 
 - `gp5_param(id)`: the current value. By `fw_init()` the saved values are already in place.
-- `gp5_param_set(id, value)`: from the pedal's own controls. It clamps to the range, sends the value to the DSP if it
-  is a DSP parameter, and saves 2 s after the last change, so turning a knob doesn't wear the flash. Returns 1 if
-  the value changed.
+- `gp5_param_set(id, value)` sets a value from your control code. It clamps the value to its range and sends it to the DSP
+  if marked `GP5_P_DSP`. For `SAVE` or `PRESET` values, it schedules a save two seconds after the last change.
+  It returns 1 if the value changed. The delay reduces flash writes while the user turns a knob.
 - `fw_param_changed(id)` (optional): a value changed from outside, either from the computer or from a preset load
   (once per parameter that changed). Redraw, or update the LEDs. It is not called for your own
   `gp5_param_set`.
@@ -101,9 +102,9 @@ static void fw_param(uint32_t id, int32_t value)
 ```
 
 The platform keeps every DSP parameter's value; `gp5_param(id)` reads it anywhere, including in `fw_process`.
-`fw_param` hears each change before the next block: use it to work out what is costly to compute (a coefficient, a
-delay length), and read simple values where they are used. Until the control processor sends its values, the DSP
-has the defaults from `params.h`.
+The platform calls `fw_param` before the next audio block. Use it to compute filter coefficients, delay lengths
+or other values that need extra work. Read small values where you use them.
+The DSP starts with defaults from `params.h` until the control chip sends the saved values.
 
 Link command `0x7F10` carries parameters; a firmware's own link commands start at `0x7F11`.
 
@@ -112,18 +113,21 @@ Link command `0x7F10` carries parameters; a firmware's own link commands start a
 `"presets": N` in `firmware.json` (up to 64). A preset holds every `GP5_P_PRESET` parameter and a name of up to
 12 characters.
 
-| | |
+| Call | Result or action |
 |---|---|
 | `gp5_preset_count()` | N |
 | `gp5_preset_load(n)` | 0 if preset n is empty (nothing changes); otherwise every value, then `fw_param_changed` for each one that changed |
 | `gp5_preset_save(n)` | the current sound into n, keeping its name |
 | `gp5_preset_current()` | the preset loaded last, -1 if none |
 | `gp5_preset_dirty()` | 1 once the sound differs from that preset (show a `*`) |
-| `gp5_preset_used(n)`, `gp5_preset_name(n)`, `gp5_preset_rename(n, name)` | |
+| `gp5_preset_used(n)` | Check whether slot n holds a saved sound |
+| `gp5_preset_name(n)` | Read slot n's name |
+| `gp5_preset_rename(n, name)` | Change slot n's saved name |
 
-Which preset is loaded survives power-off with the current sound. How the pedal chooses presets is up to the
-firmware: the tremolo turns PARA on its PRESET row to load and holds PARA to save. Launchpad loads, saves and renames
-them for any firmware.
+The platform saves the current preset number with the current sound.
+Your firmware chooses the controls: the tremolo loads on the PRESET row and saves on a PARA hold.
+Launchpad can load, save and rename presets through the same API.
+Changing the current sound does not overwrite a saved preset until you call `gp5_preset_save(n)`.
 
 ## How they are stored
 
@@ -137,7 +141,8 @@ positions, so an update that adds, removes or reorders parameters keeps what was
 
 Ranges are applied when values are loaded.
 
-Launchpad's backups include these records, so a backup restores the presets and the current sound exactly.
+Launchpad includes these records in a backup. Restoring them returns the saved presets and current sound.
+Keep the firmware ID and parameter names stable so the records still match.
 
 ## Firmware ids past the parameters
 

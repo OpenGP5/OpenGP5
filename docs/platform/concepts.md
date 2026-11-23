@@ -1,26 +1,30 @@
 # How an OpenGP5 firmware works
 
-The big picture, before the details. Read this first if the pedal's insides are new to you.
+This guide explains the two chips, the shared code, and how your effect uses them.
+Start here if you have not worked with the GP-5 hardware.
 
 ## Two processors
 
-The GP-5 has two processors, and a firmware has a part for each.
+The GP-5 has two processors. A build has code for each one.
+The **digital signal processor (DSP)** handles audio. The **control processor** handles the screen,
+controls, USB and storage. It can also process audio through the audio link.
 
-| | the DSP | the control processor |
+| Part | DSP | Control processor |
 |---|---|---|
-| chip | Arm Cortex-M4F, 192 MHz | Andes NDS32 (BP1048), 288 or 320 MHz |
-| does | the audio: guitar in, two outputs | the screen, knobs, foot switch, LEDs, USB, storage |
-| your code | `dsp/firmware.h` | `nds32/*.c` |
-| runs | `fw_process()` every 1.45 ms, for 64 samples | a main loop that calls your callbacks; `fw_tick()` every 10 ms |
-| memory (the firmware's, promised for 1.x) | 19,712 bytes for variables, 122,880 for big buffers | 258,016 bytes of RAM for the firmware's data (code runs from flash) |
+| Chip | Arm Cortex-M4F, about 192 MHz | Andes NDS32 (BP1048), 288 or 320 MHz |
+| Main task | Mono guitar input, stereo output | Screen, knobs, foot switch, LEDs, USB and storage |
+| Your code | `dsp/firmware.h` | `nds32/*.c` |
+| Calls | `fw_process()` for each 64-sample block | Control callbacks and `fw_tick()` every 10 ms |
+| Firmware RAM budget | 19,712 bytes for variables; 122,880 for buffers | 258,016 bytes for data; code runs from flash |
 
-The DSP is where sound happens. The control processor is the "brain" around it, and it can do sound work too
-(below).
+A block lasts 1.45 ms at 44.1 kHz or 1.33 ms at 48 kHz.
+The [API version notes](api.md#versions) explain the planned memory guarantee for 1.x.
 
 ## The platform
 
-OpenGP5 is the code both processors share: start-up, drivers, USB, the screen, the link between the processors,
-storage. You never edit it. Your firmware is a few callbacks and calls into it:
+The platform is the code both halves use for start-up, hardware access, USB, storage and the processor link.
+Your effect can use these tools without changing the platform.
+A **callback** is a function you write that the platform calls at a set time or on an event.
 
 ```mermaid
 flowchart TB
@@ -39,45 +43,49 @@ flowchart TB
     dsp <--> audio(["Guitar in, out L / R"])
 ```
 
-**Your callbacks run when the platform calls them, and must return quickly.** Nothing in a firmware waits. Even
-the screen is drawn a strip at a time (`fw_draw` returns "more to do"), so the controls and USB stay responsive.
+**Callbacks must not wait for events or contain loops that block other work.**
+Aim to finish a main-loop pass within one or two audio blocks. Draw the screen in strips so controls and USB
+can run between draws. `fw_draw` returns a non-zero value when it has more to draw.
+See [Performance](performance.md) for the separate audio deadlines.
 
 ## Settings: parameters
 
-A firmware's settings are **parameters**, declared once in `params.h`. The platform takes care of the rest:
+Declare each setting as a **parameter** in `params.h`. The platform can then:
 
-- it sends each change to the DSP (`fw_param()`);
-- it keeps them across power-off, and keeps presets;
-- it lets a computer list, read and change them.
+- send a changed value to the DSP through `fw_param()`;
+- keep values marked for saving across power-off;
+- store values marked for presets in named slots;
+- let a computer read and change them.
 
-Launchpad's Live page edits them, with no code of its own for your firmware. See [parameters](params.md).
+Launchpad builds its Live editor from this list. See [Parameters and presets](params.md).
 
-## Sound on both processors: the audio link
+## Sound on both chips: the audio link
 
-The two processors exchange a block of words after every audio block: the **audio link**. A firmware can send the
-guitar to the control processor, process it there, and play the result on the DSP, 3 blocks (about 4.4 ms) later.
-NAM Loader and Dreamcatcher do this: some sound code is faster on the control processor, and it has more memory. See
-[the audio link](audio-link.md).
+The **audio link** exchanges 32-bit words after each audio block.
+Send guitar samples to the control chip, process them there, then read the result on the DSP.
+The result returns three blocks later: about 4.4 ms at 44.1 kHz or 4 ms at 48 kHz.
+
+NAM Loader and Dreamcatcher share sound work this way. The control chip has more memory and can run
+some sound code faster. See [The audio link](audio-link.md).
 
 ## Storage
 
-The pedal's storage (about 300 KB) belongs to the firmware that is installed. The firmware's `id` (in
-`firmware.json`) says whose it is:
-- an update to the same firmware keeps it;
-- installing another firmware starts empty;
-- going back to Valeton's firmware gives Valeton's presets back.
+The installed build owns about 300 KB of storage. Its `id` in `firmware.json` marks the storage as its own.
 
-Parameters are stored there automatically. For anything else there are store records (up to 1 KB each) and files
-(bigger things that a computer writes, such as captures). See [storage](storage.md).
+- An update with the same ID keeps storage. Changes to parameter names can reset those settings.
+- A different ID starts with empty storage.
+- Returning to Valeton's firmware restores its factory preset layout. Restore a backup to get your own presets back.
+
+The platform saves parameters marked with a save flag. Use store records for other small data, up to 1 KB per record.
+Use files for larger data that a computer writes, such as captures. See [Storage](storage.md).
 
 ## What happens at power-on
 
-1. The control processor starts the platform, checks who owns the storage, loads saved parameters, and calls your
-   `fw_init()`.
-2. It starts the DSP. The DSP starts the platform there and calls its `fw_init()`. The DSP has your `params.h`
-   defaults until the control processor sends the saved values, a moment later.
-3. From then on: the DSP runs `fw_process()` for every block. The control processor runs its main loop: your
-   callbacks, parameter changes to the DSP, saving, USB, and the screen (`fw_draw`).
+1. The control chip starts the platform and checks which build the storage belongs to. It loads saved parameters, then calls your `fw_init()`.
+2. It starts the DSP, which calls its own `fw_init()`. The DSP starts with defaults from `params.h`.
+   The control chip then sends the saved values before audio fades in.
+3. The DSP calls `fw_process()` for each block. The control chip runs its main loop for callbacks,
+   parameter changes, saving, USB and the screen.
 
 ## From code to pedal
 
@@ -88,9 +96,9 @@ flowchart TB
     bin -- "Launchpad, the web flasher, or gp5tool.py flash" --> pedal(["The pedal"])
 ```
 
-Before you build, `tools/simulate.py` runs the whole firmware on the computer: both processors, the screen and the
-sound ([The simulator](simulator.md)). If something goes wrong on the pedal, holding the foot switch and pressing
-PARA in at power-on brings back update mode ([Recovery](../../GETTING-STARTED.md#recovery)).
+Use `tools/simulate.py` to check the sound, screen and controls on your computer before flashing.
+See [The simulator](simulator.md). For a pedal that fails to start, follow
+[Recovery](../../GETTING-STARTED.md#recovery), including the known DSP update fault.
 
-Next: [your first effect](first-effect.md), or the [firmware template](https://github.com/OpenGP5/firmware-template)
-for a repository of your own.
+Next, build [Your first effect](first-effect.md), or start a separate repository with the
+[firmware template](https://github.com/OpenGP5/firmware-template).

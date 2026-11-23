@@ -1,15 +1,17 @@
 # The simulator
 
-`tools/simulate.py` runs a whole firmware on the computer:
+`tools/simulate.py` runs both halves of a build on your computer. It has no live window.
+It reads a control script and saves screen images and sound files. It covers:
 
-- both processors' code;
+- both chips' code;
 - the audio link between them;
 - the screen, saved as pictures;
 - the controls, from a script;
 - guitar in and sound out as WAV files.
 
-No pedal and no cross-compilers needed: only a C compiler (`cc`) and Python. It runs any firmware with a
-`firmware.json`.
+You need Python and a C compiler (`cc`), but no pedal or cross-compilers.
+Install Pillow with `pip install pillow` if you want screen images.
+From the OpenGP5 folder, run:
 
 ```
 python3 tools/simulate.py tremolo --script controls.txt --in guitar.wav --out out.wav
@@ -38,7 +40,7 @@ One line per action, the time in seconds first:
 3.2  knob 128
 ```
 
-| line | does |
+| Script action | Meaning |
 |---|---|
 | `foot` | press and let go of the foot switch (`foot down` / `foot up`: one edge) |
 | `para click`, `para hold` | push PARA and let go after 0.1 s / 0.8 s (`para down` / `para up`: one edge) |
@@ -50,13 +52,13 @@ One line per action, the time in seconds first:
 | `storage changed` | as when a computer changed the firmware's files |
 
 While it runs, it prints the log (`gp5_log` on either processor, the DSP's lines marked `dsp:`) and every LED change.
-At the end it says how much was sent to the screen in one `fw_draw` call at most. On the pedal that is one main-loop
-pass, and sending takes time, so keep it to a strip of the screen (OpenGP5's firmwares send at most about
-8 KB of the 25.6 KB screen in a pass). The first full draw is reported on its own.
+At the end, the tool reports the largest screen update from one `fw_draw` call.
+On the pedal, that transfer takes time in a main-loop pass. Draw a strip at a time to leave room for other work.
+OpenGP5 examples send up to about 8 KB of the 25.6 KB screen in a pass. The tool reports the first full draw as a separate value.
 
 ## More options
 
-| option | |
+| Option | Meaning |
 |---|---|
 | `--seconds S` | how long (default: the input's length) |
 | `--knob N` | where the volume knob starts (default 255) |
@@ -75,14 +77,14 @@ pass, and sending takes time, so keep it to a strip of the screen (OpenGP5's fir
 
 **Different:**
 - **Speed is not simulated.** Code that is too slow for the pedal runs fine here: measure with
-  `gp5_link.py status` on the pedal. `GP5_CYCLE_COUNT()` and the control processor's cycle counters read 0.
-- The DSP-extension instructions of the control processor (`kmmac` and friends) don't exist on a computer. Code that
+  `gp5_link.py status` on the pedal. `GP5_CYCLE_COUNT()` and the control chip's cycle counters read 0.
+- The DSP-extension instructions of the control chip (`kmmac` and friends) don't exist on a computer. Code that
   uses them needs a portable version for when `__NDS32_EXT_DSP__` isn't defined (NAM Loader's kernel has one).
 - Saved data lives in memory or the `--store` file, not flash, so flash timing and wear don't apply.
 - Controls are exact: no bounce, no noise on the knob.
 
-Use it to try the sound and the screen while you write the code, to check a firmware after a change, and in CI.
-Then check timing and feel on the pedal.
+Use the simulator to check sound and screen code after a change. You can also run it in continuous integration (CI),
+the build and test process that runs on each push. Check speed and control feel on the pedal.
 
 ## How it works
 

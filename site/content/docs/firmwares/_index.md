@@ -1,24 +1,30 @@
 ---
-title: Firmwares
-description: The firmwares built on OpenGP5, what they do, and how to play them.
+title: Firmware
+description: Choose an OpenGP5 firmware build and learn its controls.
 weight: 30
 ---
 
-A firmware is a complete replacement for the pedal's software. Only one is on the pedal at a time; switching to
-another [wipes the first one's data](../get-started/safety/#back-up-first), so back up before you switch.
+Each build runs the pedal's sound and controls. You can keep one build on the pedal at a time.
+Switching to another firmware [erases the old data](../get-started/safety/#back-up-first). Back up before you start.
 
-| Firmware | What it is | Get it |
+| Firmware | What it does | Get it |
 |---|---|---|
-| **[NAM Loader](nam-loader/)** | Plays Neural Amp Modeler captures, with 12 cab IRs, a noise gate and EQ per capture | Launchpad, or [its releases](https://github.com/OpenGP5/NAM-Loader/releases) |
-| **[Dreamcatcher](dreamcatcher/)** | Ambient textures: an always-listening micro-looper, a glitch delay that smears into reverb, grains | Launchpad, the web flasher, or [its releases](https://github.com/OpenGP5/Dreamcatcher/releases) |
-| **[Tremolo](tremolo/)** | The example firmware: a small tremolo with presets, to learn from | the web flasher, or build it |
+| **[NAM Loader](nam-loader/)** | Plays amp captures with cab IRs, a noise gate and EQ | Launchpad or [releases](https://github.com/OpenGP5/NAM-Loader/releases) |
+| **[Dreamcatcher](dreamcatcher/)** | Loops your playing and adds delay, grains and reverb | Launchpad, the web flasher or [releases](https://github.com/OpenGP5/Dreamcatcher/releases) |
+| **[Tremolo](tremolo/)** | Makes the volume rise and fall; serves as an example for authors | The web flasher or a local build |
 
-How to install one: [Flash a firmware](../get-started/flash/).
+A Neural Amp Modeler (NAM) capture models the sound of an amp or pedal.
+A cabinet impulse response (cab IR) adds the sound of a speaker cab.
+A grain is a short slice of sound. Dreamcatcher can shift its pitch or play it in reverse.
 
-## More firmwares
+See [Flash a firmware](../get-started/flash/) for the install steps.
 
-Anyone can write a firmware and list it in [OpenGP5's catalog](https://github.com/OpenGP5/OpenGP5/blob/main/catalog/README.md);
-Launchpad and the web flasher then offer it. Firmwares not made by OpenGP5 are marked *Not reviewed*: they are
-checked to be what they say, but nobody has read their code for you.
+## More firmware
 
-Want to make one? Start with [Build a firmware](../platform/).
+You can list a build in [OpenGP5's catalog](https://github.com/OpenGP5/OpenGP5/blob/main/catalog/README.md).
+Use Launchpad to get listed builds. To use another author's build in the web flasher, download the file and drop it on the page.
+
+The tools check the file's size, checksum and built-in details against its listing.
+Other authors' builds carry *Not reviewed*. This means the file checks do not include a review of its code.
+
+To write an effect, start with [Build a firmware](../platform/).

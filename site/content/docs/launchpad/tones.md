@@ -1,66 +1,74 @@
 ---
 title: Tones
-description: Load NAM captures and cab IRs onto the pedal, pair them, and set each capture's gate and EQ.
+description: Load captures and cab IRs, choose a cabinet sound, and set the gate and EQ.
 weight: 20
 ---
 
-The Tones page is for [NAM Loader](../../firmwares/nam-loader/). The pedal holds **30 captures** and **12 cab
-IRs**, and any capture can play any IR, or none.
+Use Tones with [NAM Loader](../../firmwares/nam-loader/). Version 1.3 or later holds **30 captures** and
+**12 cab IRs**. A capture models an amp or pedal's sound. A cabinet impulse response (cab IR) adds a speaker
+cabinet's sound. Each capture can use any stored IR, or none.
 
-The page has two columns. On the left, the list of what's on the pedal, with a **NAM / IR** switch at the top.
-On the right, adding new files, and the details of the one you picked.
+The left column lists files on the pedal. Use **NAM / IR** to choose the list.
+The right column shows the selected file and controls for adding files.
 
 ## Add a capture
 
-1. Switch the list to **NAM** and pick an empty slot (or Launchpad uses the first free one).
-2. Drop a `.nam` file anywhere on the page, or click **Choose file** under **Add a capture**.
-3. Check the name it will have on the pedal, and send it.
+1. Choose **NAM** and select an empty slot. If you do not select one, Launchpad uses the first free slot.
+2. Drop a `.nam` file on the page, or click **Choose file** under **Add a capture**.
+3. Check **Name on the pedal** and click **Send to slot**, followed by the slot number.
 
-NAM Loader plays **A2** captures (it runs their A2-Lite part). Older A1 captures can't be played.
+NAM Loader supports **A2 captures**, which include an **A2-Lite** model that fits the pedal.
+It runs that part of the capture. Older **A1** files use a different model format and do not work.
 
 ### Conversion
 
-Two switches under **Conversion**, both on by default:
+Open **Conversion** to see two switches. Both start on:
 
-- **Calibrate** matches the pedal's input to the level the capture was recorded at, so it reacts to your playing
-  like the original gear. It applies only to captures that include their recording level.
-- **Normalize** sets every capture to the same volume. Off, each one is as loud as the gear it captured.
+- **Calibrate** sets the input gain to match the level used to make the capture.
+  It needs a capture file that includes this level.
+- **Normalize** aims for a shared loudness target and limits peaks. Some captures may still sound louder than others.
+  With this off, Launchpad keeps the capture's output gain.
 
-The network itself is never changed: every layer and weight of the capture is kept.
+Launchpad keeps the A2-Lite model's layers and rounds its weights for fixed-point maths.
+That changes their precision. Calibrate and Normalize change gain; they do not retrain the model.
 
 ## Add a cab IR
 
-Switch the list to **IR**, then drop a `.wav` impulse response (or use **Add an IR**). Any sample rate and length
-works: Launchpad resamples it to 48 kHz, keeps the first 1,024 samples (21 ms), and sets it to the same loudness
-as your other IRs.
+1. Choose **IR** and select an empty slot.
+2. Drop a `.wav` file on the page, or click **Choose file** under **Add an IR**.
+3. Check the name and click **Send to IR**, followed by the slot number.
 
-Cab IRs are for captures of an amp without its cabinet (a "DI" capture). A capture of a full rig already has its
-cab.
+Launchpad converts the sample rate to 48 kHz, keeps up to 1,024 samples (21 ms), and adjusts the level.
+Use a cab IR with an amp-only, or **DI**, capture. For a full-rig capture that includes the cab, choose **NONE**.
 
-IRs added with NAM Loader 1.1 or 1.2 use an older format, twice the size. **Shrink** converts them, with the same
-sound.
+IRs added with NAM Loader 1.1 or 1.2 use an older format that takes twice the space.
+**Shrink** converts those IRs to the smaller format without changing their sound.
 
-## The one you picked
+## Edit a capture or IR
 
-Pick a capture or an IR in the list to see its details:
+Select a file in the list to see its controls:
 
-| | |
+| Control | Action |
 |---|---|
-| **Play on the pedal** | Switch the pedal to this capture (NAM Loader 1.3.1 or later) |
-| **Rename** | Change the name shown on the pedal |
-| **Replace** | Send a new file into the same slot. Its IR choice, gate and EQ stay |
-| **Remove** | Clear the slot. A capture's IR, gate and EQ go back to none, off and flat |
-| **IR** | Which cab IR this capture plays: its own default, another, or none |
-| **Gate and EQ** | A noise gate and bass, mid and treble, kept with the capture |
+| **Play on the pedal** | Switch to this capture; needs NAM Loader 1.3.1 or later |
+| **Rename** | Change the name on the pedal |
+| **Replace** | Load a new file into the same slot; read the reset rules below |
+| **Remove** | Clear the slot |
+| **IR** | Choose the capture's cab IR, its default IR, or none |
+| **Gate and EQ** | Set the noise gate, bass, mid and treble for this capture |
 
-Gate and EQ change the sound live when the capture is playing. When it isn't, they're saved on the pedal for the
-next time it plays.
+A new capture does not keep the old capture's gate and EQ: it starts with the gate off and EQ flat.
+Check its IR choice after replacement. Replacing an IR changes the cabinet sound for every capture that uses that IR.
+
+Gate and EQ affect the sound as you play. The pedal saves them with the capture.
+You can also edit a capture that is not playing; the next time you select it, the pedal uses those settings.
 
 ## When the pedal is full
 
-30 captures and 12 IRs fill the pedal's storage. To add one, replace or remove another first. If IRs in the older
-format take up room, Launchpad shrinks them to make space.
+To add a file when all its slots are full, replace or remove one.
+If old-format IRs use too much storage, Launchpad shrinks them to make room.
 
 ## On the pedal
 
-Everything here can also be done on the pedal itself: see [NAM Loader's controls](../../firmwares/nam-loader/#controls).
+Use Launchpad to load captures and cab IRs. On the pedal, choose which ones to play and set the gate and EQ.
+See [NAM Loader's controls](../../firmwares/nam-loader/#controls).

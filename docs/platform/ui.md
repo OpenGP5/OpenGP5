@@ -1,17 +1,16 @@
 # The UI kit
 
-`platform/nds32/gp5_ui.h`: the screen and control pieces most firmwares need, built on
-[parameters](params.md). Everything here is optional. A firmware with its own look, like Dreamcatcher, uses none of
-it or only some of it. A firmware that doesn't use the kit doesn't carry it: its image is the same with or without
-the kit.
+The UI kit in `platform/nds32/gp5_ui.h` provides screen and control tools built on [parameters](params.md).
+Use the pieces you need. Unused kit code takes no space in the built image.
+Dreamcatcher, for example, draws its own screen.
 
-| piece | does |
+| Tool | Purpose |
 |---|---|
 | `gp5_param_format()` | a value as text, the way Launchpad shows it |
 | `gp5_ui_page_t` | a settings page: a row per parameter, PARA picks and adjusts |
 | `gp5_ui_page_message()` | a short message in the page's last row |
 | `gp5_ui_menu_t` | a menu of actions: PARA picks, a click runs one, risky ones ask "Sure?" first |
-| `gp5_pickup_t` | the volume knob takes over a parameter without a jump |
+| `gp5_pickup_t` | Knob pickup: wait until the knob reaches the current value before it takes control |
 
 ## A settings page
 
@@ -32,8 +31,8 @@ int fw_draw(int force)   { return gp5_ui_page_draw(&page, force); }
 How it works on the pedal:
 
 - **Turn PARA** to pick a row. The row picked is highlighted, and the page scrolls when there are more rows than fit.
-- **Click** to adjust it. A bar on the left and `< >` around the value show you're adjusting. Turning now changes the
-  value; click again when done.
+- **Press PARA** to adjust it. A bar on the left and `< >` around the value show you're adjusting. Turning now changes the
+  value; press PARA again to finish.
 - Numbers stop at their range, choices go round, and read-only parameters can't be adjusted.
 - **The presets row** (`GP5_UI_PRESETS`, if the manifest has `"presets"`) shows `P2 name`, with `*` when the sound
   differs from it. Adjusting it loads presets as you turn; empty ones are shown but not loaded. Saving is the
@@ -48,7 +47,7 @@ void fw_para_hold(void)
 
 What you can set (leave anything else 0 for its default):
 
-| field | |
+| Field | Meaning |
 |---|---|
 | `rows`, `n` | the rows: parameter ids and `GP5_UI_PRESETS`. Without `rows`, every parameter that isn't `GP5_P_HIDDEN`, then the presets |
 | `steps` | per row, how much one click changes it. Default: about 1/50 of the range, rounded to 1, 2, 5, 10, 20 …; values stay on that grid |
@@ -61,14 +60,14 @@ What you can set (leave anything else 0 for its default):
 | `faded` | set to 1 to grey the values out, e.g. while the effect is bypassed; the page redraws when it changes |
 
 `gp5_ui_page_draw` draws one changed row per call and returns non-zero while more are left, like any `fw_draw`.
-Return its result from yours. Values that change from elsewhere (a preset load, the computer) show up by
-themselves. `gp5_ui_page_row()` tells you which row is picked, for a firmware that wants to show more about it.
+Return that result from your `fw_draw`. The page also shows changes from preset loads and the computer.
+Use `gp5_ui_page_row()` to find the selected row if your screen needs more detail.
 
 ## A menu
 
-Actions to choose from: save, reset, go back. Turn PARA to pick an item, click to run it. An item marked `confirm`
-shows "Sure?" and runs only on a second click; turning away or waiting 3 s cancels. An item's `value()` shows text on
-the right, such as the preset "Save" would write to.
+A menu lists actions such as save, reset and back. Turn PARA to select an item, then press PARA to run it.
+For an item marked `confirm`, the menu asks "Sure?". Press PARA again to confirm.
+Turn away or wait three seconds to cancel. An item's `value()` shows text on the right, such as the target preset.
 
 ![A menu asking to confirm](../assets/ui-menu.png)
 
@@ -113,7 +112,7 @@ int fw_draw(int force)
 }
 ```
 
-| item field | |
+| Item field | Meaning |
 |---|---|
 | `label` | the item's name |
 | `run` | called on a click (or the second click, with `confirm`); 0 for an item that only shows something |
@@ -131,13 +130,14 @@ char t[16];
 gp5_param_format(GP5_P_TIME, gp5_param(GP5_P_TIME), t);     /* "350 ms", "1.50 s" */
 ```
 
-It shows choices by name, and the unit as Launchpad does: `50 %`, `-6 dB`, `+5.5 dB`, `440 Hz`, `+7 st`. For
+The formatter shows choice names and the same units as Launchpad: `50 %`, `-6 dB`, `+5.5 dB`, `440 Hz`, `+7 st`. For
 `GP5_U_CUSTOM` it asks your `fw_param_text()`, so the screen and Launchpad always agree.
 
 ## Knob pickup
 
-When the volume knob takes over a setting (Dreamcatcher's knob does this), the setting shouldn't jump to wherever
-the knob happens to be:
+A physical knob may point to a different value from the saved setting.
+Use pickup to wait until the knob crosses the saved value before it takes control.
+This avoids a jump when you load a preset or give the knob a new task:
 
 ```c
 static gp5_pickup_t knob;
@@ -146,9 +146,10 @@ void fw_init(void) { gp5_level_own(1); gp5_level_set(255); gp5_pickup_start(&kno
 void fw_tick(void) { gp5_pickup_poll(&knob); }
 ```
 
-Nothing changes until the knob passes the parameter's current value; from then on the knob sets it over its whole
-range. Start it again (`gp5_pickup_start`) whenever the knob gets a new job or the value changes elsewhere (a preset
-load). Without `gp5_level_own(1)` the knob stays the output level as well.
+The value stays fixed until the knob crosses it. The knob then controls the whole range.
+Call `gp5_pickup_start` again after a preset load or when assigning another setting.
+Call `gp5_level_own(1)` to stop the knob from also changing output level.
+This helper waits for a value crossing; Dreamcatcher's own control code uses a movement threshold instead.
 
 ## Trying it without a pedal
 

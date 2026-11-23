@@ -1,22 +1,23 @@
-# Sound on both processors: the audio link
+# Sound on both chips: the audio link
 
-After every audio block, the two processors swap a block of 32-bit words: the **audio link**. With it, a firmware
-can send the guitar to the control processor, process it there, and play the result on the DSP.
+The **audio link** exchanges 32-bit words between the two chips after each audio block.
+A word is one 32-bit value. Send guitar samples to the control chip, process them there,
+and read the result on the digital signal processor (DSP).
 
-Why bother? The control processor is often the better place for heavy sound code:
+The control chip can suit code that needs more time or memory:
 
-- it has more memory (about 270 KB against the DSP's 19.5 + 122 KB);
+- it has a 258,016-byte firmware RAM budget, compared with the DSP's 19,712 bytes plus 122,880 bytes;
 - it ran the same float code about 1.7 times faster;
 - with its integer DSP instructions, fixed-point code is much faster again ([performance](performance.md)).
 
 NAM Loader runs most of its amp model there. Dreamcatcher runs its whole engine there and mixes on the DSP.
 
-The cost: what goes there comes back **3 blocks later** (about 4.4 ms at 44.1 kHz). Keep the dry signal on the DSP so
-it isn't delayed.
+The result returns **three blocks later**: about 4.4 ms at 44.1 kHz or 4 ms at 48 kHz.
+Keep the dry path on the DSP to avoid adding this round-trip delay to it.
 
 ## The smallest example
 
-The guitar goes to the control processor, gets a soft clip there, and comes back.
+The guitar goes to the control chip, gets a soft clip there, and comes back.
 
 `firmware.json`: ask for the link and how many words each way:
 
@@ -66,23 +67,22 @@ Try it: `python3 tools/simulate.py <folder>`. The simulator runs the link with t
 
 - After each block, the DSP sends `link_words` words and receives as many. The platform frames them with a sync
   word and finds them again on the other side; you only see your words.
-- On the control processor, `on_block(in, out)` runs **in an interrupt** once per block. `in` holds the DSP's words.
+- On the control chip, `on_block(in, out)` runs **in an interrupt** once per block. `in` holds the DSP's words.
   What you write to `out` goes back to the DSP.
-- On the DSP, `gp5_link_out()` takes the words for the control processor during `fw_process()`, and
+- On the DSP, `gp5_link_out()` takes the words for the control chip during `fw_process()`, and
   `gp5_link_in()` has what came back.
-- Words from the control processor reach `fw_process()` 3 blocks after the block they were made from.
+- Words from the control chip reach `fw_process()` 3 blocks after the block they were made from.
 
 ## Rules and limits
 
-- **`link_words`:** a multiple of 8, at most 264. The exchange takes time while the next block is already coming
-  (about 38 % of a block per 128 words). At 48 kHz, 264 was measured to run reliably and 296 dropped out now and then,
-  so the build refuses more than 264. Pack your data if you need more: NAM Loader sends 24-bit samples in block
-  floating point (`pack24.h` in its repository).
-- **`link_early`:** if `fw_process()` itself runs long (more than about half a block), set
-  `"audio": { "link_words": N, "link_early": true }`. The exchange then starts at the beginning of each block, with
-  what `fw_process()` wrote the block before, instead of after it. Your firmware also defines
-  `static void fw_link_early(const int32_t *in, int32_t *out)` on the DSP. It runs just before the exchange and can put
-  words that are ready at once (the new input) straight into `out`. NAM Loader does this.
+- **`link_words`:** a multiple of 8, up to **264**. The build rejects larger values.
+  Measured at 48 kHz, 264 words worked; 296 caused dropouts. An exchange takes about 38 % of a block per 128 words.
+  Pack data if you need more values. NAM Loader packs 24-bit samples in block floating point (`pack24.h` in its repository).
+- **`link_early`:** use this if `fw_process()` takes more than about half a block.
+  Set `"audio": { "link_words": N, "link_early": true }`, with your word count in place of `N`.
+  The exchange starts at the start of each block using the previous block's output.
+  Define `static void fw_link_early(const int32_t *in, int32_t *out)` on the DSP.
+  The platform calls it before the exchange, so it can put new input into `out`. NAM Loader uses this path.
 - **`on_block` must finish within a block** (1.45 ms; 1.33 ms at 48 kHz). It interrupts the main loop, so the longer it
   takes, the less time is left for the screen and USB. `gp5_link.py status` shows its share: keep the worst under
   about 85 %.
@@ -94,7 +94,7 @@ Try it: `python3 tools/simulate.py <folder>`. The simulator runs the link with t
 
 ## Who does what: patterns that worked
 
-| | DSP | control processor |
+| Firmware | DSP work | Control-processor work |
 |---|---|---|
 | Dreamcatcher | dry signal, final mix, reverb, exact bypass | the whole looper / delay / grain engine (float) |
 | NAM Loader | the model's first layers, bypass | the remaining layers, the cab IR (fixed point), gate, EQ |

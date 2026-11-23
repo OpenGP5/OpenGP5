@@ -5,6 +5,8 @@ $og-black: #090705;   // the banner's background
 $og-teal: #3cc0c1;    // the banner's "GP5"
 $og-white: #fffbfd;   // the banner's "Open"
 $og-pedal: #0f0f1a;   // the banner's pedal body
+$og-teal-light: #8adadb;   // hover and diagram text on dark
+$og-teal-dark: #247475;    // links and buttons on light
 
 // ---- top bar: the banner's black on every page, so the brand reads the same everywhere ----
 .td-navbar {
@@ -32,8 +34,8 @@ $og-pedal: #0f0f1a;   // the banner's pedal body
 }
 .td-content .lead { max-width: 72ch; }
 [data-bs-theme="dark"] {
-  --bs-link-color: #5fe3bd; --bs-link-hover-color: #8ff0d2;
-  --bs-link-color-rgb: 95, 227, 189;
+  --bs-link-color: #{$og-teal}; --bs-link-hover-color: #{$og-teal-light};
+  --bs-link-color-rgb: 60, 192, 193;
 }
 
 // ---- home page ----
@@ -67,7 +69,7 @@ $og-pedal: #0f0f1a;   // the banner's pedal body
 .og-hero__actions { display: flex; flex-wrap: wrap; gap: 12px; }
 .og-btn-primary, .og-btn-ghost { font-weight: 600; border-radius: 10px; padding: .7rem 1.25rem; font-size: 1.05rem; }
 .og-btn-primary { background: $og-teal; color: $og-black; border: 1px solid $og-teal;
-  &:hover, &:focus-visible { background: lighten($og-teal, 8%); border-color: lighten($og-teal, 8%); color: $og-black; } }
+  &:hover, &:focus-visible { background: $og-teal-light; border-color: $og-teal-light; color: $og-black; } }
 .og-btn-ghost { background: transparent; color: $og-white; border: 1px solid rgba(255, 251, 253, .35);
   &:hover, &:focus-visible { border-color: $og-white; color: $og-white; background: rgba(255, 255, 255, .05); } }
 .og-hero a:focus-visible { outline: 3px solid $og-white; outline-offset: 3px; }
@@ -162,8 +164,8 @@ $og-pedal: #0f0f1a;   // the banner's pedal body
   padding: 28px 14px !important; margin: 1.5rem 0;
   .node rect { rx: 10px; ry: 10px; stroke-width: 1.5px; }
   .node path, .node polygon { stroke-width: 1.5px; }
-  .edgeLabel, .edgeLabel p, .edgeLabel span { color: #9fe6e6 !important; font-size: 14px; }
+  .edgeLabel, .edgeLabel p, .edgeLabel span { color: $og-teal-light !important; font-size: 14px; }
   .edgeLabel rect, .labelBkg { fill: $og-black !important; background: $og-black !important; }
   .nodeLabel strong { color: #fff; letter-spacing: .01em; }
-  .nodeLabel em { color: #9fe6e6; font-style: normal; }
+  .nodeLabel em { color: $og-teal-light; font-style: normal; }
 }

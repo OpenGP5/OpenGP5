@@ -7,8 +7,8 @@ description: Open firmware for the Valeton GP-5 guitar pedal, and a framework fo
   <div class="og-hero__inner">
     <div class="og-hero__text">
       <h1 class="og-hero__title"><img src="wordmark.png" alt="OpenGP5" width="740" height="159"></h1>
-      <p class="og-hero__lead">Open firmware for the Valeton GP-5 guitar pedal, written from scratch. Play NAM
-      captures, build ambient textures, or write your own effect in C.</p>
+      <p class="og-hero__lead">Open firmware for the Valeton GP-5 guitar pedal. Play amp models with Neural Amp Modeler (NAM),
+      loop and shape your sound, or write an effect in C.</p>
       <div class="og-hero__actions">
         <a class="btn btn-lg og-btn-primary" href="docs/get-started/">Get started</a>
         <a class="btn btn-lg og-btn-ghost" href="flasher/">Flash from your browser</a>
@@ -28,22 +28,21 @@ description: Open firmware for the Valeton GP-5 guitar pedal, and a framework fo
     <a class="og-path" href="docs/firmwares/">
       <svg class="og-icon" viewBox="0 0 24 24" aria-hidden="true"><!-- Lucide "guitar-electric", ISC licence --><path d="m12.172 11.828 4.242-4.242" /><path d="M16.414 7.586A2 2 0 0017 6.172V5a2 2 0 011.177-1.823L20.59 2.09a1 1 0 011.32 1.32l-1.088 2.412A2 2 0 0119 7h-1a2 2 0 00-1.586.586" /><path d="m6 16 2 2" /><path d="M8.23 9.85a3 3 0 011.28-1.454 1 1 0 011.496.815 4 4 0 003.783 3.783 1 1 0 01.815 1.496 3 3 0 01-1.454 1.28l-.92.38A2 2 0 0012 18a4 4 0 01-4 4 6 6 0 01-6-6 4 4 0 014-4 2 2 0 001.85-1.23z" /></svg>
       <h2>Play</h2>
-      <p>NAM captures with their own cab IRs, or Dreamcatcher's looper, glitch delay and reverb. Each firmware turns
-      the pedal into something new.</p>
-      <span class="og-path__more">The firmwares</span>
+      <p>Play NAM amp models. Add the sound of a speaker cab with a cabinet impulse response (cab IR).
+      Or loop your guitar with Dreamcatcher's delay and reverb.</p>
+      <span class="og-path__more">Choose firmware</span>
     </a>
     <a class="og-path" href="docs/launchpad/">
       <svg class="og-icon" viewBox="0 0 24 24" aria-hidden="true"><!-- Lucide "laptop", ISC licence --><path d="M18 5a2 2 0 0 1 2 2v8.526a2 2 0 0 0 .212.897l1.068 2.127a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45l1.068-2.127A2 2 0 0 0 4 15.526V7a2 2 0 0 1 2-2z" /><path d="M20.054 15.987H3.946" /></svg>
       <h2>Manage</h2>
-      <p>Launchpad flashes firmware, loads your captures and IRs, edits presets while you play, and backs everything
-      up. On macOS, Windows and Linux.</p>
+      <p>Use Launchpad to flash firmware, load sounds, edit presets and back up supported data.
+      It runs on macOS, Windows and Linux.</p>
       <span class="og-path__more">Launchpad</span>
     </a>
     <a class="og-path" href="docs/platform/">
       <svg class="og-icon" viewBox="0 0 24 24" aria-hidden="true"><!-- Lucide "code-xml", ISC licence --><path d="m18 16 4-4-4-4" /><path d="m6 8-4 4 4 4" /><path d="m14.5 4-5 16" /></svg>
       <h2>Build</h2>
-      <p>Write an effect in plain C: your sound, your screen, your controls. Hear it on your computer before it goes
-      on the pedal.</p>
+      <p>Write the sound, screen and controls in C. Test the effect on your computer, then flash it to the pedal.</p>
       <span class="og-path__more">Your first effect</span>
     </a>
   </div>
@@ -52,10 +51,10 @@ description: Open firmware for the Valeton GP-5 guitar pedal, and a framework fo
 <section class="og-code">
   <div class="og-wrap og-code__grid">
     <div class="og-code__text">
-      <h2>An effect is a few lines of C</h2>
-      <p>This is the whole sound of the tremolo, the example firmware. The platform handles the rest: both
-      processors, USB, the screen, the knobs and foot switch, saving settings and presets, and an editor for them
-      on your computer.</p>
+      <h2>The tremolo's audio code</h2>
+      <p>This loop makes the volume rise and fall. A full effect also needs code for settings and controls.
+      The shared platform supplies tools for USB, the screen, storage and presets.
+      Launchpad uses your settings list to show an editor on your computer.</p>
       <p><a href="docs/platform/first-effect/">Your first effect</a> builds it step by step.</p>
     </div>
 <div class="og-code__sample">
@@ -80,10 +79,9 @@ static void fw_process(const int32_t *in,
 
 <section class="og-note">
   <div class="og-wrap">
-    <p><strong>OpenGP5 is in alpha.</strong> It has run on several GP-5s with no problem reported, and a bad flash
-    can almost always be undone over USB. <a href="docs/get-started/safety/">Before you flash</a> explains the rare
-    exception.</p>
-    <p class="og-note__small">Not affiliated with or endorsed by Valeton. "Valeton" and "GP-5" are Valeton's
-    trademarks, used only to say which pedal this runs on. MIT licence.</p>
+    <p><strong>OpenGP5 is in alpha.</strong> A known DSP update fault can block a USB flash and may need a debug adapter wired inside the pedal.
+    Read <a href="docs/get-started/safety/">Before you flash</a> for the risks and backup steps.</p>
+    <p class="og-note__small">Valeton does not make or endorse OpenGP5. "Valeton" and "GP-5" are its trademarks.
+    We use those names to show which pedal runs this code. MIT licence.</p>
   </div>
 </section>

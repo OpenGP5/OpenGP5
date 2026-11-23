@@ -1,19 +1,19 @@
 # Your own repository
 
-The [firmware template](https://github.com/OpenGP5/firmware-template) starts a firmware in its own GitHub
-repository, ready to build, test and release. It's a small overdrive (drive, tone, level, four presets) that you
-change into yours.
+Use the [firmware template](https://github.com/OpenGP5/firmware-template) to start your own GitHub repository.
+It contains an overdrive with drive, tone, level and four presets. Change that effect to make your own.
 
 ## Start
 
 1. On the template's page, click **Use this template** and create your repository.
-2. Edit `firmware.json`: the firmware's `id`, `name`, `author`, `url` and `description`. The `id` names your
-   firmware's storage on the pedal, so keep it once people use your firmware.
+2. Edit `firmware.json` to set `id`, `name`, `author`, `url` and `description`.
+   The ID owns your firmware's storage. Keep it after release so updates can find saved data.
 3. Build it, in the browser or on your computer:
 
-   - **In the browser:** **Code › Codespaces › Create codespace**. When it has set itself up (a few minutes the
-     first time), run `./test.sh` and `./build.sh` in its terminal. Nothing to install.
-   - **On your computer** ([what you need](setup.md#what-you-need)):
+   - **In the browser:** choose **Code › Codespaces › Create codespace**.
+     Wait for setup to finish, then run `./test.sh` and `./build.sh` in its terminal.
+   - **On your computer:** install the [required tools](setup.md#what-you-need).
+     In the commands below, replace `<your repository>` with your clone URL in the first line and folder name in the second:
 
      ```bash
      git clone --recursive <your repository>
@@ -27,24 +27,23 @@ change into yours.
 
 ## What's in it
 
-| File | What |
+| File | Purpose |
 |---|---|
 | `firmware.json` | Who it is and what it needs ([manifest](api.md#firmwarejson)) |
 | `params.h` | Its settings: saved, in presets, sent to the DSP, editable from Launchpad ([Parameters](params.md)) |
 | `dsp/firmware.h` | The sound, on the DSP: `fw_process()` gets 64 samples at a time |
 | `nds32/firmware.c` | The controls and the screen, with the [UI kit](ui.md) |
 | `test/controls.txt` | What `./test.sh` does in the [simulator](simulator.md) |
-| `opengp5/` | The platform, a git submodule pinned to a release |
+| `opengp5/` | A Git submodule: a copy of OpenGP5 pinned to one release |
 
-To move to a newer OpenGP5, check out its tag in the submodule: `git -C opengp5 checkout <tag>`.
+The submodule keeps platform code separate from your effect. Its pinned release records the code you built against.
+To update it, run `git -C opengp5 checkout <tag>` with the release tag you want. Test and commit the new submodule revision.
 
 ## Built and released by GitHub
 
-Every push is built and tested by GitHub Actions: the image and the simulator's screens are in the run's
-**Artifacts**. Push a tag like `v1.0.0` and it publishes a release with the image. Then
-[list it in the catalog](releasing.md) so Launchpad and the web flasher offer it.
+GitHub Actions builds and tests each push. Find the image and screen previews under the run's **Artifacts**.
+Push a tag such as `v1.0.0` to publish a release with the image. Then [list it in the catalog](releasing.md).
 
 ## Licence
 
-The template is MIT No Attribution: make your firmware from it under any licence you like, and put that licence's
-name in `firmware.json`.
+The template uses the MIT No Attribution licence. Choose a licence for your firmware and put its name in `firmware.json`.

@@ -1,21 +1,40 @@
 ---
 title: Mods
-description: Small changes to Valeton's firmware, applied to your own copy, with undo.
+description: Apply or undo a patch to Valeton V1.0.6 firmware.
 weight: 60
 ---
 
-Mods change one small thing in Valeton's firmware, V1.0.6. Launchpad applies them to your own copy of the
-firmware (downloaded from Valeton), checks every byte it changes, and flashes the result. **Undo mods** puts
-Valeton's original firmware back; your presets stay.
+A mod changes part of Valeton's **V1.0.6** firmware. Launchpad downloads a copy from Valeton,
+checks the bytes the mod will change, and flashes the result.
 
-## Available mods
+## Install or undo a mod
 
-**USB audio interface, no direct monitoring.** The pedal's outputs play only the audio coming back from the
-computer over USB, not the guitar directly. Useful when you record through the pedal and monitor through your
-software. USB recording doesn't change (channels 1 and 2: the dry guitar, 3 and 4: the preset). With no audio
-coming back, the outputs are silent: undo the mod to use the pedal on its own.
+1. With Valeton V1.0.6 on the pedal, open **Mods**.
+2. Read the mod's description and click **Install**.
+3. Let Launchpad download and check Valeton's firmware, then read and confirm the change.
+4. Keep the pedal connected until the flash finishes.
 
-## Mod files
+To undo the mods, click **Restore Valeton's original** under **Undo mods**.
+When the pedal runs Valeton's firmware, a mod or undo keeps its presets.
+If you switch from OpenGP5, [back up first](../backups/). That switch clears the old data.
 
-A mod can also come as a `.gp5mod` file: **Open a mod file** on the Mods page. Launchpad checks that it fits your
-firmware byte for byte before it applies anything.
+## USB audio interface, no direct monitoring
+
+This mod sends the sound from your recording app to the pedal's outputs.
+Your app must send the guitar sound back over USB for you to hear it from those outputs.
+If the app sends no sound back, the outputs stay silent.
+
+The USB recording channels stay the same:
+
+| Channels | Signal sent to the computer |
+|---|---|
+| 1 and 2 | Dry guitar |
+| 3 and 4 | The processed preset |
+
+Undo the mod to use the pedal on its own.
+
+## Load a mod file
+
+Click **Open a mod file** and choose a `.gp5mod` file. Read its description, then click **Install**.
+Launchpad checks the original bytes before it applies each change. Those checks confirm that the patch fits;
+they do not review what the mod does.

@@ -7,38 +7,46 @@ weight: 30
 
 ## If a flash fails or the pedal doesn't start
 
-The pedal's factory loader can't be overwritten over USB, so this almost always works:
+The factory loader provides USB update mode. USB update tools cannot overwrite it.
+Try these steps to flash a working build:
 
 1. **Unplug the pedal.**
-2. **Hold the foot switch and press the PARA knob in**, and keep both held while you plug the pedal back in.
-   The screen stays dark: the pedal is in update mode.
-3. **Flash again,** with [any of the usual ways](../flash/): the firmware you had, another one, or Valeton's.
-
-Launchpad and the web flasher both see a pedal in update mode and offer to flash it.
-
-> [!NOTE]
-> If the pedal stops at the start of the DSP part of **every** flash (Valeton Suite too, at 0 %), it has a fault in
-> the DSP's updater that some GP-5s have. Unplug and plug it back in: it runs what it ran before.
-> See [J7 recovery](../../platform/j7-recovery/).
+2. **Press and hold the foot switch and the PARA knob.** Keep both held as you plug the pedal back in, then release them.
+3. **Check update mode.** Launchpad or the web flasher should find the pedal in update mode.
+   With the command-line tool, run `python3 tools/gp5tool.py status`. Use the tool's status to confirm the mode;
+   the screen alone is not a reliable check.
+4. **[Flash again](../flash/).** Choose a build that worked before, another build or Valeton's firmware.
 
 ### When USB isn't enough
 
-A pedal whose DSP updater stalls, or that now always starts on the BOOTLOAD screen because of it, needs an FT232H
-USB adapter wired to the header J7 inside it, once: three wires, some soldering. See [J7 recovery](../../platform/j7-recovery/). After it, the pedal flashes over USB like any other.
+Some GP-5s have a fault in the DSP updater. The flash stops at the start of the DSP section with each tool.
+Valeton Suite may stop at 0 %. If the flash has written no DSP data, unplug the pedal and plug it back in.
+It should run its old build. A pedal stuck on **BOOTLOAD** may also need the steps below.
+
+These pedals need an FT232H USB debug adapter wired to J7 inside the case to get past the fault.
+[J7 recovery](../../platform/j7-recovery/) explains how to confirm the fault, flash OpenGP5, and apply the fix.
+Read that guide before opening the pedal.
 
 ## Going back to Valeton's firmware
 
-You can return to Valeton's firmware at any time.
+Use Launchpad or the command-line tool to flash Valeton's firmware.
+If the DSP fault blocks the flash, use the J7 steps above.
 
-- **With Launchpad:** on the **Flash** page, choose **Valeton's firmware**. Launchpad downloads version V1.0.6 from
-  Valeton's own site, checks it, and flashes it.
-- **From the command line:** download the GP-5 update from Valeton, unzip it, and flash all of it:
+- **With Launchpad:** open **Flash** and choose **Valeton's firmware**. Launchpad downloads V1.0.6 from Valeton's site.
+  Read the data notice and confirm the flash. Keep the pedal plugged in until it returns.
+- **From the command line:** download the GP-5 update from Valeton and unzip it. From your OpenGP5 folder,
+  flash the full image, using the file's path:
 
   ```bash
   python3 tools/gp5tool.py flash GP-5_USB_V1.0.6_20250626.bin --sections all
   ```
 
-Valeton's own updater, Valeton Suite, is not a reliable way back. Use one of the ways above.
+Use the name of the file you downloaded. Use one of the tools above to go back.
+Valeton Suite can fail when you try to return from OpenGP5.
 
-Valeton's firmware starts with its factory presets. If you backed up your presets before leaving it, restore them
-on Launchpad's [Backups page](../../launchpad/backups/).
+The pedal starts with Valeton's **factory presets**. To get your own presets back:
+
+1. Open Launchpad's [Backups page](../../launchpad/backups/) and restore the backup you made before switching.
+2. Import any SnapTones and user IRs you exported in Valeton Suite.
+
+Without those backups and exports, flashing Valeton's firmware does not restore your custom data.

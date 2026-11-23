@@ -1,42 +1,44 @@
 ---
 title: Documentation
 linkTitle: Docs
-description: Everything about OpenGP5, from flashing your first firmware to writing your own.
+description: Use OpenGP5 on your pedal, manage your data, or write your own effect.
 weight: 1
 ---
 
-**OpenGP5** is open firmware for the Valeton GP-5 guitar pedal. It replaces the pedal's software on both of its
-processors with code written from scratch, and gives you a framework for writing your own: your audio code, your
-screen, your controls, flashed over USB.
+**OpenGP5** is free, open source firmware for the Valeton GP-5 guitar pedal. It runs the pedal's sound,
+screen and controls. You can use an effect we provide or write your own in C.
 
-Nothing in it comes from Valeton or the chip vendor. You can always go back to Valeton's firmware.
+OpenGP5 contains no code or data from Valeton or the chip vendor. To go back to Valeton's firmware, follow
+[Recovery](get-started/recovery/). That guide also covers the DSP update fault that can block a USB flash.
 
 ## Where to start
 
 | I want to… | Read |
 |---|---|
-| Try a firmware on my pedal | [Get started](get-started/) |
-| Load NAM captures, edit presets, back up my pedal | [Launchpad](launchpad/) |
-| Learn what a firmware does and how to use it | [Firmwares](firmwares/) |
-| Write my own effect | [Build a firmware](platform/), starting with [Your first effect](platform/first-effect/) |
-| Look up a function or a protocol | [API reference](platform/api/), [Protocols](platform/protocols/) |
+| Try an effect on my pedal | [Get started](get-started/) |
+| Load captures, edit presets or back up my data | [Launchpad](launchpad/) |
+| Learn an effect's controls | [Firmware](firmwares/) |
+| Write my own effect | [Build a firmware](platform/), then [Your first effect](platform/first-effect/) |
+| Look up a function or protocol | [API reference](platform/api/), [Protocols](platform/protocols/) |
 | Fix a problem | [Recovery](get-started/recovery/), [Help](help/) |
 
-## The parts
+## What each part does
 
-**Firmwares** run on the pedal. Each one is a complete replacement for the pedal's software:
-[NAM Loader](firmwares/nam-loader/) plays Neural Amp Modeler captures, [Dreamcatcher](firmwares/dreamcatcher/) is
-an ambient looper and glitch delay, and the [tremolo](firmwares/tremolo/) is the example to learn from. Only one
-firmware is on the pedal at a time.
+**Firmware** runs on the pedal. [NAM Loader](firmwares/nam-loader/) plays Neural Amp Modeler (NAM) captures:
+models of how an amp or pedal sounds. [Dreamcatcher](firmwares/dreamcatcher/) loops and processes your playing.
+The [tremolo](firmwares/tremolo/) makes the volume rise and fall. Only one firmware build runs on the pedal at a time.
 
-**Launchpad** is the desktop app. It flashes firmwares, loads captures and IRs, edits settings and presets while
-you play, and backs up what's on the pedal. It works with Valeton's own firmware too.
+**Launchpad** is the desktop app. Use it to flash firmware, load captures and edit presets as you play.
+It also loads cabinet impulse responses (cab IRs): files that add a speaker cabinet's sound.
+Its [backups](launchpad/backups/) save the data each supported firmware exposes. With Valeton's firmware,
+a backup holds the 100 presets; export SnapTones and user IRs in Valeton Suite.
 
-**The web flasher** flashes a firmware from Chrome, Edge or Opera, with nothing to install.
+**The web flasher** installs firmware from Chrome, Edge or Opera on a computer. You do not need to install an app.
 
-**The platform** is what every firmware is built on. It runs both processors, the USB connection, the screen,
-the controls and the storage, so a firmware is only its sound and its interface.
+**The platform** is the shared code for firmware authors. It handles both chips, USB, the screen,
+controls and storage. Your code defines the sound and interface.
 
 > [!NOTE]
-> OpenGP5 is in **alpha**: expect rough edges, and expect interfaces to change before 1.0. Reports from more
-> pedals are very welcome ([Beta testing](help/beta-testing/)).
+> OpenGP5 is in **alpha**. These docs target **platform 0.8.0-alpha**. These docs also describe the planned
+> **1.0 API**, which began in 0.7. The API is the set of functions and commands firmware can use; it may change
+> before 1.0 final. See [Beta testing](help/beta-testing/) to report how your pedal works.

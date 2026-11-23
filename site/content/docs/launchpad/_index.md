@@ -1,23 +1,29 @@
 ---
 title: Launchpad
-description: The desktop app for the GP-5. Flash firmware, load captures and IRs, edit presets live, and back up the pedal.
+description: Flash firmware, load sounds, edit presets, and back up supported data from your GP-5.
 weight: 20
 ---
 
-Launchpad connects to the pedal over USB and shows the tools that fit what the pedal runs: Valeton's firmware or
-any firmware built on OpenGP5. It runs on macOS, Windows and Linux.
+Launchpad is the desktop app for the GP-5. It runs on macOS, Windows and Linux.
+Plug the pedal into USB, and Launchpad shows the tools that its firmware supports.
 
-| Page | What you do there | Works with |
+Use it to load Neural Amp Modeler (NAM) captures: models of how an amp or pedal sounds.
+It also loads cabinet impulse responses (cab IRs) for the sound of a speaker cab.
+
+| Page | What you can do | Works with |
 |---|---|---|
-| **Home** | See what the pedal runs and what's on it | everything |
-| **[Flash](flash/)** | Install a firmware: one that comes with Launchpad, one from the catalog, your own build, or Valeton's | every firmware, and a pedal in update mode |
-| **[Tones](tones/)** | Load NAM captures and cab IRs, pair them, set gate and EQ | NAM Loader |
-| **[Presets](presets/)** | Edit Dreamcatcher's 8 presets live, or Valeton's 100 | Dreamcatcher, Valeton's firmware |
-| **[Live](live/)** | Change any firmware's settings as you play | OpenGP5 1.0 firmwares |
-| **[Backups](backups/)** | Save everything on the pedal to one file, and restore it | every firmware |
-| **[Mods](mods/)** | Small changes to Valeton's firmware, with undo | Valeton's firmware V1.0.6 |
-| **[Developer](developer/)** | The pedal's log, and how busy each processor is | OpenGP5 0.7+ firmwares |
-| **Settings** | Theme, update check, recovery steps | |
+| **Home** | Check the installed build and stored data | Valeton and OpenGP5 firmware |
+| **[Flash](flash/)** | Install a bundled build, a catalog build, your own file or Valeton's firmware | A working pedal or a pedal in update mode |
+| **[Tones](tones/)** | Load captures and cab IRs; set gate and EQ | NAM Loader |
+| **[Presets](presets/)** | Edit 8 Dreamcatcher presets or 100 Valeton presets | Dreamcatcher or Valeton's firmware |
+| **[Live](live/)** | Change settings as you play; load and save presets | Firmware with parameter support, added in platform 0.7 |
+| **[Backups](backups/)** | Save and restore the data listed on the Backups page | Supported Valeton and OpenGP5 data |
+| **[Mods](mods/)** | Apply or undo a change to Valeton's firmware | Valeton V1.0.6 |
+| **[Developer](developer/)** | Read the log; check processor load and memory | Platform 0.7 or later |
+| **Settings** | Choose a theme; control update checks; read recovery steps | All connections |
+
+NAM Loader and Dreamcatcher have their own pages, so the app hides Live for those builds.
+See [API versions](../platform/api/#versions) for the planned 1.0 API and the alpha builds that use it.
 
 ## Install
 
@@ -28,40 +34,43 @@ Download the file for your computer from
 |---|---|
 | macOS, Apple silicon | `OpenGP5 Launchpad-…-arm64.dmg` |
 | macOS, Intel | `OpenGP5 Launchpad-….dmg` |
-| Windows | `OpenGP5 Launchpad Setup … x64.exe` (installer), or `…-win.zip` (x64) / `…-arm64-win.zip` (ARM64) |
-| Linux | `.AppImage` or `.deb`: `x86_64` / `amd64` for most PCs, `arm64` for ARM |
+| Windows | `OpenGP5 Launchpad Setup … x64.exe`, or the x64 / ARM64 Windows ZIP |
+| Linux | An `.AppImage` or `.deb`; choose `x86_64` / `amd64` for most PCs, or `arm64` for ARM |
 
-Launchpad isn't signed, so the system warns you the first time you open it:
+Your system may warn you because the app has no code signature.
+Use these steps to open it:
 
-- **macOS:** right-click the app, choose **Open**, then **Open** again. If macOS says the app is damaged, run this
-  once in Terminal:
+- **macOS:** open the disk image and copy the app to **Applications**. Right-click the app and choose **Open**,
+  then confirm **Open**. If macOS says the app is damaged, run this in Terminal:
 
   ```bash
   xattr -cr "/Applications/OpenGP5 Launchpad.app"
   ```
 
-- **Windows:** on "Windows protected your PC", click **More info**, then **Run anyway**.
-- **Linux:** make the AppImage executable (`chmod +x`), or install the `.deb`.
+- **Windows:** run the setup file. On **Windows protected your PC**, click **More info**, then **Run anyway**.
+  If you chose a ZIP file, unzip it before you open the app.
+- **Linux, AppImage:** open a terminal in the download folder. Run `chmod +x` with the file's name, then open the file.
+  For example, `chmod +x "OpenGP5 Launchpad-<version>.AppImage"`; replace the name with your download's name.
+- **Linux, Debian package:** open the `.deb` with your package installer, then install it.
 
 ## Connect
 
-Plug the pedal in and open Launchpad. It finds the pedal by itself; Home shows what it runs.
+Plug the pedal into the computer and open Launchpad. **Home** shows which firmware it runs.
 
-If Launchpad says MIDI access isn't available, click **Restart Launchpad** in the banner. The computer's MIDI
-service is sometimes not ready when the app starts.
+If the app cannot access MIDI, click **Restart Launchpad** in the banner.
+Your MIDI service may not be ready when the app starts.
 
 ## Updates
 
-Launchpad checks for a newer version when it starts, and shows a banner when there is one. Installing it is your
-choice: the banner opens the download. You can turn the check off in **Settings**.
+Launchpad checks for a new release when it starts. A banner opens the download page if one is available.
+Choose whether to install it. You can turn off the check in **Settings**.
 
 ## Valeton's firmware
 
-Nothing of Valeton's comes with Launchpad. When you need Valeton's firmware (to flash it back, for its preset
-names, or for a mod), Launchpad downloads it from Valeton's own site, accepts it only if it is exactly version
-V1.0.6, and keeps it on your computer.
+The app does not include Valeton's firmware or data. When you need it for a flash, model names or a mod,
+the app gets V1.0.6 from Valeton's site. It checks the version and keeps the file on your computer.
 
 ## Try it without a pedal
 
-Launchpad can run against a simulated pedal, for a look around: see
+You can run Launchpad with a simulated pedal to explore the app. See
 [Build from source](https://github.com/OpenGP5/Launchpad#build-from-source).

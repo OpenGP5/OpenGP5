@@ -1,13 +1,13 @@
 # Contributing to OpenGP5
 
-Thanks for wanting to help. OpenGP5 is a small project run by a few people in their spare time, so clear issues and
-small pull requests go furthest.
+OpenGP5 is a small project that a few people work on in their spare time.
+Help by reporting clear steps, making focused changes or improving the docs.
 
 ## Ways to help
 
 - **Try it on your pedal and tell us how it went.** OpenGP5 has run on only a handful of GP-5s so far. The
   [beta-testing checklist](BETA-TESTING.md) takes about an hour. A
-  [hardware report](https://github.com/OpenGP5/OpenGP5/issues/new?template=hardware.yml) helps the most, whether your pedal worked or not.
+  [hardware report](https://github.com/OpenGP5/OpenGP5/issues/new?template=hardware.yml) can describe passed checks as well as faults.
 - **Write a firmware.** Start from the [firmware template](https://github.com/OpenGP5/firmware-template), then
   [list it in the catalog](catalog/README.md) so Launchpad and the web flasher can offer it.
 - **Report a bug** with the [bug form](https://github.com/OpenGP5/OpenGP5/issues/new?template=bug.yml).
@@ -16,19 +16,18 @@ small pull requests go furthest.
 
 ## Before you start on a change
 
-For anything bigger than a fix or a doc improvement, open an issue or a discussion first and describe what you have
-in mind. The platform is close to its 1.0 API, so changes to what firmwares see (headers, callbacks, the manifest,
-USB commands) need agreeing before they're written.
+For a change beyond a fix or doc edit, open an issue or discussion. Describe what you want to change and why. The docs target platform 0.8.0-alpha and the planned 1.0 API.
+Discuss changes to public headers, callbacks, manifest fields or USB commands before writing them.
 
 ## Pull requests
 
-1. Fork, branch, change.
+1. Fork the repository, create a branch, and make one focused change.
 2. Run the tests on your computer. They need no pedal and no cross-compilers:
    ```
    tools/test_all.sh
    ```
    If you changed platform code, also build the examples for the pedal (`release/setup-toolchain.sh` once, then
-   `platform/build_firmware.sh tremolo`). CI does both on every pull request.
+   `platform/build_firmware.sh tremolo`). Continuous integration (CI) runs these checks on each pull request.
 3. Anything that changes how the pedal behaves needs a test on a real pedal before it's merged. Say in the pull
    request whether you did one, and how: the maintainers may do it if you can't.
 4. Keep pull requests to one change each, and describe what and why.
@@ -38,19 +37,27 @@ USB commands) need agreeing before they're written.
 - C99, no C library on either processor: the platform provides what's needed (`gp5_math.h`, `gp5_fmt.h`).
 - Nothing from the chip vendor's SDK and nothing from Valeton: no code, headers, libraries, firmware or data. Code
   here is written from how the hardware behaves. A pull request that includes any of it can't be merged.
-- Comments say why, in plain words. Match the style of the file you're in.
-- A new public function or callback goes into its header with a comment and into `docs/platform/api.md`.
+- Comments explain why the code works this way. Use plain words and match the file's style.
+- For each new public call or callback, add a header comment and an entry in `docs/platform/api.md`.
 - New host tests go into `tools/test_all.sh`.
 
 ### Docs
 
-Short sentences, plain words, written for someone who has never seen the pedal's insides. Say what something does
-before how. Code names go in `backticks`.
+Write for someone who has not worked with the pedal's hardware.
+
+- Say what a tool does before explaining how it works.
+- Use short sentences, active voice and plain words.
+- Aim for a Flesch Reading Ease score of 80 or higher in prose.
+- Remove adverbs and vague claims about ease, speed or safety.
+- Keep a calm tone. Avoid sales language and buzzwords.
+- Use technical terms when they help, and define them at first use.
+- Put code names in `backticks`. Match button labels to the app.
+- State whether an edit changes the live sound, saved settings or a preset.
+- Keep version requirements and recovery limits consistent across guides.
 
 ## Licence
 
-OpenGP5 is MIT-licensed. By sending a pull request you agree that your contribution is released under the same
-licence.
+OpenGP5 uses the MIT licence. If you send a pull request, you agree to share your work under that licence.
 
 ## Conduct
 

@@ -1,21 +1,31 @@
 # Code of conduct
 
-OpenGP5 is for anyone who wants to make their pedal do new things, whatever their experience. We want it to be a
-friendly place to ask, try and share.
+OpenGP5 is for people at any skill level. Give others room to ask, try and share.
 
-**Expected:** be patient and kind, especially with beginners. Assume good intent. Criticise ideas and code, not
-people. Credit other people's work.
+## Expected conduct
 
-**Not accepted:** harassment, insults, personal attacks, discrimination of any kind, sexual content, sharing
-someone's personal information, and sustained disruption. Nor is posting Valeton's or the chip vendor's copyrighted
-files, or helping others get them.
+- Give new users time to learn. Treat all users with care.
+- Start from the view that others mean well.
+- Talk about the code or idea. Keep the focus on the work.
+- Name the people whose work you use.
 
-This applies in every OpenGP5 space: issues, pull requests, Discussions and the firmware catalog.
+## Unacceptable conduct
 
-**Reporting:** report it through GitHub (*Report content* on the comment or user) or contact the
-maintainers through the OpenGP5 account. Reports are handled in confidence.
+Do not harass or insult people. Do not attack people. Do not discriminate against any group.
+Do not post sexual content. Do not share someone else's personal details. Do not keep disrupting the space.
 
-**What happens:** maintainers may edit or remove content, warn, or block people from the project, as a situation
-needs. Firmwares in the catalog that break these rules are removed.
+Do not post files that belong to Valeton or the chip vendor under copyright. Do not help others get those files.
+These rules apply to issues, pull requests, Discussions and the firmware catalog.
 
-Inspired by the [Contributor Covenant](https://www.contributor-covenant.org/).
+## Report a problem
+
+Use **Report content** on the GitHub comment or user profile to report it to GitHub in private.
+You can reach the project in public on [Discussions](https://github.com/OpenGP5/OpenGP5/discussions).
+Keep private details out of public posts. The team keeps reports private.
+
+## Enforcement
+
+The team may edit or remove posts, warn users, or block them from the project.
+It removes catalog listings that break these rules.
+
+The [Contributor Covenant](https://www.contributor-covenant.org/) helped shape these rules.

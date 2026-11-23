@@ -1,29 +1,38 @@
 ---
 title: Backups
-description: Save everything on the pedal to one file, and put it back.
+description: Save supported pedal data to a file, then restore it to the same firmware.
 weight: 50
 ---
 
-A backup is one `.gp5backup` file with the installed firmware's data:
+A backup is one `.gp5backup` file with the installed build's supported data.
+It does not include a firmware installer. Check the table to see what it holds:
 
 | Firmware | A backup holds |
 |---|---|
-| NAM Loader | your captures, IRs, and each capture's IR, gate and EQ |
-| Dreamcatcher | its presets |
-| Any OpenGP5 1.0 firmware | its settings, presets and files |
-| Valeton's firmware | the 100 presets. **Not** SnapTones or user IRs: export those in Valeton Suite |
+| NAM Loader | Captures, cab IRs, IR choices, gate and EQ settings |
+| Dreamcatcher | Presets |
+| Firmware with the parameter API, added in platform 0.7 | Saved settings, presets and files |
+| Valeton's firmware | The 100 presets |
+
+Launchpad cannot back up Valeton SnapTones or user IRs. Export those in Valeton Suite before you switch firmware.
+Valeton's global settings stay on the pedal.
 
 ## Back up
 
-On **Backups**, under **What's on the pedal**, click **Back up now**, and save the file. Launchpad also lists the
-backups made on this computer under **Backups from this computer**.
+1. Open **Backups**.
+2. Click **Back up now** and save the file.
+3. Check **Backups from this computer** to find saved backups.
 
 ## Restore
 
-Pick a backup from the list (or **Open a file**), tick the parts you want back, and click **Restore**. A backup restores onto the firmware it was
-made from: if the pedal runs something else, [flash](../flash/) that firmware first.
+1. Install the firmware that the backup came from. If the pedal runs a different one, [flash it](../flash/) first.
+2. Select a backup in the list, or click **Open a file**.
+3. Tick the parts you want to restore, then click **Restore** and confirm.
+4. Restart the pedal if Launchpad asks you to do so.
 
-## Before switching firmwares
+Restoring replaces the selected data on the pedal. Launchpad checks that the backup belongs to the installed build.
 
-Switching to a different firmware wipes the old one's data. When you flash, Launchpad offers a backup first. Take
-it.
+## Before switching firmware
+
+A different firmware starts with empty storage. If Launchpad can read the pedal, it offers **Back up first**
+when you switch. Choose that option before you start the flash if you want to keep the old data.

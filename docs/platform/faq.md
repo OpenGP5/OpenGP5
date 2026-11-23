@@ -2,59 +2,69 @@
 
 ## Using it
 
-**Can I go back to Valeton's firmware?** Yes. Flash Valeton's GP-5 update with Launchpad, the web flasher or
-`gp5tool.py flash <file> --sections all`. Valeton's presets come back. Export your SnapTones and user IRs in Valeton
-Suite before you leave Valeton's firmware: OpenGP5's tools can't back those up.
+**Can I go back to Valeton's firmware?** Yes. Follow [Recovery](../../GETTING-STARTED.md#recovery) to flash the full update.
+The pedal starts with **factory presets**. Restore a Launchpad backup to get your own presets back.
+Before leaving Valeton's firmware, export SnapTones and user IRs in Valeton Suite; Launchpad cannot back them up.
 
-**Will it brick my pedal?** Usually a bad flash is fixable: unplug, hold the foot switch and PARA, plug in, and
-flash again. The factory loader that does this can't be overwritten over USB. Some pedals stall every update, Valeton's own
-too: they need a debug adapter wired inside the pedal once ([J7 recovery](j7-recovery.md)). It's alpha software: only flash if you
-accept that risk.
+**Can a flash leave the pedal unable to start?** A failed flash can stop the installed app from starting.
+The factory loader remains available for USB recovery. Some pedals also have a DSP update fault that blocks a new flash,
+including Valeton's updates. Those pedals may need a debug adapter wired inside the case.
+Read [Known limits](known-limits.md) and [J7 recovery](j7-recovery.md) before deciding to flash alpha software.
 
-**Does it use Valeton's amp models, Bluetooth or presets?** No. OpenGP5 firmwares are written from scratch and use
-none of Valeton's code or data. Bluetooth isn't used.
+**Does OpenGP5 use Valeton's models or presets?** No. The firmware contains no code or data from Valeton or the chip vendor.
 
-**Is my firmware's data kept when I install another one?** No: the pedal's storage belongs to the installed firmware,
-and installing a different one starts empty. Back it up first; Launchpad offers to, every time.
+**Does my data survive a change of firmware?** A different firmware ID starts with empty storage.
+Back up before switching. Launchpad offers a backup if it can read the installed build.
+An update with the same ID keeps storage; check its release notes for changes to saved settings.
 
-**Which firmwares are there?** The ones in Launchpad and the web flasher: OpenGP5's own (Dreamcatcher, NAM Loader,
-the tremolo) and whatever is listed in the [catalog](https://github.com/OpenGP5/OpenGP5/blob/main/catalog/README.md).
-Listings not from OpenGP5 aren't reviewed.
+**Which effects can I try?** OpenGP5 provides NAM Loader, Dreamcatcher and the tremolo.
+See the [firmware guides](https://opengp5.github.io/docs/firmwares/) for controls and downloads.
+Other authors can list builds in the [catalog](https://github.com/OpenGP5/OpenGP5/blob/main/catalog/README.md).
+Those builds carry *Not reviewed*: file checks do not include a source-code review.
 
 ## Writing firmware
 
-**Do I need the pedal to start?** No. The [simulator](simulator.md) runs a whole firmware on your computer, screen
-and sound included, and the [template](https://github.com/OpenGP5/firmware-template) builds in GitHub Codespaces
-without installing anything.
+**Do I need a pedal to start?** No. The [simulator](simulator.md) runs the code and saves sound and screen files.
+The [template](https://github.com/OpenGP5/firmware-template) can build in GitHub Codespaces, in your browser.
+You need a pedal to check timing and hardware behavior.
 
-**What language?** C (C99), on both processors. Neither has a C library: the platform provides maths (`gp5_math.h`),
-`printf`-style formatting (`gp5_fmt.h`) and everything else a firmware needs.
+**Which platform version should I use?** These docs target platform 0.8.0-alpha.
+The planned 1.0 API began in 0.7, so a guide's “1.0 API” label does not mean a 1.0 platform release exists.
+See [Versions](api.md#versions).
 
-**Which processor should my sound code run on?** Start on the DSP: it's simpler. If it doesn't fit, move the heavy
-part to the control processor over the [audio link](audio-link.md); [performance](performance.md) helps decide.
+**What language can I use?** The build uses C99 on both chips, with no standard C library.
+The platform supplies maths (`gp5_math.h`) and `printf`-style text formatting (`gp5_fmt.h`).
 
-**How much can it do?** Roughly: a neural amp model and a 1,024-tap cab IR (NAM Loader), or a looper, grain delay and
-reverb (Dreamcatcher), each split across both processors. A simple effect on the DSP alone uses a few percent.
+**Where should I put the sound code?** Start on the DSP, the digital signal processor.
+If it runs out of time or memory, move work to the control chip through the [audio link](audio-link.md).
+Use [Performance](performance.md) to measure each side.
 
-**Can I use C++, a C library, or another language?** Not with the platform's build. C with no standard library is
-what both processors run. Many C libraries need only `<stdint.h>` and maths and port easily; anything that needs
-`malloc`, files or threads doesn't.
+**How much sound processing fits?** NAM Loader runs an amp model and a 1,024-tap cab IR.
+Dreamcatcher runs a looper, grain delay and reverb. Both split work across the chips.
+A small tremolo on the DSP uses a few percent of its time budget.
 
-**Can I use code from Valeton's firmware or the chip vendor's SDK?** No: nothing from either goes into OpenGP5 or the
-catalog, so everything stays freely shareable.
+**Can I use C++ or a C library?** The platform build supports C.
+Code that needs only integer types and maths may need few changes to run here.
+Code that depends on `malloc`, host files or threads needs more work; the platform does not provide those calls.
 
-**How do settings get saved?** Declare them as parameters and the platform saves them, keeps presets, and lets
-Launchpad edit them ([parameters](params.md)). For other data: [storage](storage.md).
+**Can I include code from Valeton or the chip vendor's SDK?** No.
+OpenGP5 and its catalog exclude code, headers, libraries, firmware and data from those sources.
 
-**Stereo in?** The pedal's input is mono (the guitar); the outputs are stereo.
+**How do I save settings?** Declare [parameters](params.md) and mark which ones to save or include in presets.
+The platform handles saving and lets Launchpad edit them. For other data, use [Storage](storage.md).
 
-**48 kHz?** Yes: `"audio": { "sample_rate": 48000 }` in `firmware.json`. Blocks are then 1.33 ms.
+**Does the pedal have stereo input?** No. The guitar input is mono. The outputs are stereo.
 
-**How do I share my firmware?** [Releasing your firmware](releasing.md).
+**Can I use 48 kHz?** Yes. Set `"audio": { "sample_rate": 48000 }` in `firmware.json`.
+Each 64-sample block then lasts 1.33 ms.
+
+**How do I share my build?** Follow [Releasing your firmware](releasing.md).
 
 ## The project
 
-**Who makes OpenGP5?** A few people in their spare time, publishing as OpenGP5. It's not affiliated with Valeton.
+**Who makes OpenGP5?** A few people work on it in their spare time under the OpenGP5 name.
+The project has no affiliation with Valeton.
 
-**How can I help?** Try it and send a [hardware report](https://github.com/OpenGP5/OpenGP5/issues/new?template=hardware.yml),
-whether it worked or not. Also: write a firmware, improve the docs, or see [CONTRIBUTING](../../CONTRIBUTING.md).
+**How can I help?** Send a [hardware report](https://github.com/OpenGP5/OpenGP5/issues/new?template=hardware.yml)
+with successes and faults. You can also write an effect or improve the docs.
+See [Contributing](../../CONTRIBUTING.md).

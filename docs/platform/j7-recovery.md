@@ -1,9 +1,9 @@
 # J7 recovery
 
-Some GP-5s stop **every** firmware update right at its start, Valeton's own updates included. The flasher says the
-pedal "stopped acknowledging at the erase of the dsp section", or Valeton Suite sits at 0 %. This page gets such a
-pedal past it, once, with a small USB adapter wired to a header inside the pedal. After that, the pedal flashes over
-USB like any other and the adapter isn't needed again.
+Some GP-5s have a DSP updater fault that blocks firmware updates, including Valeton's updates.
+The flasher may report "stopped acknowledging at the erase of the dsp section", or Valeton Suite may remain at 0 %.
+This guide uses a USB debug adapter to get past the fault, install OpenGP5, and write a permanent fix.
+The DSP is the digital signal processor that handles sound.
 
 **Symptoms** (all of them):
 
@@ -11,29 +11,27 @@ USB like any other and the adapter isn't needed again.
 - It happens every time, with every tool: Launchpad, the web flasher, `gp5tool.py`, Valeton Suite.
 - The app part (`app`) and the presets (`presets`) on their own do flash.
 
-If your pedal still starts normally after unplugging it and plugging it back in, nothing is broken: it runs what it
-ran before. You only need this page to install anything new. If your pedal now always starts on the **BOOTLOAD**
-screen, it needs this page to get going again.
+If the pedal starts after you unplug and reconnect it, its old build still runs.
+Use this guide to get past the fault when installing a new build. A pedal stuck on **BOOTLOAD** may need it to start again.
 
-**Cause.** Every update goes through a small updater on the pedal's DSP chip. On these pedals, right
-after the updater resets its flash memory, a read of that memory comes back wrong for a moment. The updater's timer
-then counts in the wrong place, and the updater waits for it forever. The fix moves the counter to an address where
-the wrong read doesn't matter: four bytes, written once. OpenGP5's firmwares carry that fix, but to run it, one
-OpenGP5 firmware must first get onto the pedal: that one update is what this page gets through.
+**Cause.** After the DSP updater resets its flash memory, a brief read fault can send its timer to the wrong address.
+The updater then waits for a counter that does not change. The fix changes four bytes so the counter uses an address
+that avoids the fault. You need to run OpenGP5 on the pedal to apply it.
 
-> **Risk.** This means opening the pedal, soldering three wires (or holding them on with test clips) and running
-> a debugger. Done carefully it is safe: nothing on this page erases or rewrites flash by itself, and every step
-> checks before it changes anything. But it is your pedal, and the risk is yours.
+> **Risk.** This procedure means opening the pedal, wiring J7 and using a debugger. Wiring errors can damage the pedal.
+> Step 2 reads memory. Step 3 changes RAM for one powered session. Step 4 flashes firmware, and step 6 writes a
+> permanent change to the DSP updater. The tools check for the known updater before applying its fix.
+> Stop if those checks fail.
 
 ## What you need
 
 - An **FT232H** USB board (the common "CJMCU-232H" or Adafruit FT232H breakout).
 - Three short wires. Soldering them to J7 is the most reliable; small test clips or header pins pressed into the
   holes can work.
-- A computer with **Python 3** and **OpenGP5's tools** (the `tools` folder from the OpenGP5 download:
+- A computer with **Python 3.9 or later** and **OpenGP5's tools** (the `tools` folder from the OpenGP5 download:
   `pip install mido python-rtmidi`).
-- **OpenGP5 firmware** to install: any OpenGP5 firmware image (`.bin`) built on OpenGP5 1.0, for example the
-  tremolo from the web flasher, Dreamcatcher or NAM Loader.
+- An **OpenGP5 firmware image** (`.bin`) with `tickfix` support, such as the current tremolo, Dreamcatcher or NAM Loader build.
+  These docs target platform 0.8.0-alpha and its planned 1.0 API.
 - **OpenOCD**, the debugger program:
   - macOS: `brew install open-ocd`
   - Linux: `sudo apt install openocd` (or your distribution's package)
@@ -65,58 +63,65 @@ cable as usual.
 
 Run these in the OpenGP5 folder (where `tools` is).
 
-**1. Put the pedal in update mode.** Unplug it, hold the **foot switch** and the **PARA** knob, plug it in, let go.
-The screen shows the update warning. (A pedal that always starts on the BOOTLOAD screen is already there.)
+**1. Enter update mode and check the status.** Unplug the pedal. Press and hold the **foot switch** and **PARA**.
+Plug it back in, then release both controls. Confirm the mode with the tool below; do not rely on the screen alone.
+A pedal on the BOOTLOAD screen may already be in update mode.
 
 ```bash
 python3 tools/gp5tool.py status
 ```
 
-It should say `update mode`.
+Expected result: `update mode`.
 
-**2. Check that the debugger sees the stall.** This only reads.
+**2. Check for the known stall.** This step reads memory without changing it.
 
 ```bash
 python3 tools/j7_nudge.py check
 ```
 
-You want: `The DSP's updater is stalled the known way`. If OpenGP5 can't connect, see [Troubleshooting](#troubleshooting).
+Expected result: `The DSP's updater is stalled the known way`.
+For a connection error, see [Troubleshooting](#troubleshooting).
 
-**3. Get the updater past it,** for this session only (in the DSP's working memory; unplugging undoes it):
+**3. Apply the temporary RAM change.** This gets the updater past the stall for this powered session.
+Unplugging clears the change:
 
 ```bash
 python3 tools/j7_nudge.py nudge
 ```
 
-You want: `Done: the updater's timer counts again`.
+Expected result: `Done: the updater's timer counts again`.
 
-**4. Flash an OpenGP5 firmware, all of it,** without unplugging the pedal in between:
+**4. Flash the full OpenGP5 image.** Keep the pedal powered after step 3:
 
 ```bash
 python3 tools/gp5tool.py flash GP-5_tremolo.bin --sections all
 ```
 
-(Any OpenGP5 1.0 firmware image instead of `GP-5_tremolo.bin`.) This now runs through the DSP parts too.
+Use the path to your chosen image in place of `GP-5_tremolo.bin`. It must support `tickfix`.
+Expected result: the flash completes, including its DSP section.
 
-**5. Start the pedal.** Unplug it and plug it in again, without holding anything. It starts the firmware you flashed.
+**5. Start the installed build.** Unplug and reconnect the pedal without holding the controls.
+Expected result: the new OpenGP5 build starts.
 
-**6. Apply the fix itself.** This writes the four bytes into the DSP's updater (two small writes, no erase):
+**6. Check and apply the permanent fix.** The first command reads its state. The second writes four bytes
+to the DSP updater in two small writes, without an erase:
 
 ```bash
 python3 tools/gp5tool.py tickfix
 python3 tools/gp5tool.py tickfix --apply
 ```
 
-The first command says `not applied`, the second `applied: updates won't stall`.
+Expected results: `not applied`, then `applied: updates won't stall`.
+If the first command says the fix is already applied, you do not need to apply it again.
 
-**Done.** Take the wires off (or leave them, they do no harm). From now on the pedal updates over USB like any
-other: any OpenGP5 firmware, and Valeton's firmware too. `gp5tool.py tickfix` tells you any time whether the fix is
-on the pedal.
+**Finish.** Unplug the pedal and adapter before removing the wires.
+The permanent fix lets this updater complete the USB flash steps that the fault blocked.
+Run `gp5tool.py tickfix` to check the fix's state. Other flash faults still need their own checks.
 
 ## Troubleshooting
 
 - **OpenOCD can't connect** ("Error connecting DP", no DAP info): check the three wires first. If they're right,
-  swap the wires on pins 3 and 4 once and try again. On Linux, OpenOCD may need permission for USB devices (run it
+  unplug both devices before checking the SWCLK and SWDIO connections against the pin table. On Linux, OpenOCD may need permission for USB devices (run it
   once with `sudo`, or add a udev rule for `0403:6014`). On Windows, the FT232H needs the WinUSB driver (Zadig).
 - **`check` says it isn't the known stall:**
   - `pc ... isn't in the updater's wait`: the pedal isn't in update mode, or it isn't stalled (it may be a pedal
@@ -130,5 +135,5 @@ on the pedal.
 ## Reporting results
 
 Whether it worked or not, please open a [hardware report](https://github.com/OpenGP5/OpenGP5/issues/new/choose) with
-what `j7_nudge.py check` and `gp5tool.py tickfix` printed. It tells us how many pedals have this problem and whether
-the fix fits them all.
+the output from `j7_nudge.py check` and `gp5tool.py tickfix`. Include the pedal and tool versions.
+Reports help track which pedals have the fault and which updater versions the fix supports.

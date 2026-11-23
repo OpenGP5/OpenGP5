@@ -1,11 +1,15 @@
 # Your first effect
 
-This page turns a copy of `firmwares/passthrough`, the smallest firmware, into a tremolo: the guitar's volume rises
-and falls with a sine wave. PARA sets how fast, clicking PARA switches it to setting how deep, and the foot switch
-turns it on and off. Launchpad gets an editor for it without any extra code. The complete code is below, about 90
-lines in all. `firmwares/tremolo` is the same tremolo grown further: presets, a smooth-font screen, more shapes.
+Build a tremolo from `firmwares/passthrough`. It makes the guitar's volume rise and fall with a sine wave.
+Turn PARA to set the rate. Press PARA to switch between rate and depth. The foot switch toggles the effect.
+Launchpad uses your settings list to show an editor.
 
-The full reference is [the 1.0 API](api.md).
+Complete the [setup guide](setup.md) first. Run commands from the OpenGP5 folder.
+The sound and control code below totals about 90 lines. The full `firmwares/tremolo` example adds presets,
+more wave shapes and smooth text.
+
+See the [API reference](api.md) for all calls. These docs target platform 0.8.0-alpha.
+The planned 1.0 API began in 0.7; the `platform` field below targets 0.8.
 
 ## 1. Copy the passthrough
 
@@ -50,7 +54,7 @@ Declare them once; both halves and the computer use the same list:
 
 - `RATE` runs from 50 to 1500 in 1/100 Hz, so 0.5 to 15 Hz. Values are whole numbers; choose the step you need.
 - `GP5_P_DSP` means the DSP gets the value. `GP5_P_SAVE` means it is kept across power-off.
-- `ON` has no `SAVE`, so the tremolo is on after every power-on.
+- `ON` has neither `SAVE` nor `PRESET`, so it starts at its default, on, after power-on.
 
 The platform now sends each change to the DSP, saves `RATE` and `DEPTH` 2 s after you stop turning, and lets a
 computer read and set all three. [Parameters and presets](params.md) has the units, flags and presets.
@@ -70,13 +74,13 @@ static int  fw_command(uint32_t cmd, const uint8_t *payload, uint32_t n);       
   prefer -1.0 … 1.0. Write 64 samples to each output.
 - Write ordinary C. Variables at file level keep their value between calls, and `float` maths runs on the DSP's
   floating-point unit. `gp5_math.h` gives you `sinf`, `cosf`, `expf`, `logf`, `powf`, `tanhf`, `sqrtf` and more.
-- Write `0.5f`, not `0.5`. A plain `0.5` is a `double`, which the DSP does slowly in software (the build warns).
+- Write `0.5f`, not `0.5`. A plain `0.5` is a `double`, which the DSP runs in software at a higher time cost. The build warns about it.
 - Big buffers (delay lines, loopers) go in the 122 KB block: `static int16_t line[44100] GP5_LARGE;`. Ordinary
   variables have 19,712 bytes. The build prints what you use and refuses what doesn't fit.
 - `gp5_param(GP5_P_DEPTH)` reads a setting's current value anywhere. Until the control half sends its values, it
   holds the defaults from `params.h`.
 
-Replace the whole file with this:
+Replace `firmwares/my-tremolo/dsp/firmware.h` with this:
 
 ```c
 /* My tremolo, DSP half */
@@ -118,9 +122,8 @@ static void fw_process(const int32_t *in, int32_t *out_left, int32_t *out_right)
 static int fw_command(uint32_t cmd, const uint8_t *p, uint32_t n) { (void)cmd; (void)p; (void)n; return 0; }
 ```
 
-**Time budget:** one block may take at most 278,000 DSP cycles (64 samples at 44.1 kHz, 191.9 MHz), about 4,300
-per sample. With `"audio": {"sample_rate": 48000}` in `firmware.json` a block is 255,900 cycles. Write
-`GP5_SAMPLE_RATE` in your maths, never 44100. A `sinf` costs roughly 40 cycles. This tremolo uses a few percent.
+Use `GP5_SAMPLE_RATE` in the maths so the code works at either supported sample rate.
+The [timing notes](#timing-notes) below explain the DSP's cycle budget.
 
 ## 4. Try the sound on the computer
 
@@ -131,11 +134,11 @@ python3 tools/run_effect.py my-tremolo guitar.wav out.wav --set Rate=400 --set D
 python3 tools/run_effect.py my-tremolo x out.wav --tone           # no recording? a plucked test tone
 ```
 
-`--set` sends a setting exactly as the control half would. Once you have the control half too (section 5), the
-[simulator](simulator.md) runs both halves with the screen and scripted controls:
-`python3 tools/simulate.py my-tremolo`. The program is your `firmware.h` compiled for the
-computer with the platform's own maths functions, so it computes what the pedal computes. `gp5_log("...")` in the
-DSP code prints to the terminal here.
+`--set` sends a setting through the DSP's parameter callback. The tool compiles your sound code for the computer
+with the platform's maths functions. `gp5_log("...")` prints to the terminal.
+
+After adding the control half in section 5, run `python3 tools/simulate.py my-tremolo`.
+The [simulator](simulator.md) then runs both halves, saves screen images and reads scripted controls.
 
 ## 5. The controls and screen (`nds32/firmware.c`)
 
@@ -150,7 +153,7 @@ The platform calls these from its main loop. Each is optional, and none of them 
 | `fw_param_changed(id)` | a setting changed from the computer | update the LEDs |
 | `fw_draw(force)` | every pass | the screen |
 
-The volume knob stays the output level, which is the platform's default. Replace the whole file with this:
+The volume knob sets output level by default. Replace `firmwares/my-tremolo/nds32/firmware.c` with this:
 
 ```c
 /* My tremolo, control half: PARA turn = the selected setting, PARA click = select, foot = on / off */
@@ -226,8 +229,8 @@ python3 tools/gp5_link.py status             # how busy both processors are
 
 Launchpad's Live page shows your settings as knobs and switches.
 
-If anything goes wrong on the pedal: unplug, hold Foot + PARA, plug in, and flash a firmware that worked
-(GETTING-STARTED.md, "Recovery").
+For a pedal that does not start, follow [Recovery](../../GETTING-STARTED.md#recovery).
+That guide covers entering update mode and the DSP fault that can block a USB flash.
 
 ## 7. Make it yours
 
@@ -240,12 +243,19 @@ If anything goes wrong on the pedal: unplug, hold Foot + PARA, plug in, and flas
 - **More sound:** a drive (`tanhf`), a filter (a biquad is 5 multiplies per sample), an echo (a `GP5_LARGE`
   buffer), a chorus (a short delay whose length follows a slow `sinf`).
 
-## 8. Further
+## 8. Next steps
 
 - **`firmwares/tremolo`**: this tremolo finished, with presets, a smooth-font screen that redraws only what changed,
   PARA click and hold, and a screen preview that runs on the computer (`test/screen.sh`).
 - **The audio link** (`"audio": {"link": true}`, `gp5_link_start`) exchanges words between the halves after every
-  block. Use it for data that changes all the time, or to run sound on the control processor too.
+  block. Use it for data that changes all the time, or to run sound on the control chip too.
   [NAM Loader](https://github.com/OpenGP5/NAM-Loader) runs most of its model there this way.
 - **[Dreamcatcher](https://github.com/OpenGP5/Dreamcatcher)**: a large firmware in its own repository, with a
   looper, delays, reverb, presets and a graphic screen, built on OpenGP5 as a submodule.
+
+## Timing notes
+
+At 44.1 kHz, one 64-sample block gives the DSP about 278,000 cycles at 191.9 MHz.
+That is about 4,300 cycles per sample. At 48 kHz, the budget drops to about 255,900 cycles per block.
+A `sinf` call costs about 40 cycles; this tremolo uses a few percent of a block.
+Measure the built effect on the pedal before adding more work. See [Performance](performance.md).

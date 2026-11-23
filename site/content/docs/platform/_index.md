@@ -29,12 +29,12 @@ cascade:
     title: "The simulator"
     linkTitle: "Simulator"
     weight: 50
-    description: "Run a whole firmware on the computer: sound, screen and scripted controls."
+    description: "Run both halves on your computer and save sound and screen files."
   - target: {path: /docs/platform/params}
     title: "Parameters and presets"
     linkTitle: "Parameters"
     weight: 60
-    description: "Declare settings once; the platform saves them, keeps presets and gives a computer an editor."
+    description: "Define settings, choose save flags, and use them in presets and Launchpad."
   - target: {path: /docs/platform/ui}
     title: "The UI kit"
     linkTitle: "UI kit"
@@ -54,12 +54,12 @@ cascade:
     title: "The audio link"
     linkTitle: "Audio link"
     weight: 100
-    description: "Sound on both processors."
+    description: "Sound on both chips."
   - target: {path: /docs/platform/performance}
     title: "Performance"
     linkTitle: "Performance"
     weight: 110
-    description: "Budgets, measuring, and what's fast on each processor."
+    description: "Measure load and keep sound code within each block's time budget."
   - target: {path: /docs/platform/debugging}
     title: "Debugging"
     linkTitle: "Debugging"
@@ -84,7 +84,7 @@ cascade:
     title: "Hardware"
     linkTitle: "Hardware"
     weight: 160
-    description: "Memory, pins and clocks of both processors."
+    description: "Memory, pins and clocks of both chips."
   - target: {path: /docs/platform/known-limits}
     title: "Known limits"
     linkTitle: "Known limits"
@@ -95,43 +95,54 @@ cascade:
     linkTitle: "J7 recovery"
     weight: 175
     description: "Recovering a pedal whose DSP updater stalls, with an FT232H on the debug header J7."
+  - target: {path: /docs/platform/palette}
+    title: "Colour palette"
+    linkTitle: "Colour palette"
+    weight: 178
+    description: "OpenGP5's colours for the website, Launchpad and firmware pages."
   - target: {path: /docs/platform/faq}
     title: "Questions"
     linkTitle: "FAQ"
     weight: 180
     description: "Common questions about using OpenGP5 and writing firmware."
 ---
-Write your own effect in plain C: your sound, your screen, your controls. Try it on your computer first, then
-flash it over USB.
+
+
+Write an effect in C, test it on your computer, then flash it over USB.
+You need basic C knowledge and the tools in the setup guide. You can start without a pedal.
+
+These guides target **platform 0.8.0-alpha** and the planned **1.0 API** introduced in 0.7.
+See [API versions](api/#versions) for what each number means.
 
 ## Learn
 
-1. [Set up your computer](setup/): the compilers, a first build, a first flash.
-2. [How a firmware works](concepts/): the two processors, the platform, settings and storage.
-3. [Your first effect](first-effect/): a tremolo, step by step.
-4. [Your own repository](template/): start from the template, built and tested by GitHub.
+1. [Set up your computer](setup/): install tools, build the tremolo, and flash it.
+2. [How a firmware works](concepts/): learn the two processors, shared code and storage.
+3. [Your first effect](first-effect/): build a tremolo step by step.
+4. [Your own repository](template/): use the template and its build and test workflow.
 
 ## Guides
 
-| | |
+| Guide | Task |
 |---|---|
-| [The simulator](simulator/) | the whole firmware on the computer: sound, screen, scripted controls |
-| [Parameters and presets](params/) | settings declared once, saved, and editable from a computer |
-| [The UI kit](ui/) | a settings page, a menu, value text, messages |
-| [Text and fonts](fonts/) | the built-in pixel font, smooth text, your own font |
-| [Storage](storage/) | keeping settings and files on the pedal |
-| [The audio link](audio-link/) | sound on both processors |
-| [Performance](performance/) | budgets, measuring, what's fast where |
-| [Debugging](debugging/) | the log, the load report, symptoms and causes |
-| [Releasing your firmware](releasing/) | versions, release notes, getting listed |
+| [The simulator](simulator/) | Run code on your computer; save sound and screen files |
+| [Parameters and presets](params/) | Define settings and choose which values to save |
+| [The UI kit](ui/) | Add a settings page, menu and value text |
+| [Text and fonts](fonts/) | Draw text or convert a font |
+| [Storage](storage/) | Keep records and files on the pedal |
+| [The audio link](audio-link/) | Share sound work between the two processors |
+| [Performance](performance/) | Measure load and stay within the time budget |
+| [Debugging](debugging/) | Find faults with checks, logs and load reports |
+| [Releasing your firmware](releasing/) | Publish a build and list it in the catalog |
 
 ## Reference
 
-| | |
+| Reference | Contents |
 |---|---|
-| [API reference](api/) | everything a firmware can use |
-| [Protocols](protocols/) | USB-MIDI, the firmware update, the image format, the processor link |
-| [Hardware](hardware/) | memory, pins and clocks of both processors |
-| [Known limits](known-limits/) | what it can't do yet |
-| [J7 recovery](j7-recovery/) | pedals whose DSP updater stalls |
-| [FAQ](faq/) | common questions |
+| [API reference](api/) | Public calls, callbacks and manifest fields |
+| [Protocols](protocols/) | USB messages, image files and the processor link |
+| [Hardware](hardware/) | Memory, pins and clocks |
+| [Known limits](known-limits/) | Faults, tested limits and missing features |
+| [J7 recovery](j7-recovery/) | Steps for the confirmed DSP update fault |
+| [Colour palette](palette/) | OpenGP5's colours |
+| [FAQ](faq/) | Questions about using OpenGP5 and writing effects |

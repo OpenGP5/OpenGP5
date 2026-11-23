@@ -4,78 +4,92 @@ description: Play Neural Amp Modeler captures on the pedal, each with its own ca
 weight: 10
 ---
 
-NAM Loader plays [Neural Amp Modeler](https://github.com/sdatkinson/neural-amp-modeler) captures on the GP-5
-itself, at 48 kHz, the rate captures are trained at. The pedal holds **30 captures** and **12 cab IRs**. Any
-capture can play any IR, or none, and each capture keeps its own IR choice, noise gate and 3-band EQ.
+NAM Loader plays [Neural Amp Modeler](https://github.com/sdatkinson/neural-amp-modeler) (NAM) captures on the GP-5.
+A capture models the sound of an amp or pedal. NAM Loader runs at **48 kHz** and supports **A2 captures**.
+It uses their A2-Lite model; older A1 captures do not work.
+
+Version **1.3 or later** holds **30 captures** and **12 cabinet impulse responses (cab IRs)**.
+An IR adds a speaker cabinet's sound. Each capture keeps its own IR choice, noise gate and 3-band EQ.
+You can choose any stored IR, or none.
 
 [Source and releases on GitHub](https://github.com/OpenGP5/NAM-Loader)
 
 ## Controls
 
-The screen has two pages: **NAM** shows the capture playing, **CAB** shows its IR. Two dots in the header show
-which page you're on.
+The screen has two main pages. **NAM** shows the playing capture; **CAB** shows its IR.
+Two dots in the header mark the current page.
 
-| Control | Does |
+| Control | Action |
 |---|---|
-| **Turn PARA** | Switch between the NAM and CAB pages. In a list: move through it |
-| **Push PARA** | On NAM: open the 30 capture slots. On CAB: open the IRs, with NONE. In a list: load the highlighted one |
-| **Hold PARA** | The TONE page: gate, bass, mid and treble of the capture playing |
-| **Foot switch** | Bypass |
-| **Volume knob** | Output level |
+| **Turn PARA** | Switch NAM / CAB pages; in a list, move the highlight |
+| **Press PARA** | Open the capture list on NAM or the IR list on CAB; press again to load the highlighted item |
+| **Hold PARA for 0.6 s** | Open or close TONE to edit the playing capture's gate and EQ |
+| **Press the foot switch** | Toggle bypass |
+| **Turn the volume knob** | Set the output level |
 
-While you browse a list, the capture playing keeps playing. After 5 seconds without turning, the list closes.
+The playing capture keeps sounding while you browse. The list closes after five seconds with no knob movement.
+The screen shows the capture or IR name, slot number, input level and output volume.
+Long names scroll. The pedal recalls the last capture at power-on.
 
-The screen shows the name of the capture or IR (a long name slides to its end and back), its number, an input
-meter and the volume. The pedal remembers which capture was playing when you power it off.
+### Set the gate and EQ
+
+1. Hold PARA for 0.6 seconds to open **TONE**.
+2. Turn PARA to select **GATE**, **BASS**, **MID** or **TREBLE**.
+3. Press PARA, then turn it to change the value. Press again to select another row.
+4. Hold PARA to leave TONE, or wait ten seconds without using the control.
+
+The pedal saves changes about two seconds after the last edit. Keep it powered until then.
 
 ## Getting captures onto the pedal
 
-Use [Launchpad's Tones page](../../launchpad/tones/): drop a `.nam` file, and it's converted and written into a
-slot. Cab IRs (`.wav`) go in the same way. With no captures on the pedal, it plays its built-in demo capture.
-
-NAM Loader plays **A2** captures. Older A1 captures can't be played.
+Use [Launchpad's Tones page](../../launchpad/tones/). Drop a `.nam` file, check its name and click **Send to slot**.
+Launchpad converts the model and sends it to the pedal. Use the same page to send `.wav` cab IRs.
+With no stored captures, NAM Loader plays its built-in demo.
 
 ## Cab IRs
 
-An impulse response adds a speaker cabinet to a capture of an amp alone (a "DI" capture). Captures of a full rig
-already have their cab, so choose NONE for those.
+Use an IR with an amp-only, or **DI**, capture. A full-rig capture includes the cab sound, so choose **NONE** for that capture.
 
-- Each IR is 1,024 samples at 48 kHz (21 ms). Launchpad resamples and trims any `.wav`, and sets every IR to the
-  same loudness.
-- A capture plays its own default IR (the one with the same number) until you choose another.
-- If the processor ever runs short of time, the IR switches itself off rather than interrupting the sound.
+- Launchpad converts each IR to 48 kHz and keeps up to 1,024 samples (21 ms). It also adjusts the level.
+- A capture uses the IR with the same slot number by default, if that IR exists. You can choose another or **NONE**.
+- If the processor runs out of time, NAM Loader turns off the IR to keep the audio running.
 
 ## How the model runs
 
-The pedal runs the capture's own network: every layer and every weight, unchanged. It's computed in fixed point
-(16-bit weights, a 32-bit signal through the network), because the pedal's processors are too slow at floating
-point to run it in real time. The result is about 65 dB from NAM's own floating-point output on guitar.
+NAM Loader keeps the A2-Lite model's layers. It converts weights to 16-bit fixed-point values and uses a
+32-bit signal through the network. Rounding changes the precision of the weights; it does not retrain the model.
 
-The model is split across both of the pedal's processors: the DSP runs the first layers, the control processor the
-rest, the output and the cab IR.
+Fixed-point maths lets the model fit the pedal's time budget. Its output differs from NAM's floating-point output.
+The size of that difference depends on the capture and input signal.
+
+Both chips share the work. The digital signal processor (DSP) runs the first layers.
+The control chip runs the rest, plus the output stage and cab IR.
 
 ## Input level and loudness
 
-When Launchpad converts a capture, two optional steps happen (both on by default):
+Launchpad offers two gain controls when it converts a capture. Both start on:
 
-- **Calibrate:** the pedal's input is +7.1 dBu at full scale. A capture that records the level it was made at gets
-  the difference as input gain, so it's driven as hard as the original gear.
-- **Normalize:** every capture is set to the same loudness (−20 dB, K-weighted, for hard playing), with peaks at
-  most −3 dBFS. Without it, captures can differ in loudness by 30 dB or more.
+- **Calibrate** sets input gain to match the level used to make the capture. The file must include that level.
+  The pedal reaches full scale at an input of +7.1 dBu.
+- **Normalize** sets output gain with a test sound. It aims for a level of −20 dB below full scale.
+  It uses K-weighting to account for the ear's response to low and high sounds.
+  It also keeps peaks in that test no higher than −3 dBFS.
 
-Only the capture's input and output gain change. The network itself is never altered.
+The peak limit can keep a capture below the loudness target. Your playing can also produce different levels from the test signal.
+With Normalize off, Launchpad keeps the capture's output gain.
+These two switches change gain, not the model's layers or training.
 
 ## Updating
 
-Updating NAM Loader keeps your captures, IRs and settings. Captures added before version 1.1 don't have Calibrate
-and Normalize applied; send them again from Launchpad to get them.
+An update keeps your captures, IRs and settings. Files sent before version 1.1 did not use Calibrate or Normalize.
+To use those options, send the source `.nam` file again. Then check its gate, EQ and IR choice.
 
 ## Versions
 
 | Version | Changes |
 |---|---|
-| 1.3.1 | Launchpad can switch the capture playing (*Play on the pedal*) |
-| 1.3.0 | 30 captures and 12 IRs, chosen independently; NAM and CAB pages |
+| 1.3.1 | Launchpad can select the playing capture with **Play on the pedal** |
+| 1.3.0 | 30 captures, a separate bank of 12 IRs, and NAM / CAB pages |
 | 1.2.0 | Noise gate and 3-band EQ per capture |
 | 1.1.0 | Cab IRs, 48 kHz, Calibrate and Normalize |
-| 1.0.0 | First release: 12 slots |
+| 1.0.0 | First release with 12 capture slots |

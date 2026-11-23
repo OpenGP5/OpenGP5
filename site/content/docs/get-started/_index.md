@@ -1,27 +1,28 @@
 ---
 title: Get started
-description: Put a firmware on your pedal in a few minutes, without installing compilers.
+description: Install firmware on your pedal with Launchpad, a browser, or the command line.
 weight: 10
 ---
 
-Flashing a firmware takes about a minute and needs only the pedal, a USB cable and a computer. Choose one way:
+To flash firmware, you need a GP-5, a USB cable and a computer. The flash takes about 40 seconds.
+Allow time to install the tools and back up your data.
 
-| Way | Good for | Needs |
+| Method | Use it for | You need |
 |---|---|---|
-| [Launchpad](../launchpad/) | most people: flashing, plus loading captures, presets and backups | the app, on macOS, Windows or Linux |
-| [Web flasher](flash/#in-your-browser) | trying a firmware quickly | Chrome, Edge or Opera on a computer |
-| [Command line](flash/#from-the-command-line) | scripts, and your own builds | Python 3 |
+| [Launchpad](../launchpad/) | Flashing, captures, presets and backups | The app on macOS, Windows or Linux |
+| [Web flasher](flash/#in-your-browser) | Trying an effect from a browser | Chrome, Edge or Opera on a computer |
+| [Command line](flash/#from-the-command-line) | Scripts or your own builds | Python 3.9 or later |
 
 ## The steps
 
-1. **[Read Before you flash](safety/).** Two minutes: what can go wrong, and what to back up.
-2. **[Flash a firmware](flash/).** NAM Loader, Dreamcatcher or the tremolo, or a file you built.
-3. **Play.** Each [firmware's page](../firmwares/) explains its controls.
+1. **[Read Before you flash](safety/).** Check the known update fault and back up your data.
+2. **[Flash a firmware](flash/).** Choose NAM Loader, Dreamcatcher, the tremolo or your own build.
+3. **Play.** Each [firmware page](../firmwares/) explains its controls.
 
-If anything goes wrong, [Recovery](recovery/) gets the pedal back, and it also explains how to return to Valeton's
-firmware.
+If the flash fails, follow [Recovery](recovery/). That guide covers USB recovery, the DSP update fault,
+and the steps to return to Valeton's firmware.
 
-## Next
+## Next steps
 
 - Load your own NAM captures: [Tones in Launchpad](../launchpad/tones/).
-- Write your own effect: [Build a firmware](../platform/).
+- Write an effect in C: [Build a firmware](../platform/).

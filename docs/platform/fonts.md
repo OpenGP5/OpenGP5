@@ -1,6 +1,7 @@
 # Text and fonts
 
-The screen is 160 × 80 pixels. A firmware can write text two ways.
+The screen is 160 × 80 pixels. Use the built-in pixel font or draw smooth text with a font header.
+You can also convert your own font to a header.
 
 ## 1. The built-in pixel font: `gp5_text`
 
@@ -8,9 +9,9 @@ The screen is 160 × 80 pixels. A firmware can write text two ways.
 gp5_text(2, "rate 5.00 Hz");          /* line 0..4, up to 13 characters, white on black */
 ```
 
-Five lines of 13 characters in a 5×7 pixel font drawn at double size, all printable ASCII, lowercase included.
-Quick, and nothing to set up: right for status lines, settings and debugging. The font is petabyt's 5×7 font
-(https://github.com/petabyt/font, MIT licence), in `platform/nds32/font5x7.h`.
+`gp5_text` draws five lines of up to 13 characters. It supports printable ASCII, including lowercase.
+The 5×7 font draws at double size and needs no setup. Use it for settings, status or debugging.
+The source is [petabyt's font](https://github.com/petabyt/font), under the MIT licence, in `platform/nds32/font5x7.h`.
 
 ## 2. Smooth text in any font: `gp5_text_at` and `gp5_draw_text`
 
@@ -21,21 +22,22 @@ Quick, and nothing to set up: right for status lines, settings and debugging. Th
 gp5_text_at(4, 10, &gp5_font_sans_24, "Delay", 0xFFFFFF, 0x101820);   /* straight to the screen */
 ```
 
-- `gp5_text_at(x, y, font, text, colour, background)` draws one line onto the screen, `x, y` being the top
-  left. Colours are `0xRRGGBB`.
-- `gp5_draw_text(buffer, w, h, x, y, font, text, colour)` draws into a pixel buffer of your own (the screen's
-  format, as `gp5_blit` takes it), blended into what is already there, so text sits on top of your graphics. Then
-  send the buffer with `gp5_blit`. The tremolo (`firmwares/tremolo/nds32/firmware.c`) draws this way, a row at a time.
+- `gp5_text_at(x, y, font, text, colour, background)` draws a line on the screen.
+  `x, y` is the top-left corner. Colours use `0xRRGGBB`.
+- `gp5_draw_text(buffer, w, h, x, y, font, text, colour)` draws into your own pixel buffer.
+  It blends text over the existing pixels. Use the screen format that `gp5_blit` accepts, then send the buffer with that call.
+  The tremolo draws this way, one row at a time (`firmwares/tremolo/nds32/firmware.c`).
 - `gp5_text_width(font, text)` measures, for centring or right-aligning.
 - A font knows its line height (`font->h`) and where its baseline is (`font->base`, pixels below the top).
 
-The platform includes one smooth font, **sans**: [Atkinson Hyperlegible Next](https://github.com/googlefonts/atkinson-hyperlegible-next),
-designed for legibility, at weight 600 (semibold), in six sizes: `fonts/sans_12.h`, `sans_16`, `sans_20`,
-`sans_24`, `sans_32`, `sans_40`. The number is the size in pixels; the line is about a third taller. Only the
-sizes a firmware includes take room in its image (from about 3 KB for size 12 to about 26 KB for size 40).
+The platform includes **sans**, based on [Atkinson Hyperlegible Next](https://github.com/googlefonts/atkinson-hyperlegible-next).
+It uses weight 600 (semibold). Choose a size from `fonts/sans_12.h`, `sans_16`, `sans_20`, `sans_24`, `sans_32` or `sans_40`.
+The number is the pixel size; line height is about a third larger. A build includes the sizes you use.
+Size 12 takes about 3 KB; size 40 takes about 26 KB.
 
-It is a variable font, and its file is in the platform (`platform/nds32/fonts/AtkinsonHyperlegibleNext-VariableFont_wght.ttf`),
-so any weight from 200 (extra light) to 800 (extra bold) is one command away, for example a bold title:
+The source font supports weights from 200 (extra light) to 800 (extra bold).
+Its file is `platform/nds32/fonts/AtkinsonHyperlegibleNext-VariableFont_wght.ttf`.
+For a bold title, run:
 
 ```
 python3 tools/make_font.py platform/nds32/fonts/AtkinsonHyperlegibleNext-VariableFont_wght.ttf font_title 24 \
@@ -45,8 +47,8 @@ python3 tools/make_font.py platform/nds32/fonts/AtkinsonHyperlegibleNext-Variabl
 
 ## 3. Your own font
 
-Any TrueType or OpenType font (`.ttf`, `.otf`), or any BDF pixel font (`.bdf`), becomes a header for your
-firmware with one command. No change to the platform is needed:
+Use `make_font.py` to turn a TrueType (`.ttf`), OpenType (`.otf`) or BDF (`.bdf`) font into a header.
+This does not need a platform change:
 
 ```
 pip install pillow
@@ -63,12 +65,17 @@ gp5_text_at(4, 4, &font_title, "My effect", 0xFFFFFF, 0x000000);
   pixel, `2` doubles every pixel (crisp, for pixel-art looks).
 - `--chars "0123456789.-+%"` keeps only the characters you list; the others take no room. A big readout font
   then costs a fraction of a full one.
-- `--weight W` picks the weight of a variable font (within the font's own range; the tool says it if not).
-- `--notice` goes into the header: keep the font's copyright and licence there, and put the font's licence file
-  next to the header in your firmware's folder. Most free fonts (SIL Open Font License) ask for exactly that.
-  If the licence reserves the font's name (the OFL's "Reserved Font Name", stated after its copyright line),
-  give your converted copy another name.
+- `--weight W` picks a variable font's weight. The tool rejects values outside that font's range.
+- `--notice` adds a notice to the header. See the licence notes below.
 - Make as many sizes as you need; each is its own header.
 
-To check how text looks before flashing, the tremolo's screen preview (`firmwares/tremolo/test/screen.sh`) shows
-how to draw a firmware's screen into PNG files on the computer with the same code that runs on the pedal.
+## Font licences
+
+Keep the font's copyright and licence notice in the header. Put its licence file beside the header.
+Read the font's own terms for conversion and sharing. For a font under the SIL Open Font License (OFL),
+check whether it lists a Reserved Font Name. A modified font may need a new name.
+
+## Preview text
+
+Use `firmwares/tremolo/test/screen.sh` as a screen-preview example. It runs the same drawing code on your computer
+and saves PNG files so you can check the text before flashing.

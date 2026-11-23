@@ -1,40 +1,45 @@
 ---
 title: Before you flash
 linkTitle: Before you flash
-description: What can go wrong, how likely it is, and what to back up first.
+description: Check the known risks and back up your data before a flash.
 weight: 10
 ---
 
 > [!WARNING]
-> Flashing your own firmware is at your own risk. OpenGP5 is not affiliated with or endorsed by Valeton.
+> OpenGP5 is alpha software. A flash can fail. Valeton does not make or endorse this project.
 
 ## What can go wrong
 
-**Usually nothing that can't be undone.** The pedal has a factory loader that can't be overwritten over USB. If a
-flash is interrupted or a firmware doesn't start, you can put the pedal into update mode with the controls and
-flash again. [Recovery](../recovery/) shows how.
+**A failed flash may need another flash.** The factory loader starts the pedal's USB update mode.
+The USB update tools cannot overwrite this loader. If a flash stops or the firmware fails to start,
+use the controls to enter update mode and try again. [Recovery](../recovery/) gives the steps.
 
-**Rarely, USB recovery isn't enough.** For example, some pedals may have a fault in Valeton's own DSP updater.
-Getting those back needs an FT232H USB adapter wired to debug pads inside the pedal, which takes some soldering
-experience. Don't flash unless you're comfortable with that small risk.
+**Some pedals have a DSP update fault.** The fault can block OpenGP5 and Valeton updates.
+These pedals may need an FT232H USB debug board wired to pads inside the case.
+You must open the pedal and may need to solder the wires. See [J7 recovery](../../platform/j7-recovery/).
 
-OpenGP5 has run on several GP-5s so far, with no problem reported. More reports help; see
-[Known limits](../../platform/known-limits/) and [Beta testing](../../help/beta-testing/).
+As of November 2026, reports describe this fault on four of about seven pedals that tried OpenGP5.
+This small sample does not show how often the fault occurs across all GP-5s. It is a fault in the pedal's
+DSP updater, not evidence that an OpenGP5 flash caused it. Read [Known limits](../../platform/known-limits/)
+before you decide to flash.
 
 ## Back up first
 
-**Installing a different firmware wipes the old one's data.** Each firmware has its own storage on the pedal: its
-presets, captures, IRs and settings. When you switch firmwares, the new one starts empty.
+**Switching to a different firmware erases the old firmware's data.** Back up before you start the flash.
+Launchpad may clear the data before it writes the new firmware, so a failed flash can still leave the data erased.
 
-- **On an OpenGP5 firmware** (NAM Loader, Dreamcatcher, …): back up with [Launchpad's Backups page](../../launchpad/backups/).
-  Launchpad also offers a backup before every flash that would wipe something.
-- **On Valeton's firmware:** Launchpad backs up the 100 presets. It can't back up SnapTones or user IRs: export
-  those in Valeton Suite first.
+- **On OpenGP5:** use [Launchpad's Backups page](../../launchpad/backups/) to save the installed build's
+  presets, settings and files. The app also offers a backup when you switch, if it can read the pedal.
+- **On Valeton's firmware:** Launchpad can save the 100 presets. Export SnapTones and user IRs in Valeton Suite;
+  Launchpad cannot back them up. Global settings stay on the pedal.
 
-Updating a firmware to a newer version of the same firmware keeps its data.
+An update with the same firmware ID keeps its storage. Check the release notes for any changes to saved settings.
+A renamed setting, for example, may return to its default.
 
 ## During a flash
 
-- Use a USB cable you trust, plugged straight into the computer.
-- Keep the pedal connected and powered until it restarts by itself (about 40 seconds).
-- Don't close the app or the browser tab while it writes. Launchpad asks before it closes during a flash.
+- Use a USB cable you trust. Plug it into the computer.
+- Keep the pedal plugged in and powered until the tool says it has restarted. A flash takes about 40 seconds.
+- Keep the app or browser tab open while it writes. Launchpad asks before it closes during a flash.
+
+To help test a pedal, see [Beta testing](../../help/beta-testing/).
