@@ -91,10 +91,10 @@ cascade:
     weight: 170
     description: "What OpenGP5 can't do (yet)."
   - target: {path: /docs/platform/j7-recovery}
-    title: "When every update stalls: the J7 fix"
-    linkTitle: "The J7 fix"
+    title: "J7 recovery"
+    linkTitle: "J7 recovery"
     weight: 175
-    description: "Get a pedal whose DSP updater stalls past it, once, with an FT232H on the header J7."
+    description: "Recovering a pedal whose DSP updater stalls, with an FT232H on the debug header J7."
   - target: {path: /docs/platform/faq}
     title: "Questions"
     linkTitle: "FAQ"
@@ -133,5 +133,5 @@ flash it over USB.
 | [Protocols](protocols/) | USB-MIDI, the firmware update, the image format, the processor link |
 | [Hardware](hardware/) | memory, pins and clocks of both processors |
 | [Known limits](known-limits/) | what it can't do yet |
-| [The J7 fix](j7-recovery/) | for pedals whose every update stalls |
+| [J7 recovery](j7-recovery/) | pedals whose DSP updater stalls |
 | [FAQ](faq/) | common questions |

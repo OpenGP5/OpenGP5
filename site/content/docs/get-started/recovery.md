@@ -19,13 +19,12 @@ Launchpad and the web flasher both see a pedal in update mode and offer to flash
 > [!NOTE]
 > If the pedal stops at the start of the DSP part of **every** flash (Valeton Suite too, at 0 %), it has a fault in
 > the DSP's updater that some GP-5s have. Unplug and plug it back in: it runs what it ran before.
-> [The J7 fix](../../platform/j7-recovery/) gets it past that, once.
+> See [J7 recovery](../../platform/j7-recovery/).
 
 ### When USB isn't enough
 
 A pedal whose DSP updater stalls, or that now always starts on the BOOTLOAD screen because of it, needs an FT232H
-USB adapter wired to the header J7 inside it, once: three wires, some soldering. [The J7 fix](../../platform/j7-recovery/)
-explains every step. After it, the pedal flashes over USB like any other.
+USB adapter wired to the header J7 inside it, once: three wires, some soldering. See [J7 recovery](../../platform/j7-recovery/). After it, the pedal flashes over USB like any other.
 
 ## Going back to Valeton's firmware
 

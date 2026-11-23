@@ -8,7 +8,7 @@ Suite before you leave Valeton's firmware: OpenGP5's tools can't back those up.
 
 **Will it brick my pedal?** Usually a bad flash is fixable: unplug, hold the foot switch and PARA, plug in, and
 flash again. The factory loader that does this can't be overwritten over USB. Some pedals stall every update, Valeton's own
-too: they need a debug adapter wired inside the pedal once ([the J7 fix](j7-recovery.md)). It's alpha software: only flash if you
+too: they need a debug adapter wired inside the pedal once ([J7 recovery](j7-recovery.md)). It's alpha software: only flash if you
 accept that risk.
 
 **Does it use Valeton's amp models, Bluetooth or presets?** No. OpenGP5 firmwares are written from scratch and use

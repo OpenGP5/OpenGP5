@@ -1,11 +1,11 @@
-# When every update stalls: the one-time J7 fix
+# J7 recovery
 
 Some GP-5s stop **every** firmware update right at its start, Valeton's own updates included. The flasher says the
 pedal "stopped acknowledging at the erase of the dsp section", or Valeton Suite sits at 0 %. This page gets such a
 pedal past it, once, with a small USB adapter wired to a header inside the pedal. After that, the pedal flashes over
 USB like any other and the adapter isn't needed again.
 
-**Is it your pedal?** All of these, together:
+**Symptoms** (all of them):
 
 - The flash stops at the start of a DSP part (`dsp`, `dsp-data` or `models`), before anything is written to it.
 - It happens every time, with every tool: Launchpad, the web flasher, `gp5tool.py`, Valeton Suite.
@@ -15,7 +15,7 @@ If your pedal still starts normally after unplugging it and plugging it back in,
 ran before. You only need this page to install anything new. If your pedal now always starts on the **BOOTLOAD**
 screen, it needs this page to get going again.
 
-**What's going on.** Every update goes through a small updater on the pedal's DSP chip. On these pedals, right
+**Cause.** Every update goes through a small updater on the pedal's DSP chip. On these pedals, right
 after the updater resets its flash memory, a read of that memory comes back wrong for a moment. The updater's timer
 then counts in the wrong place, and the updater waits for it forever. The fix moves the counter to an address where
 the wrong read doesn't matter: four bytes, written once. OpenGP5's firmwares carry that fix, but to run it, one
@@ -64,9 +64,8 @@ marked with a triangle.** Counting from it:
 | **AD1** (D1) **and AD2** (D2), joined | pin 4 |
 
 AD1 and AD2 both go to pin 4: join them on the FT232H side (a short wire between the two) and run one wire from there
-to pin 4. No resistors are needed.
-
-<!-- PHOTO: the three wires on J7 and on the FT232H -->
+to pin 4. No resistors are needed. The FT232H's pins are labelled on the board (some boards print D0, D1, D2
+instead of AD0, AD1, AD2).
 
 Plug the pedal and the FT232H into **the same computer**: then they share a ground, which the wiring needs. The pedal
 can get its power from its USB cable, as usual.

@@ -12,7 +12,7 @@ What OpenGP5 can't do, or hasn't been shown to do yet. If you hit something that
   0 %). Unplug the pedal and plug it back in: it runs what it ran before. The fix is four bytes in that updater,
   written once by OpenGP5's firmwares (`gp5tool.py tickfix`), but getting the first OpenGP5 firmware onto such a
   pedal needs a USB debug adapter (an FT232H) wired to the header J7 inside it, once:
-  [the J7 fix](j7-recovery.md).
+  [J7 recovery](j7-recovery.md).
 - **Recovery over USB covers almost everything, not everything.** A pedal whose updates stall (above) needs an
   FT232H USB adapter wired to J7 inside it once, which takes some soldering. Only flash if you accept that risk.
 - **Valeton's own updater (Valeton Suite) is not a reliable way back.** Use Launchpad, the web flasher or `gp5tool.py`
