@@ -596,6 +596,32 @@ def cmd_flash(a):
     return 0
 
 
+TICK_STATES = {0: "not applied (updates on this pedal may stall; --apply fixes it)", 1: "applied: updates won't stall",
+               2: "partly applied: run --apply again", 0x10: "this pedal's DSP updater isn't the known one: not applied",
+               0x11: "the two words hold something else: not applied", 0x20: "a program step failed",
+               0x21: "the words are wrong after programming", 0x22: "other bytes of the updater changed",
+               0x30: "bad magic"}
+
+
+def cmd_tickfix(a):
+    """The 4-byte fix for the DSP updater stall (platform/dsp/tickpatch.h; docs/platform/j7-recovery.md): status,
+    or --apply. Needs an OpenGP5 firmware running (its DSP part carries the patcher)."""
+    import gp5_link as gl                        # here: gp5_link imports this module
+    link = gl.open_link()
+    try:
+        payload = [0x02, 0x7F, 12, 0] + list(b"TICKFIX!") if a.apply else [0x01, 0x7F, 4, 0]
+        if a.apply:
+            print("Applying the fix: two 2-byte writes to the DSP updater, no erase. Keep the pedal plugged in.")
+        r = gl.raw(link, payload, wait_ms=2000 if a.apply else 300)
+    finally:
+        link.close()
+    if r is None or r[0] not in (1, 0x14) or len(r[1]) < 8:
+        raise Problem("no answer from the DSP's patcher: is an OpenGP5 firmware (1.0 platform) running?")
+    state = struct.unpack_from("<I", r[1], 4)[0]
+    print("DSP updater fix: %s" % TICK_STATES.get(state, "state 0x%x" % state))
+    return 0 if state in (0, 1) and not (a.apply and state != 1) else 1
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -611,6 +637,9 @@ def main(argv=None):
     m = sub.add_parser("combine", help="make one image from sections of several"); m.add_argument("base")
     m.add_argument("--take", action="append", metavar="NAME=IMAGE"); m.add_argument("-o", "--out", required=True)
     m.set_defaults(fn=cmd_combine)
+    t = sub.add_parser("tickfix", help="the one-time fix for pedals whose updates stall (status, or --apply)")
+    t.add_argument("--apply", action="store_true", help="apply it (two 2-byte writes in the DSP's updater)")
+    t.set_defaults(fn=cmd_tickfix)
     a = ap.parse_args(argv)
     try:
         return a.fn(a)

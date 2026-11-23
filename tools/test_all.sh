@@ -19,6 +19,7 @@ run "parameters and presets"          platform/nds32/test/params_test.sh
 run "UI kit"                          platform/nds32/test/ui_test.sh
 run "manifest"                        python3 tools/test_manifest.py
 run "gp5tool"                         python3 tools/test_gp5tool.py
+run "J7 nudge (simulated DSP)"        python3 tools/test_j7_nudge.py
 run "maths (gp5_math)"                python3 tools/test_gp5_math.py
 run "simulator"                       python3 tools/test_simulate.py
 run "catalog rules"                   python3 tools/test_catalog.py

@@ -54,4 +54,5 @@ Measured on a GP-5 with main board `GP-5_MB_V01_241115`. The platform code is th
   may use and what the platform keeps: `platform/dsp/gp5_dsp.h`.
 - **Coprocessor at `0x28000000`:** a programmable float unit, measured at 3 cycles per multiply-add;
   not faster than the M4 itself, not used by the platform.
-- **Debug:** SWD on the 5-pin header J7 (not needed for anything in this repo).
+- **Debug:** SWD on the 5-pin header J7: pin 1 ground (the triangle), 2 reset, 3 SWCLK, 4 SWDIO, 5 SWO. Used once
+  on pedals whose updates stall: [the J7 fix](j7-recovery.md).

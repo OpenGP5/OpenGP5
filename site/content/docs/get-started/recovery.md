@@ -17,15 +17,15 @@ The pedal's factory loader can't be overwritten over USB, so this almost always 
 Launchpad and the web flasher both see a pedal in update mode and offer to flash it.
 
 > [!NOTE]
-> If the pedal stops at the start of the DSP part of **every** flash, it may have a fault in Valeton's DSP
-> updater. Unplug and plug it back in: it runs what it ran before. Please
-> [report it](https://github.com/OpenGP5/OpenGP5/issues).
+> If the pedal stops at the start of the DSP part of **every** flash (Valeton Suite too, at 0 %), it has a fault in
+> the DSP's updater that some GP-5s have. Unplug and plug it back in: it runs what it ran before.
+> [The J7 fix](../../platform/j7-recovery/) gets it past that, once.
 
 ### When USB isn't enough
 
-In rare cases a pedal can't be recovered over USB. Getting it back then needs an FT232H USB adapter wired to the
-pedal's internal debug pads, which takes some soldering experience. Ask in the
-[issues](https://github.com/OpenGP5/OpenGP5/issues) first; someone may be able to help.
+A pedal whose DSP updater stalls, or that now always starts on the BOOTLOAD screen because of it, needs an FT232H
+USB adapter wired to the header J7 inside it, once: three wires, some soldering. [The J7 fix](../../platform/j7-recovery/)
+explains every step. After it, the pedal flashes over USB like any other.
 
 ## Going back to Valeton's firmware
 

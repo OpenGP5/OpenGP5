@@ -4,18 +4,17 @@ What OpenGP5 can't do, or hasn't been shown to do yet. If you hit something that
 
 ## The hardware and flashing
 
-- **Run on a handful of pedals.** At least four GP-5s run OpenGP5 (users' reports, November 2026), Dreamcatcher and
-  NAM Loader among the firmwares, with no problems reported. The first pedal, though, had a fault in Valeton's DSP
-  updater, the part of the DSP that every update goes through, Valeton's own included: every update stalled at its
-  start. It was fixed on that unit with a 4-byte patch, applied once (`platform/dsp/tickpatch.h`). None of the other
-  pedals has reported it, and Valeton ships its own updates through the same updater, so it is most likely limited to
-  some units.
-
-  **If your pedal has it,** the flash stops at the start of the DSP part, before anything is written ("stalled" or
-  a timeout). Unplug the pedal and plug it back in: it runs what it ran before. Please report it, because such pedals
-  need a debug adapter for the one-time patch.
-- **Recovery over USB covers almost everything, not everything.** In rare cases a pedal needs an FT232H USB adapter
-  wired to its internal debug pads, which takes some soldering. Only flash if you accept that risk.
+- **Run on a handful of pedals.** At least seven GP-5s have run or tried OpenGP5 (users' reports, November 2026),
+  Dreamcatcher and NAM Loader among the firmwares.
+- **Some pedals stall every update** at its start, Valeton's own updates too: a fault in the DSP's updater, the part
+  of the DSP that every update goes through. Four pedals so far, out of about seven: not rare. The flash stops at the
+  start of the DSP part, before anything is written to it ("stopped acknowledging at the erase", or Valeton Suite at
+  0 %). Unplug the pedal and plug it back in: it runs what it ran before. The fix is four bytes in that updater,
+  written once by OpenGP5's firmwares (`gp5tool.py tickfix`), but getting the first OpenGP5 firmware onto such a
+  pedal needs a USB debug adapter (an FT232H) wired to the header J7 inside it, once:
+  [the J7 fix](j7-recovery.md).
+- **Recovery over USB covers almost everything, not everything.** A pedal whose updates stall (above) needs an
+  FT232H USB adapter wired to J7 inside it once, which takes some soldering. Only flash if you accept that risk.
 - **Valeton's own updater (Valeton Suite) is not a reliable way back.** Use Launchpad, the web flasher or `gp5tool.py`
   to flash Valeton's firmware.
 - **SnapTones and user IRs from Valeton's firmware can't be backed up** by OpenGP5's tools. Export them in Valeton

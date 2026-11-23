@@ -356,6 +356,47 @@ class FlashRuns(unittest.TestCase):
         self.assertEqual(got, want)
 
 
+
+class TickFix(unittest.TestCase):
+    """gp5tool.py tickfix: status and --apply through the DSP's patcher (link commands 0x7F01 / 0x7F02)."""
+
+    def run_with(self, state, apply=False, reply_ok=True):
+        import argparse, io, contextlib, gp5_link
+        sent = []
+        class L:
+            def close(self): pass
+        def raw(link, payload, wait_ms=300):
+            sent.append(bytes(payload))
+            if not reply_ok: return None
+            return 1, bytes(payload[:2]) + bytes([36, 0]) + struct.pack("<I", state) + bytes(32)
+        old = gp5_link.open_link, gp5_link.raw
+        gp5_link.open_link, gp5_link.raw = (lambda: L()), raw
+        try:
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                rc = gp5tool.cmd_tickfix(argparse.Namespace(apply=apply))
+            return rc, out.getvalue(), sent
+        finally:
+            gp5_link.open_link, gp5_link.raw = old
+
+    def test_status_reads_only(self):
+        rc, out, sent = self.run_with(0)
+        self.assertEqual(rc, 0); self.assertIn("not applied", out)
+        self.assertEqual(sent, [bytes([0x01, 0x7F, 4, 0])])
+
+    def test_apply_sends_the_magic(self):
+        rc, out, sent = self.run_with(1, apply=True)
+        self.assertEqual(rc, 0); self.assertIn("applied", out)
+        self.assertEqual(sent, [bytes([0x02, 0x7F, 12, 0]) + b"TICKFIX!"])
+
+    def test_unknown_updater_is_a_failure(self):
+        rc, out, _ = self.run_with(0x10, apply=True)
+        self.assertEqual(rc, 1); self.assertIn("isn't the known one", out)
+
+    def test_no_patcher(self):
+        with self.assertRaises(Problem): self.run_with(0, reply_ok=False)
+
+
 class MidiAbortRetry(unittest.TestCase):
     """macOS 'RtMidi -304' ends the program from C++; gp5tool.guarded() runs the command again only if nothing was sent
     yet. The aborts are simulated (test switches in gp5tool.py), on any system (GP5_MIDI_GUARD)."""
