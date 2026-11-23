@@ -40,37 +40,28 @@ OpenGP5 firmware must first get onto the pedal: that one update is what this pag
   - Windows: OpenOCD from the xPack project (`xpack-openocd`), and once, the **WinUSB** driver for the FT232H with
     [Zadig](https://zadig.akeo.ie/) (pick the FT232H's "Interface 0", WinUSB, "Replace driver").
 
-## Find J7
+## Wiring
 
-J7 is a row of five holes on the main board, next to the square chip marked **JAT** (the DSP). **Pin 1 is the one
-marked with a triangle.** Counting from it:
-
-| J7 pin | What it is | Wire it? |
-|---|---|---|
-| 1 | Ground (the triangle) | **yes** |
-| 2 | Reset | no, leave it free |
-| 3 | Debug clock (SWCLK) | **yes** |
-| 4 | Debug data (SWDIO) | **yes** |
-| 5 | Trace (SWO) | no, leave it free |
+J7 is a row of five holes on the main board, next to the chip marked **JAT** (the DSP). Pin 1 is marked with a
+triangle.
 
 ![J7 beside the JAT chip: from the triangle, GND, RST, SWCLK, SWDIO, SWO](../assets/j7-pinout.webp)
 
-## Wire it
+| J7 pin | Signal | FT232H |
+|---|---|---|
+| 1 (triangle) | GND | GND |
+| 2 | RST | not connected |
+| 3 | SWCLK | AD0 |
+| 4 | SWDIO | AD1 and AD2, joined |
+| 5 | SWO | not connected |
 
-| FT232H | J7 |
-|---|---|
-| **GND** | pin 1 |
-| **AD0** (D0) | pin 3 |
-| **AD1** (D1) **and AD2** (D2), joined | pin 4 |
+Join AD1 and AD2 on the FT232H with a short wire, and run one wire from there to pin 4. No resistors are needed.
+Some FT232H boards label the pins D0, D1, D2 instead of AD0, AD1, AD2.
 
-AD1 and AD2 both go to pin 4: join them on the FT232H side (a short wire between the two) and run one wire from there
-to pin 4. No resistors are needed. The FT232H's pins are labelled on the board (some boards print D0, D1, D2
-instead of AD0, AD1, AD2).
+Plug the pedal and the FT232H into the same computer so they share a ground. The pedal can be powered from its USB
+cable as usual.
 
-Plug the pedal and the FT232H into **the same computer**: then they share a ground, which the wiring needs. The pedal
-can get its power from its USB cable, as usual.
-
-## The fix, step by step
+## Steps
 
 Run these in the OpenGP5 folder (where `tools` is).
 
@@ -89,7 +80,7 @@ It should say `update mode`.
 python3 tools/j7_nudge.py check
 ```
 
-You want: `The DSP's updater is stalled the known way`. If OpenGP5 can't connect, see [If it doesn't work](#if-it-doesnt-work).
+You want: `The DSP's updater is stalled the known way`. If OpenGP5 can't connect, see [Troubleshooting](#troubleshooting).
 
 **3. Get the updater past it,** for this session only (in the DSP's working memory; unplugging undoes it):
 
@@ -122,7 +113,7 @@ The first command says `not applied`, the second `applied: updates won't stall`.
 other: any OpenGP5 firmware, and Valeton's firmware too. `gp5tool.py tickfix` tells you any time whether the fix is
 on the pedal.
 
-## If it doesn't work
+## Troubleshooting
 
 - **OpenOCD can't connect** ("Error connecting DP", no DAP info): check the three wires first. If they're right,
   swap the wires on pins 3 and 4 once and try again. On Linux, OpenOCD may need permission for USB devices (run it
@@ -136,7 +127,7 @@ on the pedal.
 - **`tickfix --apply` says the updater "isn't the known one"**: the same: report it, nothing was written.
 - **The flash in step 4 still stops**: unplug the pedal, start again at step 1, and report it with the output.
 
-## Report it
+## Reporting results
 
 Whether it worked or not, please open a [hardware report](https://github.com/OpenGP5/OpenGP5/issues/new/choose) with
 what `j7_nudge.py check` and `gp5tool.py tickfix` printed. It tells us how many pedals have this problem and whether
