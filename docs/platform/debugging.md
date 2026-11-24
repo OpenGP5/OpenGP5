@@ -69,6 +69,8 @@ USB update tools leave the factory loader in place, so a crashed app does not er
 
 See [Recovery](../../GETTING-STARTED.md#recovery) for the full steps.
 The known DSP updater fault can still block a USB flash; [J7 recovery](j7-recovery.md) covers that case.
+If that stall leaves the pedal starting in update mode every time, `gp5tool.py unstick` gets it running over USB,
+without J7: see [Pedal stuck in update mode](j7-recovery.md#pedal-stuck-in-update-mode).
 
 The same firmware ID keeps storage. A different ID starts with empty storage, so back up before switching.
 

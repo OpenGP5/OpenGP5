@@ -23,6 +23,11 @@ Some GP-5s have a fault in the DSP updater. The flash stops at the start of the 
 Valeton Suite may stop at 0 %. If the flash has written no DSP data, unplug the pedal and plug it back in.
 It should run its old build. A pedal stuck on **BOOTLOAD** may also need the steps below.
 
+If a stalled flash leaves the pedal starting in update mode every time, you can get it running again over USB,
+without J7: `gp5tool.py unstick` installs Valeton's firmware without the DSP section.
+See [Pedal stuck in update mode](../../platform/j7-recovery/#pedal-stuck-in-update-mode) for the command and
+what it erases. Flashes still stall after that, until the J7 fix below.
+
 These pedals need an FT232H USB debug adapter wired to J7 inside the case to get past the fault.
 [J7 recovery](../../platform/j7-recovery/) explains how to confirm the fault, flash OpenGP5, and apply the fix.
 Read that guide before opening the pedal.

@@ -18,6 +18,8 @@ If the pedal still has its old build, unplugging and reconnecting it lets that f
 The fix changes four bytes in the DSP updater. To get an OpenGP5 build onto an affected pedal, you need an FT232H
 USB debug adapter wired to J7 inside the case. Then `gp5tool.py tickfix --apply` can write the permanent fix.
 Read [J7 recovery](j7-recovery.md) before starting.
+A pedal that a stalled flash leaves starting in update mode can run again without J7:
+[Pedal stuck in update mode](j7-recovery.md#pedal-stuck-in-update-mode) (`gp5tool.py unstick`, over USB).
 
 ### Other flash and backup limits
 

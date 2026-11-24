@@ -9,6 +9,8 @@ Before leaving Valeton's firmware, export SnapTones and user IRs in Valeton Suit
 **Can a flash leave the pedal unable to start?** A failed flash can stop the installed app from starting.
 The factory loader remains available for USB recovery. Some pedals also have a DSP update fault that blocks a new flash,
 including Valeton's updates. Those pedals may need a debug adapter wired inside the case.
+If a stalled flash leaves the pedal starting in update mode, `gp5tool.py unstick` gets it running again over USB,
+without opening it: see [Pedal stuck in update mode](j7-recovery.md#pedal-stuck-in-update-mode).
 Read [Known limits](known-limits.md) and [J7 recovery](j7-recovery.md) before deciding to flash alpha software.
 
 **Does OpenGP5 use Valeton's models or presets?** No. The firmware contains no code or data from Valeton or the chip vendor.
