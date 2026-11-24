@@ -17,8 +17,9 @@ no longer needed.
   python3 tools/j7_nudge.py check      connect over J7 and say what the DSP is doing (reads only)
   python3 tools/j7_nudge.py nudge      the fix above (the pedal in update mode, stalled)
 
-Needs OpenOCD (0.11 or newer) and an FT232H board wired to J7: AD0 -> pin 3 (SWCLK), AD1 and AD2 -> pin 4 (SWDIO),
-GND -> pin 1. Option --openocd PATH if `openocd` isn't on the PATH.
+Needs OpenOCD (0.11 or newer) and an FT232H board wired to J7: AD0 -> pin 3 (SWCLK), AD1 through ~470 ohm and AD2
+directly -> pin 4 (SWDIO), GND -> pin 1. --adapter esp-prog for an ESP-Prog (FT2232H, same pins); --openocd PATH if
+`openocd` isn't on the PATH.
 
 Nothing from Valeton's firmware is in this file: the table is read from the pedal and compared with a SHA-256.
 """
@@ -29,7 +30,7 @@ gdb_port disabled
 telnet_port disabled
 tcl_port {port}
 adapter driver ftdi
-ftdi vid_pid 0x0403 0x6014
+ftdi vid_pid {vid_pid}
 ftdi channel 0
 ftdi layout_init 0x0008 0x0003
 ftdi layout_signal SWD_EN -data 0x0000
@@ -41,6 +42,22 @@ dap create gp5.dap -chain-position gp5.cpu
 target create gp5.cpu cortex_m -dap gp5.dap
 init
 """
+
+ADAPTERS = {"ft232h": "0x0403 0x6014", "esp-prog": "0x0403 0x6010"}   # FTDI USB ids; the same pins (AD0..AD2)
+
+
+def explain_failure(out):
+    """What OpenOCD's output means when it stopped before its port opened."""
+    m = re.search(r"DPIDR (0x[0-9a-fA-F]+)", out)
+    if m:
+        return (f"the debug port answered (its ID, {m.group(1)}, was read: the wiring works), but the DSP didn't "
+                "power up its debug side, so nothing else can be read. Most likely the DSP itself isn't running. "
+                "Unplug the pedal, plug it in again and run `check` within a second or two; if it still fails, "
+                "report it (docs/platform/j7-recovery.md, Troubleshooting) with this output.")
+    return ("OpenOCD couldn't reach the debug port. Check the wiring (pin 3 to AD0, pin 4 to AD1 through the "
+            "resistor and to AD2, pin 1 to GND), that the adapter is plugged in, and (Linux) the USB permissions; "
+            "on Windows the adapter needs the WinUSB driver (Zadig).")
+
 
 # What the stalled updater looks like (measured on a stalling pedal, 2026-11-06; addresses, no code)
 STALL_PC = (0x20000878, 0x20000880)       # the 12-tick wait, in RAM
@@ -63,19 +80,17 @@ class Problem(Exception):
 class OpenOCD:
     """OpenOCD's Tcl port: one command, one reply (each ends with 0x1a)."""
 
-    def __init__(self, exe, port=6666):
+    def __init__(self, exe, port=6666, adapter="ft232h"):
         self.port = port
         self.cfg = tempfile.NamedTemporaryFile("w", suffix=".cfg", delete=False)
-        self.cfg.write(OPENOCD_CFG.format(port=port)); self.cfg.close()
+        self.cfg.write(OPENOCD_CFG.format(port=port, vid_pid=ADAPTERS[adapter])); self.cfg.close()
         self.proc = subprocess.Popen([exe, "-f", self.cfg.name], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                      text=True)
         self.sock = None
         for _ in range(50):
             if self.proc.poll() is not None:
                 out = self.proc.stdout.read()
-                raise Problem("OpenOCD stopped:\n" + out.strip() +
-                              "\n\nCheck the wiring (pins 3 and 4), that the FT232H is plugged in, and (Linux) the "
-                              "USB permissions; on Windows the FT232H needs the WinUSB driver (Zadig).")
+                raise Problem("OpenOCD stopped:\n" + out.strip() + "\n\n" + explain_failure(out))
             try:
                 self.sock = socket.create_connection(("127.0.0.1", port), timeout=1); break
             except OSError:
@@ -199,10 +214,11 @@ def main(argv=None):
     ap.add_argument("what", choices=["check", "nudge"])
     ap.add_argument("--openocd", default=shutil.which("openocd") or "openocd")
     ap.add_argument("--port", type=int, default=6666)
+    ap.add_argument("--adapter", choices=sorted(ADAPTERS), default="ft232h")
     a = ap.parse_args(argv)
     ocd = None
     try:
-        ocd = OpenOCD(a.openocd, a.port)
+        ocd = OpenOCD(a.openocd, a.port, a.adapter)
         return cmd_check(ocd) if a.what == "check" else cmd_nudge(ocd)
     except FileNotFoundError:
         print("OpenOCD isn't installed (or give its path with --openocd): see docs/platform/j7-recovery.md"); return 2

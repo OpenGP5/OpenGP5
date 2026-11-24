@@ -77,6 +77,16 @@ class Test(unittest.TestCase):
         self.dsp.regs["pc"] = 0x1000
         self.assertEqual(j.cmd_check(self.dsp), 1)
 
+    def test_failure_messages(self):
+        up = j.explain_failure("Info : SWD DPIDR 0x2ba01477\nError: ...")
+        self.assertIn("0x2ba01477", up); self.assertIn("didn't power up", up)
+        self.assertIn("couldn't reach", j.explain_failure("Error: unable to open ftdi device"))
+
+    def test_adapters(self):
+        self.assertEqual(j.ADAPTERS["ft232h"], "0x0403 0x6014")
+        self.assertEqual(j.ADAPTERS["esp-prog"], "0x0403 0x6010")
+        self.assertIn("{vid_pid}", j.OPENOCD_CFG)
+
     def test_no_valeton_bytes(self):
         src = open(j.__file__).read()
         self.assertNotIn("0xdb9", src.lower())         # the table is read from the pedal, never written here

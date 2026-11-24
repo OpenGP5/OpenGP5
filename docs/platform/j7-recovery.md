@@ -25,7 +25,9 @@ that avoids the fault. You need to run OpenGP5 on the pedal to apply it.
 
 ## What you need
 
-- An **FT232H** USB board (the common "CJMCU-232H" or Adafruit FT232H breakout).
+- An **FT232H** USB board (the common "CJMCU-232H" or Adafruit FT232H breakout). An ESP-Prog (FT2232H) also works
+  with `--adapter esp-prog`.
+- A **470 Ω resistor** (anything from about 200 to 500 Ω).
 - Three short wires. Soldering them to J7 is the most reliable; small test clips or header pins pressed into the
   holes can work.
 - A computer with **Python 3.9 or later** and **OpenGP5's tools** (the `tools` folder from the OpenGP5 download:
@@ -50,11 +52,12 @@ triangle.
 | 1 (triangle) | GND | GND |
 | 2 | RST | not connected |
 | 3 | SWCLK | AD0 |
-| 4 | SWDIO | AD1 and AD2, joined |
+| 4 | SWDIO | AD1 through the 470 Ω resistor, and AD2 directly |
 | 5 | SWO | not connected |
 
-Join AD1 and AD2 on the FT232H with a short wire, and run one wire from there to pin 4. No resistors are needed.
-Some FT232H boards label the pins D0, D1, D2 instead of AD0, AD1, AD2.
+Put the resistor between AD1 and pin 4, and run AD2 straight to pin 4. AD1 sends data and AD2 reads it; the resistor
+keeps the two from fighting when the pedal answers. Some FT232H boards label the pins D0, D1, D2 instead of AD0, AD1,
+AD2. On an ESP-Prog the same pins are TCK (AD0), TDI (AD1) and TDO (AD2).
 
 Plug the pedal and the FT232H into the same computer so they share a ground. The pedal can be powered from its USB
 cable as usual.
@@ -123,6 +126,9 @@ Run `gp5tool.py tickfix` to check the fix's state. Other flash faults still need
 - **OpenOCD can't connect** ("Error connecting DP", no DAP info): check the three wires first. If they're right,
   unplug both devices before checking the SWCLK and SWDIO connections against the pin table. On Linux, OpenOCD may need permission for USB devices (run it
   once with `sudo`, or add a udev rule for `0403:6014`). On Windows, the FT232H needs the WinUSB driver (Zadig).
+- **`check` says the debug port answered but the DSP didn't power up its debug side**: the wiring works (the port's ID
+  was read), but the debug side didn't start, most likely because the DSP itself isn't running. Unplug the pedal, plug it in again, and run
+  `check` within a second or two. If it still fails, report it with what `check` printed: this is not solved yet.
 - **`check` says it isn't the known stall:**
   - `pc ... isn't in the updater's wait`: the pedal isn't in update mode, or it isn't stalled (it may be a pedal
     that doesn't have this problem). Do step 1 again.
