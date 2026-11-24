@@ -100,6 +100,11 @@ cascade:
     linkTitle: "Updater fault: help wanted"
     weight: 176
     description: "What causes the DSP update stall, and leads for a fix that doesn't need J7."
+  - target: {path: /docs/platform/valeton-dsp-link}
+    title: "Valeton's DSP firmware: link commands"
+    linkTitle: "Valeton's DSP commands"
+    weight: 177
+    description: "The commands Valeton's DSP firmware answers on the link from the control processor."
   - target: {path: /docs/platform/palette}
     title: "Colour palette"
     linkTitle: "Colour palette"
@@ -150,5 +155,6 @@ See [API versions](api/#versions) for what each number means.
 | [Known limits](known-limits/) | Faults, tested limits and missing features |
 | [J7 recovery](j7-recovery/) | Steps for the confirmed DSP update fault |
 | [DSP updater fault: help wanted](dsp-updater-fault/) | The cause, the fix, and open leads for a USB-only route |
+| [Valeton's DSP commands](valeton-dsp-link/) | What Valeton's DSP firmware answers on the link |
 | [Colour palette](palette/) | OpenGP5's colours |
 | [FAQ](faq/) | Questions about using OpenGP5 and writing effects |
