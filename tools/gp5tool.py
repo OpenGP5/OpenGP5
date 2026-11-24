@@ -429,9 +429,10 @@ def send_reliably(link, raw, timeout, what):
                   (what, "no answer" if st is None else "error code %02x" % st))
 
 
-def flash(ports, sections, say, progress=None):
+def flash(ports, sections, say, progress=None, end_image=True):
     """Send the chosen sections. Returns the mode the pedal is in afterwards (update mode if it stayed
-    there, None if it did not re-appear)."""
+    there, None if it did not re-appear). end_image=False leaves the session open (`unstick`): END_IMAGE
+    needs the DSP's updater to answer, which a stalling one never does."""
     name = to_loader(ports, say)
     link = open_loader(ports, name)
     if link is None:
@@ -461,6 +462,9 @@ def flash(ports, sections, say, progress=None):
             send_reliably(link, body[-1][1], Timing.ack, "the end of the %s section" % NAMES[t])
             say("%s: written%s" % (NAMES[t], " (%d packets repeated)" % retried if retried else ""))
             time.sleep(Timing.settle)
+        if not end_image:
+            say("all sections written; the update is left open on purpose (no END_IMAGE)")
+            return MODE_LOADER
         st = send_acked(link, build_sysex(CLASS_CMD, 0, [0x11, 0x6E, 0x6E, 0x00]), Timing.final)
         if st not in (0, None):
             raise Problem("the pedal refused to finish the update (error code %02x)." % st)
@@ -622,6 +626,61 @@ def cmd_tickfix(a):
     return 0 if state in (0, 1) and not (a.apply and state != 1) else 1
 
 
+# ---- unstick: a pedal whose DSP updater stalls, left in update mode at every start -------------------------
+# The factory loader starts the app only while flash word 0x1DF000 holds 0x5AA5AA55 (docs/platform/j7-recovery.md).
+# An update's first BEGIN erases that word, and only END_IMAGE
+# writes it back, after the DSP's updater answers. A stalling updater never answers, so the pedal stays in update
+# mode. The presets section (0x65) may write 0x190000..0x1DFFFF: a presets section of 0x4F004 bytes ends exactly on
+# 0x1DF000, so the marker goes back as ordinary data, with no DSP and no END_IMAGE. Cost: the loader erases everything
+# from the presets' end up to 0x1E0000 (Valeton's global settings, users' saved IRs). 0x1E0000 (the pedal's factory
+# identity) is outside the range and never touched.
+MARKER_ADDR, MARKER = 0x1DF000, 0x5AA5AA55
+PRESETS_BASE = 0x190000
+
+
+def unstick_presets(presets):
+    """The presets section padded to end on the boot marker."""
+    room = MARKER_ADDR - PRESETS_BASE
+    if len(presets) > room:
+        raise Problem("the presets section is %d bytes; at most %d fit before the boot marker" % (len(presets), room))
+    return bytes(presets) + b"\xff" * (room - len(presets)) + struct.pack("<I", MARKER)
+
+
+def unstick_sections(image, app_image=None):
+    """[(0x62, app), (0x65, presets + marker)] from Valeton's image (and the app from app_image if given)."""
+    secs = dict(inspect(image)[0])
+    if 0x65 not in secs:
+        raise Problem("that image has no presets section: use Valeton's full GP-5 update (all five sections)")
+    app = dict(inspect(app_image)[0]).get(0x62) if app_image is not None else secs.get(0x62)
+    if app is None:
+        raise Problem("no app section to install (give an image with one, or --app)")
+    return [(0x62, app), (0x65, unstick_presets(secs[0x65]))]
+
+
+def cmd_unstick(a):
+    secs = unstick_sections(open(a.image, "rb").read(), open(a.app, "rb").read() if a.app else None)
+    print("This gets a pedal whose DSP updater stalls out of update mode, without the DSP:")
+    print("  - installs the app (%d bytes) and Valeton's presets, and puts back the 'update complete' marker;" % len(secs[0][1]))
+    print("  - ERASES the pedal's global settings and any IRs saved in Valeton's firmware (they share that area);")
+    print("  - leaves the DSP as it is, so use the app that belongs to the DSP firmware on the pedal (Valeton's, if")
+    print("    no DSP part of an update ever went through).")
+    if not a.yes:
+        if input("Keep the pedal connected until this finishes. Type yes to start: ").strip().lower() != "yes":
+            print("Nothing sent."); return 1
+    t0 = time.monotonic()
+    last = [0]
+
+    def progress(name, i, n):
+        pct = 100 * i // n
+        if pct // 10 != last[0] // 10 or i == n: print("  %s %3d%%" % (name, pct), flush=True)
+        last[0] = pct
+
+    flash(MidiPorts(), secs, lambda m: print(m, flush=True), progress, end_image=False)
+    print("Done in %.0f s. Now unplug the pedal (USB too, if USB powers it), wait a few seconds and plug it in "
+          "again\nwithout holding any buttons: it should start normally." % (time.monotonic() - t0))
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -637,6 +696,10 @@ def main(argv=None):
     m = sub.add_parser("combine", help="make one image from sections of several"); m.add_argument("base")
     m.add_argument("--take", action="append", metavar="NAME=IMAGE"); m.add_argument("-o", "--out", required=True)
     m.set_defaults(fn=cmd_combine)
+    u = sub.add_parser("unstick", help="a pedal left in update mode by a stalling DSP updater: back to a working app")
+    u.add_argument("image", help="Valeton's full GP-5 update (its presets section is used)")
+    u.add_argument("--app", help="take the app section from this image instead")
+    u.add_argument("--yes", action="store_true", help="do not ask for confirmation"); u.set_defaults(fn=cmd_unstick)
     t = sub.add_parser("tickfix", help="the one-time fix for pedals whose updates stall (status, or --apply)")
     t.add_argument("--apply", action="store_true", help="apply it (two 2-byte writes in the DSP's updater)")
     t.set_defaults(fn=cmd_tickfix)

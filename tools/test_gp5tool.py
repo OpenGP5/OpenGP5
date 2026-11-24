@@ -397,6 +397,43 @@ class TickFix(unittest.TestCase):
         with self.assertRaises(Problem): self.run_with(0, reply_ok=False)
 
 
+class Unstick(unittest.TestCase):
+    """gp5tool.py unstick: app + presets padded to end on the boot marker at 0x1DF000, and no END_IMAGE."""
+
+    def setUp(self):
+        fast()
+
+    def test_presets_end_on_the_marker(self):
+        pre = bytes(range(256)) * 10
+        out = gp5tool.unstick_presets(pre)
+        self.assertEqual(len(out), 0x4F004)
+        self.assertEqual(gp5tool.PRESETS_BASE + len(out) - 4, gp5tool.MARKER_ADDR)
+        self.assertEqual(out[:len(pre)], pre)
+        self.assertEqual(set(out[len(pre):-4]), {0xFF})
+        self.assertEqual(out[-4:], bytes.fromhex("55aaa55a"))
+        # the loader erases (length rounded down to 4 KB) + 4 KB and refuses more than 0x50000: this is the most
+        self.assertLessEqual((len(out) & ~0xFFF) + 0x1000, 0x50000)
+        with self.assertRaises(Problem): gp5tool.unstick_presets(bytes(0x4F001))
+
+    def test_sections_from_an_image(self):
+        img = gp5tool.make_image({0x62: tiny_app(0x1000), 0x65: bytes(5000)})
+        secs = gp5tool.unstick_sections(img)
+        self.assertEqual([t for t, _ in secs], [0x62, 0x65])
+        self.assertEqual(secs[0][1], tiny_app(0x1000))
+        self.assertEqual(secs[1][1][:5000], bytes(5000))
+        other = gp5tool.make_image({0x62: tiny_app(0x2000)})
+        self.assertEqual(gp5tool.unstick_sections(img, other)[0][1], tiny_app(0x2000))
+        with self.assertRaises(Problem): gp5tool.unstick_sections(other)          # no presets section
+
+    def test_session_left_open(self):
+        p = FakePedal(MODE_LOADER)
+        secs = [(0x62, tiny_app(0x1000)), (0x65, gp5tool.unstick_presets(bytes(5000)))]
+        mode = gp5tool.flash(p, secs, lambda m: None, end_image=False)
+        self.assertEqual(mode, MODE_LOADER)
+        self.assertEqual(p.written, dict(secs))
+        self.assertFalse(p.ended)                                              # END_IMAGE never sent
+
+
 class MidiAbortRetry(unittest.TestCase):
     """macOS 'RtMidi -304' ends the program from C++; gp5tool.guarded() runs the command again only if nothing was sent
     yet. The aborts are simulated (test switches in gp5tool.py), on any system (GP5_MIDI_GUARD)."""

@@ -12,7 +12,8 @@ The DSP is the digital signal processor that handles sound.
 - The app part (`app`) and the presets (`presets`) on their own do flash.
 
 If the pedal starts after you unplug and reconnect it, its old build still runs.
-Use this guide to get past the fault when installing a new build. A pedal stuck on **BOOTLOAD** may need it to start again.
+Use this guide to get past the fault when installing a new build. If the pedal now always starts in update mode (the
+**BOOTLOAD** screen), first get it working again over USB: see [Pedal stuck in update mode](#pedal-stuck-in-update-mode).
 
 **Cause.** After the DSP updater resets its flash memory, a brief read fault can send its timer to the wrong address.
 The updater then waits for a counter that does not change. The fix changes four bytes so the counter uses an address
@@ -22,6 +23,24 @@ that avoids the fault. You need to run OpenGP5 on the pedal to apply it.
 > Step 2 reads memory. Step 3 changes RAM for one powered session. Step 4 flashes firmware, and step 6 writes a
 > permanent change to the DSP updater. The tools check for the known updater before applying its fix.
 > Stop if those checks fail.
+
+## Pedal stuck in update mode
+
+An update that stalls never finishes, so the pedal's loader keeps starting in update mode. `gp5tool.py unstick` gets
+it out over USB, without J7 and without the DSP. You need Valeton's GP-5 firmware file (V1.0.6, from Valeton's site;
+the full update with all five sections).
+
+```bash
+python3 tools/gp5tool.py unstick GP-5_USB_V1.0.6_20250626.bin
+```
+
+Then unplug the pedal and plug it in again without holding any buttons. It starts Valeton's firmware.
+
+- It installs Valeton's app and presets, and writes the loader's "update complete" marker as part of the presets.
+- It **erases** the pedal's global settings and any IRs saved in Valeton's firmware, which share that part of flash.
+- If an OpenGP5 firmware's DSP part did get onto the pedal before, add `--app <that firmware's .bin>` so the app
+  matches it.
+- It doesn't touch the DSP. Updates still stall afterwards: the rest of this page fixes that.
 
 ## What you need
 
