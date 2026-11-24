@@ -18,6 +18,7 @@ Use this guide to get past the fault when installing a new build. If the pedal n
 **Cause.** After the DSP updater resets its flash memory, a brief read fault can send its timer to the wrong address.
 The updater then waits for a counter that does not change. The fix changes four bytes so the counter uses an address
 that avoids the fault. You need to run OpenGP5 on the pedal to apply it.
+Want to help find a way to apply it without opening the pedal? See [DSP updater fault: help wanted](dsp-updater-fault.md).
 
 > **Risk.** This procedure means opening the pedal, wiring J7 and using a debugger. Wiring errors can damage the pedal.
 > Step 2 reads memory. Step 3 changes RAM for one powered session. Step 4 flashes firmware, and step 6 writes a
