@@ -13,7 +13,7 @@ const STOCK_V106 = { 0x63: [0x3688, 0xC348], 0x67: [0x27A5, 0x55028], 0x66: [0x2
 
 export const MODE_OPEN = "open firmware", MODE_STOCK = "stock firmware", MODE_LOADER = "update mode";
 export const MODE_SILENT = "firmware that does not answer";
-const OPEN_PORT = "GP-5 Open FW", ANY_PORT = "GP-5";
+const OPEN_PORT = "GP-5 Open FW";
 export const RECOVERY = "Recovery: unplug the pedal, hold the foot switch and the PARA knob, plug it back in: the screen shows " +
   "a red warning, \"When updating Please don't shut down!\" (update mode). Then flash again. The factory loader is never overwritten.";
 
@@ -180,9 +180,10 @@ async function ask(link, payload, want, timeout) {
 // [name, mode] of the connected pedal, or [null, null].
 export async function find(ports) {
   const names = await ports.names();
-  let name = names.find((n) => n.includes(OPEN_PORT));
+  const model = (name) => portBase(name).replace(/ MIDI$/, "");
+  let name = names.find((n) => model(n) === OPEN_PORT);
   if (name) return [name, MODE_OPEN];
-  name = names.find((n) => n.includes(ANY_PORT));
+  name = names.find((n) => ["GP-5", "Valeton GP-5"].includes(model(n)));
   if (!name) return [null, null];
   let link;
   try { link = await ports.open(name); } catch { return [null, null]; }   // still restarting: "not there yet"
