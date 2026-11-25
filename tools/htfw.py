@@ -44,6 +44,7 @@ import argparse
 import json
 import struct
 import sys
+import zipfile
 from pathlib import Path
 
 MAGIC = 0x57465448  # 'HTFW'
@@ -95,6 +96,30 @@ def parse(blob: bytes):
         entries=entries, payload_base=payload_base,
         header=blob[:HEADER_LEN],
     )
+
+
+def read_section(path, kind):
+    """Read a checksummed section from an uncompressed update or its enclosing ZIP."""
+    if zipfile.is_zipfile(path):
+        with zipfile.ZipFile(path) as archive:
+            members = [name for name in archive.namelist() if name.lower().endswith(".bin")]
+            if len(members) != 1:
+                raise ValueError("expected one firmware .bin in the ZIP")
+            blob = archive.read(members[0])
+    else:
+        blob = path.read_bytes()
+    header = parse(blob)
+    if header["comp_flag"] or header["size_field"] != len(blob):
+        raise ValueError("expected a complete, uncompressed HTFW image")
+    entries = [entry for entry in header["entries"] if entry["type"] == kind]
+    if len(entries) != 1:
+        raise ValueError(f"expected one 0x{kind:02x} section")
+    entry = entries[0]
+    start = header["payload_base"] + entry["doff"]
+    section = blob[start:start + entry["dlen"]]
+    if len(section) != entry["dlen"] or stored_crc(section) != entry["crc"]:
+        raise ValueError(f"invalid length or CRC in 0x{kind:02x} section")
+    return header["product"], section
 
 
 def cmd_info(args):

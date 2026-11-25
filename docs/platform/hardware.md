@@ -3,6 +3,7 @@
 These notes come from a GP-5 with main board `GP-5_MB_V01_241115`.
 Use `platform/nds32/` for the control chip's register code and `platform/dsp/` for the sound chip's code.
 Check your board against this one before using its pin map.
+See [GP-50 stock comparison](gp50-port.md) for the GP-50 pin map and emulator checks.
 
 The **DSP** is the digital signal processor for sound. The **control processor** runs the screen, controls,
 USB and storage. It can also process sound. RAM holds working data; flash keeps code and saved data when power is off.
