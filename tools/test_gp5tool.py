@@ -247,6 +247,16 @@ class FlashRuns(unittest.TestCase):
         self.assertTrue(p.ended)
         self.assertIn(b"\x11\x6f", p.sent_cmds)
 
+    def test_gp50_can_report_status_but_cannot_be_flashed(self):
+        p = FakePedal(MODE_STOCK)
+        port = "GP-50:GP-50 MIDI 1 24:0"
+        p.names = lambda: [port]
+        with self.assertRaisesRegex(Problem, "no GP-5 found"):
+            self.run_flash(p)
+        self.assertEqual(p.sent_cmds, [])
+        self.assertEqual(gp5tool.find(p, "GP-50"), (port, MODE_STOCK))
+        self.assertEqual(p.sent_cmds, [b"\x12\x30"])
+
     def test_from_open_firmware_and_app_section(self):
         p = FakePedal(MODE_OPEN)
         app = [(0x62, dict(self.sections)[0x62][:40000])]

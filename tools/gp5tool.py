@@ -2,7 +2,7 @@
 """gp5tool: check and flash Valeton GP-5 firmware images over USB. No debug probe.
 
     gp5tool.py check  <image.bin>                 what is in the image, and is it safe to send
-    gp5tool.py status                             is a GP-5 connected, and in which mode
+    gp5tool.py status [--model GP-50]             is the pedal connected, and in which mode
     gp5tool.py flash  <image.bin> --sections app  flash one or more sections (see below)
     gp5tool.py combine <base.bin> --take dsp=<a.bin> --take app=<b.bin> -o <out.bin>
                                                   one image from several: <base> with the named sections
@@ -46,7 +46,7 @@ MODE_OPEN, MODE_STOCK, MODE_LOADER = "open firmware", "stock firmware", "update 
 # A GP-5 port that does not answer the state query. Seen on hardware when Valeton's app runs with a DSP
 # firmware it does not know: its screen stays dark, but it still obeys the restart-into-update command.
 MODE_SILENT = "firmware that does not answer"
-OPEN_PORT, ANY_PORT = "GP-5 Open FW", "GP-5"
+OPEN_PORT, GP5, GP50 = "GP-5 Open FW", "GP-5", "GP-50"
 RECOVERY = ("Recovery: unplug the pedal, hold the foot switch and the PARA knob, plug it back in: the screen shows a\n"
             "red warning, \"When updating Please don't shut down!\" (update mode). Then run the flash again. The factory\n"
             "loader is never overwritten.")
@@ -324,15 +324,16 @@ def ask(link, payload, want, timeout):
     return None
 
 
-def find(ports):
+def find(ports, model=GP5):
     """Return (port name, mode) of the connected pedal, or (None, None)."""
     try:
-        names = ports.names()
+        names = [(name, re.sub(r" MIDI$", "", port_base(name))) for name in ports.names()]
     except Exception:
         return None, None
-    name = next((n for n in names if OPEN_PORT in n), None)
-    if name: return name, MODE_OPEN
-    name = next((n for n in names if ANY_PORT in n), None)
+    if model == GP5:
+        name = next((name for name, device in names if device == OPEN_PORT), None)
+        if name: return name, MODE_OPEN
+    name = next((name for name, device in names if device in (model, f"Valeton {model}")), None)
     if not name: return None, None
     # While the pedal restarts, a port can still be listed and fail on open or send (Windows raises
     # "error sending sysex message"). That is "not there yet", not an error.
@@ -560,10 +561,10 @@ def cmd_pack(a):
 
 
 def cmd_status(a):
-    name, mode = find(MidiPorts())
-    if name is None: print("No GP-5 found on USB."); return 1
-    print("GP-5 on '%s': %s" % (name, mode))
-    if mode == MODE_SILENT:
+    name, mode = find(MidiPorts(), a.model)
+    if name is None: print(f"No {a.model} found on USB."); return 1
+    print(f"{a.model} on '{name}': {mode}")
+    if mode == MODE_SILENT and a.model == GP5:
         print("This is normal when the app and the audio firmware on the pedal do not belong together (for example\n"
               "Valeton's app with a custom DSP firmware). `flash` can still put it into update mode.")
     return 0
@@ -687,6 +688,7 @@ def main(argv=None):
     c = sub.add_parser("check", help="validate an image, send nothing"); c.add_argument("image"); c.set_defaults(fn=cmd_check)
     i = sub.add_parser("info", help="what a firmware image is (name, version, author: its manifest)"); i.add_argument("image"); i.set_defaults(fn=cmd_info)
     s = sub.add_parser("status", help="find the pedal and report its mode"); s.set_defaults(fn=cmd_status)
+    s.add_argument("--model", choices=(GP5, GP50), default=GP5)
     f = sub.add_parser("flash", help="write sections of an image to the pedal"); f.add_argument("image")
     f.add_argument("--sections", action="append", metavar="NAME[,NAME]", help="app, dsp, dsp-data, models, presets, all")
     f.add_argument("--yes", action="store_true", help="do not ask for confirmation"); f.set_defaults(fn=cmd_flash)

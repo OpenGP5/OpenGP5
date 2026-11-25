@@ -82,6 +82,13 @@ test("flash: from the stock firmware; data arrives exactly, image ended, restart
   assert.ok(p.ended); assert.ok(p.sentCmds.includes("17,111"));          // 11 6F
 });
 
+test("flash: a GP-50 cannot receive a GP-5 image", async () => {
+  const p = new FakePedal(F.MODE_STOCK);
+  p.names = async () => ["GP-50 MIDI 1"];
+  await assert.rejects(F.flash(p, SMALL, say), /No GP-5 found/);
+  assert.deepEqual(p.sent, []);
+});
+
 test("flash: from the open firmware, app section, comes back as open firmware", async () => {
   const p = new FakePedal(F.MODE_OPEN);
   assert.equal(await F.flash(p, [[0x62, tinyApp(40000)]], say), F.MODE_OPEN);
