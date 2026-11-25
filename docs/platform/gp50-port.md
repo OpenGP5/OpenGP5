@@ -2,9 +2,10 @@
 
 These findings compare the official GP-5 V1.0.6 and GP-50 V1.0.5 updates. The Andes
 instruction simulator ran the stock LCD, PWM and control input routines. Unicorn
-ran the stock DSP startup up to serial flash access and replayed the UART and audio
-initializers. The findings describe the firmware's register behavior. Board traces,
-analog behavior, complete stock boot and recovery still need verification.
+ran both stock DSPs through startup to a UART version reply with modeled flash,
+codec and interrupt behavior. The findings describe the firmware's register
+behavior. Board traces, analog behavior, complete stock boot and recovery still
+need verification.
 
 ## Update images
 
@@ -89,18 +90,26 @@ installed by [toolchain setup](setup.md), and Unicorn 2.1 or newer.
 ```sh
 python3 tools/stock_control_emu.py --stock path/to/gp5.zip
 python3 tools/stock_control_emu.py --stock path/to/gp50.zip
+python3 tools/stock_control_emu.py --stock path/to/gp50.zip --gp50-warm-handoff
 python3 tools/stock_dsp_emu.py path/to/gp5.zip > gp5-dsp.json
 python3 tools/stock_dsp_emu.py path/to/gp50.zip > gp50-dsp.json
 diff -u gp5-dsp.json gp50-dsp.json
+python3 tools/stock_dsp_emu.py path/to/gp50.zip --runtime
 ```
 
 Both stock control apps reach the TLB setup instruction. The simulator uses
 a flat memory map, so the harness replaces that unsupported instruction in
-simulated memory, then returns ready values for eFuse and the oscillator.
-Both apps reach the main PLL lock wait. This checkpoint precedes display,
-audio and USB startup. The DSP harness replays selected init routines after
-the reset checkpoint and reports the last write to each register per phase.
-It ends before any stock flash transaction.
+simulated memory. It supplies eFuse, PLL, oscillator and ADC status and models
+the first FreeRTOS task return. Both apps reach board initialization. The
+warm handoff replay checks the stock GP-50's acknowledgment and jump to the
+factory loader with USB emission and delays intercepted. A cold-start recovery
+test still requires the pedal.
+
+The DSP harness reports the last write to each register per phase. By default
+it replays selected init routines after the reset checkpoint. With `--runtime`
+it runs the stock DSP main loop and feeds a version query through its UART
+interrupt handlers. The flash and codec model uses virtual state, and the
+test fast-forwards fixed delay loops.
 
 For an OpenGP5 GP-5 baseline, build passthrough and relink the control ELF
 without EX9 relaxation for the Andes simulator. Run from the repository root.
