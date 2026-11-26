@@ -31,6 +31,6 @@ run "1.0 firmwares still build and run" tools/test_compat.sh
 FL=$( [ -d docs/flasher/test ] && echo docs/flasher || echo web/flasher )
 if command -v node >/dev/null; then run "web flasher" sh -c "cd $FL && node --test test/flasher.test.mjs test/catalog.test.mjs"; else echo "skip web flasher (no node)"; fi
 RM=$( [ -d docs/remote/test ] && echo docs/remote || echo web/remote )
-if command -v node >/dev/null; then run "phone remote (Bluetooth)" sh -c "cd $RM && node --test test/"; fi
+if command -v node >/dev/null; then run "phone remote (Bluetooth)" sh -c "cd $RM && node --test test/blemidi.test.mjs test/link.test.mjs"; fi   # (file names: Node 22 runs "test/" as one file)
 [ $fails = 0 ] && echo "ALL OK" || echo "$fails FAILED"
 exit $((fails > 0))
