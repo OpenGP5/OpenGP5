@@ -53,7 +53,7 @@ Then unplug the pedal and plug it in again without holding any buttons. It start
 - A computer with **Python 3.9 or later** and **OpenGP5's tools** (the `tools` folder from the OpenGP5 download:
   `pip install mido python-rtmidi`).
 - An **OpenGP5 firmware image** (`.bin`) with `tickfix` support, such as the current tremolo, Dreamcatcher or NAM Loader build.
-  These docs target platform 0.8.0-alpha and its planned 1.0 API.
+  These docs target platform 1.0.0.
 - **OpenOCD**, the debugger program:
   - macOS: `brew install open-ocd`
   - Linux: `sudo apt install openocd` (or your distribution's package)

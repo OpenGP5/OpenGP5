@@ -84,7 +84,7 @@ A low signal means ground level; a high signal means the pin's logic-high level.
 | A15, A22, A24, B5 | Board outputs; `board_init` in `main.c` drives them as Valeton's app does |
 
 The screen is 160 × 80 colour pixels with an ST7735S-type SPI controller.
-USB uses full-speed device mode. The open firmware polls USB and shows the MIDI port name **GP-5 Open FW**.
+USB uses full-speed device mode. The open firmware polls USB and shows the MIDI port and audio device name **OpenGP5** (before 1.0: **GP-5 Open FW**).
 
 ## DSP: Arm Cortex-M4F (marked JAT S95WT)
 

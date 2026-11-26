@@ -13,6 +13,24 @@ firmwares need: settings declared once as parameters (`params.h`), four presets,
 | foot switch | tremolo on / off (LEDs mint = on, dim red = off) |
 | volume knob | output level |
 
+## Bluetooth and MIDI
+
+The tremolo is a Bluetooth MIDI device (`"bluetooth": true` in `firmware.json`, OpenGP5 1.0): pair **GP-5** from a
+phone or tablet app, or from a Mac (Audio MIDI Setup › Window › Show MIDI Studio › Bluetooth). The same MIDI works
+over USB, on any channel. `fw_midi()` in `nds32/firmware.c` is the whole of it.
+
+- **Program Change 0–3** loads presets 1–4 (an empty one is ignored).
+- **Controllers** set the parameters in `params.h`'s order, value 0–127 over the whole range:
+
+| CC | Sets |
+|---|---|
+| 20 | Rate (0.5 … 15 Hz) |
+| 21 | Depth |
+| 22 | Shape (sine, triangle, square) |
+| 23 | Effect off / on (0–63 off, 64–127 on) |
+
+Launchpad works over Bluetooth too (Live page, presets, backups); flashing needs the USB cable.
+
 ```
 python3 tools/run_effect.py tremolo x out.wav --tone --set Rate=800 --set Shape=Triangle   # hear it without a pedal
 firmwares/tremolo/test/screen.sh                                                            # its screen, as a PNG

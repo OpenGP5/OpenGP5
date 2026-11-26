@@ -17,6 +17,7 @@ export async function webMidiPorts() {
       const inp = live(access.inputs).find((p) => p.name === name) ||
                   live(access.inputs).find((p) => portBase(p.name) === portBase(name));
       if (!out || !inp) throw new Error(`port ${name} is gone`);
+      const extra = name.includes("Bluetooth") ? 800 : 0;      // Bluetooth MIDI: replies take a few connection events
       const queue = [];
       let waiter = null;
       const onMessage = (ev) => {
@@ -26,11 +27,12 @@ export async function webMidiPorts() {
       inp.addEventListener("midimessage", onMessage);
       await Promise.all([out.open(), inp.open()]);
       return {
+        bluetooth: extra > 0,                                   // the pedal over Bluetooth MIDI (OpenGP5 1.0)
         async send(bytes) { out.send(Array.from(bytes)); },
         recv(timeout) {
           if (queue.length) return Promise.resolve(queue.shift());
           return new Promise((resolve) => {
-            const t = setTimeout(() => { waiter = null; resolve(null); }, timeout);
+            const t = setTimeout(() => { waiter = null; resolve(null); }, timeout + extra);
             waiter = (msg) => { clearTimeout(t); resolve(msg); };
           });
         },

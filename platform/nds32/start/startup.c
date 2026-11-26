@@ -12,7 +12,10 @@ extern char __data_lmastart[], __data_start[], _edata[], __bss_start[], _end[];
 #define VECTOR_BASE 0x10000u            /* the app slot: vectors are the first words of the image */
 #define STACK_LIMIT 0x20003000u         /* the stack is 0x20003000..0x20004000 (4 KB) */
 
-volatile uint32_t gp5_crash[4];         /* written by the exception entry: type, ITYPE, IPC, $sp */
+/* written by the exception entry: type, ITYPE, IPC, $sp. In .noinit (app.ld), so start-up never clears it: the
+ * record survives a watchdog restart. (It was at 0x80007F00, Bluetooth's memory view of RAM 0x2004FF00: only backed
+ * when 0x4003007C = 0x10, which stops the audio link; elsewhere it read as noise.) */
+volatile uint32_t gp5_crash[4] __attribute__((section(".noinit")));
 
 static void cpu_setup(void)
 {

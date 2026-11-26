@@ -2,7 +2,7 @@
 
 This page lists the public calls, callbacks and manifest fields. Read each header's comments for full call details.
 An API is the set of calls and commands your effect can use.
-These docs target **platform 0.8.0-alpha**; it includes the planned **1.0 API**, introduced in 0.7.
+These docs target **platform 1.0.0**.
 See [Versions](#versions) for the distinction. Start with [How a firmware works](concepts.md), then use these guides:
 [parameters](params.md), [UI kit](ui.md), [audio link](audio-link.md), [performance](performance.md),
 [debugging](debugging.md), [simulator](simulator.md), [releasing](releasing.md), [storage](storage.md),
@@ -49,7 +49,7 @@ You can also build in a browser with GitHub Codespaces. See `firmwares/tremolo` 
   "url": "https://github.com/OpenGP5/OpenGP5",
   "licence": "MIT",
   "description": "The volume rises and falls.",
-  "platform": "0.8",
+  "platform": "1.0",
   "presets": 4
 }
 ```
@@ -64,13 +64,16 @@ You can also build in a browser with GitHub Codespaces. See `firmwares/tremolo` 
 | `presets` | optional | how many presets the platform keeps for it, 0..64 ([Parameters](params.md)) |
 | `audio.sample_rate` | optional | 44100 (default) or 48000 |
 | `audio.link` | optional | `true`: the audio link between the processors (below) |
-| `audio.link_words` | optional | 32-bit words each way per block: a multiple of 8 from 8 to **264**; default 128; enables `link` |
+| `audio.link_words` | optional | 32-bit words each way per block: a multiple of 8 from 8 to **264** (200 while USB audio records from the DSP); default 128; enables `link` |
 | `audio.link_early` | optional | start the exchange at the beginning of each audio block; define DSP `fw_link_early` (see below) |
 | `control.mhz` | optional | 288 (default) or 320: the control chip's clock (11 % more cycles) |
+| `bluetooth` | optional | `true`: Bluetooth MIDI (below): the pedal advertises as OpenGP5, MIDI reaches `fw_midi`, the computer's commands work over it |
+| `usb_audio` | optional | the pedal as a USB audio interface (below): on by default with `"platform": "1.0"` or later, off for older firmwares unless `true`; `false` turns it off; `{"record_from": "control"}` for a firmware that finishes its sound on the control processor |
 
 Run `python3 platform/manifest.py <folder> --check` to validate the fields. Use your firmware folder's path.
 The build creates definitions for both chips: `GP5_FW_ID`, `GP5_SAMPLE_RATE`, `GP5_CTL_MHZ`, `GP5_AUDIO_LINK`,
-`GP5_LINK_WORDS`, `GP5_PRESETS` and `GP5_HAS_PARAMS`.
+`GP5_LINK_WORDS`, `GP5_PRESETS`, `GP5_HAS_PARAMS`, `GP5_BLUETOOTH` and `GP5_USB_AUDIO` (with USB audio
+also `GP5_LINK_TOTAL`, `GP5_USB_PLAY_AT`, `GP5_USB_REC_AT` or `GP5_USB_RECORD_CONTROL`).
 
 The image stores the manifest with its code, in a metadata block. The tools read it to show the build's name and version
 before a flash. Run `gp5tool.py info <file.bin>` to read a file. The pedal sends the same details through USB command `7E 16`.
@@ -94,6 +97,7 @@ A blocked loop turns the LEDs full red after two seconds. See [Performance](perf
 | `void fw_param_changed(unsigned id)` | a parameter changed from outside: the computer, a preset load ([Parameters](params.md)) |
 | `int fw_param_text(unsigned id, int32_t v, char *text)` | the text of a `GP5_U_CUSTOM` value, up to 15 characters |
 | `void fw_storage_changed(void)` | the computer changed this firmware's files or records: read them again |
+| `void fw_midi(const uint8_t *msg, unsigned n)` | a MIDI message from USB or Bluetooth, status byte first, from the main loop: a note, controller, program change, pressure or pitch bend (`n` = 2 or 3), or a real-time byte (`n` = 1): clock `0xF8` (24 a beat), start `0xFA`, continue `0xFB`, stop `0xFC`, active sensing `0xFE`, reset `0xFF`. Check the status byte and `n`. SysEx is the platform's |
 | `int fw_param_get/fw_param_set(uint32_t id, ...)` | the firmware's own live ids past its parameters (Dreamcatcher's preset commands) |
 
 ## Control processor: what a firmware may call
@@ -114,6 +118,22 @@ A blocked loop turns the LEDs full red after two seconds. See [Performance](perf
 | `gp5_file`, `gp5_file_check`, `gp5_file_each` | files the computer wrote (captures, IRs): read straight from flash |
 | `gp5_log(fmt, ...)` | a line for the log (below) |
 | `gp5_link_start(on_block)` | start the audio link (below) |
+
+## Bluetooth
+
+To send MIDI over Bluetooth, set `"bluetooth": true`. The pedal uses Bluetooth Low Energy MIDI (BLE-MIDI).
+It shows the name **GP-5** and accepts one host at a time.
+Connect with a phone or a BLE-MIDI host on your computer. On a Mac, use **Audio MIDI Setup › Bluetooth**.
+
+The radio starts while the logo shows. Calibration takes about one second and runs before the audio link.
+Starting the radio during an active link caused sound stops in testing.
+
+- MIDI messages reach `fw_midi` through the same callback as USB MIDI.
+- The computer's commands (SysEx) work over it too: macOS names the port "OpenGP5 Bluetooth" ("GP-5
+  Bluetooth" before 1.0); Launchpad and `gp5_link.py` (`GP5_PORT="OpenGP5 Bluetooth"`) use it. Firmware updates need USB.
+- Each pedal has its own address (from the chip's efuse).
+- The radio uses a short control-chip interrupt per event, 7.5 to 30 ms apart. It also uses 4 KB of RAM outside
+  your firmware's budget. The radio code is OpenGP5's own (`platform/nds32/bt/`).
 
 ## DSP
 
@@ -154,6 +174,32 @@ A sample sent from the DSP returns from the control chip **three blocks later**:
 With `link_early`, the exchange starts at the beginning of the block.
 Define `static void fw_link_early(const int32_t *in, int32_t *out)` to supply new input before that exchange.
 See [The audio link](audio-link.md) for the full example and timing rules.
+
+## USB audio
+
+A firmware written for platform 1.0 or later is a class-compliant USB audio interface unless firmware.json says
+`"usb_audio": false`. A firmware written for an older platform (or that doesn't say) gets it only with `"usb_audio": true`.
+The pedal then shows up beside its USB-MIDI
+port (no driver on macOS, Windows or Linux): 2 channels each way, 16-bit, at the firmware's sample rate.
+- **Recording** (pedal → computer) is the firmware's finished stereo output, taken on the DSP after `fw_process`,
+  before the computer's playback is mixed in and before the volume knob. It reaches the computer sample for sample
+  (the pedal sends 44 or 45 frames a millisecond, one more or fewer as its clock drifts from the computer's).
+- **Playback** (computer → pedal) is mixed into the outputs on the DSP, before the volume knob. The control processor
+  resamples it from the computer's clock to the DSP's (they differ by tens of ppm).
+- **Direct sound.** While the computer plays into the pedal, the pedal's own sound can be left out of the outputs, so a
+  DAW that monitors the pedal isn't heard twice: `gp5_usb_audio_set_direct(0)` (`1`, the default, puts it back;
+  `gp5_usb_audio_direct()` reads it). The computer can switch it too (Launchpad's pedal panel, `gp5_link.py direct off`,
+  `7E 19`). Recording doesn't change, and while nothing plays the pedal is always heard. It is back on after a restart,
+  unless the firmware stores it and sets it again in `fw_init`.
+- It travels in the audio link: the platform keeps 64 words each way after the firmware's own `link_words`, and starts
+  the link for a firmware that has none. So a firmware has at most **200** link words while USB audio is on.
+- A firmware that finishes its sound on the control processor (NAM Loader) sets `"usb_audio": {"record_from": "control"}`
+  and hands the output over from `on_block`: `gp5_usb_audio_record(left, right)`, 64 samples each, full scale ±2^31
+  (a block it doesn't hand over is recorded as silence, so the recording keeps its place).
+  No words come back from the DSP for it then: `link_words` may be up to 264, but its own words towards the DSP must
+  stay below 200 (the platform's playback words are 200..263).
+- Cost: on the control processor the USB interrupt (0.9 %) and the resampler in the link's interrupt (about 3 % of a
+  block, 6 % at worst); on the DSP a copy and a mix of 64 frames. `"usb_audio": false` gives all of it back.
 
 ## Log
 
@@ -202,16 +248,16 @@ NAM Loader and Dreamcatcher have their own pages. See [Protocols](protocols.md) 
 
 ## Versions
 
-These docs target **platform 0.8.0-alpha**. The **1.0 API** is the planned public interface, introduced in 0.7.
-Its name does not mean the platform has reached a final 1.0 release. Alpha releases may still change the API.
+These docs target **platform 1.0.0**. Its API was introduced in 0.7, so firmwares written for 0.7 or 0.8 build on
+1.x unchanged; they get USB audio only if they ask for it (`"usb_audio": true`).
 
 Read the running platform version from `GP5_VERSION_TEXT` in `gp5_firmware.h`.
-Set `firmware.json`'s `platform` field to the major and minor release your code needs, such as `"0.8"`.
+Set `firmware.json`'s `platform` field to the major and minor release your code needs, such as `"1.0"`.
 The build rejects a newer minor version or a different major version.
 
-### Planned 1.x guarantees
+### 1.x guarantees
 
-After 1.0 final, minor releases will preserve these parts:
+Every 1.x release preserves these parts:
 
 - Public calls, callbacks, their timing and manifest fields keep their meaning.
 - Saved parameters, presets, store records and files remain readable.
@@ -221,9 +267,10 @@ After 1.0 final, minor releases will preserve these parts:
 See [Known limits](known-limits.md) for those budgets and [Protocols](protocols.md) for reply rules.
 Continuous integration (CI) runs build and test checks on changes.
 `tools/check_budget.py` checks memory use, and `tools/test_compat.sh` checks the fixtures in `compat/1.0`.
-Those fixtures currently come from 0.8 sources; the project will freeze the 1.0 copies at the final release.
+The fixtures are the passthrough, the tremolo and the template as written for 1.0, and NAM Loader 1.3.1 as written
+for 0.8.
 
-The planned 1.x rules use `GP5_DEPRECATED` to warn that a call will go away.
+In 1.x, `GP5_DEPRECATED` warns that a call will go away.
 The warning must stay for at least one full minor release. A later major release can then remove the call.
-The rules do not cover code inside the platform or UI-kit struct layout beyond the fields you set.
+The guarantees do not cover code inside the platform or UI-kit struct layout beyond the fields you set.
 Limits such as link size and preset count may grow.

@@ -29,7 +29,7 @@ class FakePedal:
     # --- ports
     def names(self):
         if not self.present: return []
-        return ["GP-5 Open FW:GP-5 Open FW MIDI 1 16:0"] if self.mode == MODE_OPEN else ["GP-5:GP-5 MIDI 1 16:0"]
+        return ["OpenGP5:OpenGP5 MIDI 1 16:0"] if self.mode == MODE_OPEN else ["GP-5:GP-5 MIDI 1 16:0"]
 
     def open(self, name):
         assert name in self.names()
@@ -182,6 +182,12 @@ class ImageChecks(unittest.TestCase):
 
 
 class PortNames(unittest.TestCase):
+    def test_open_firmware_names(self):                 # "OpenGP5" from 1.0, "GP-5 Open FW" before
+        for n in ("OpenGP5", "OpenGP5 2", "OpenGP5:OpenGP5 MIDI 1 16:0", "GP-5 Open FW", "GP-5 Open FW 1"):
+            self.assertTrue(gp5tool.is_open_port(n), n)
+        for n in ("GP-5", "GP-5 2", "GP-5:GP-5 MIDI 1 16:0", "GP-5 Bluetooth", "OpenGP5 Bluetooth"):
+            self.assertFalse(gp5tool.is_open_port(n), n)
+
     def test_input_and_output_are_paired_on_every_system(self):
         class Mido:                                    # names as seen on macOS, Linux and Windows, 2026-11-10
             def __init__(self, outs, ins): self.o, self.i = outs, ins
@@ -196,10 +202,13 @@ class PortNames(unittest.TestCase):
             (["Microsoft GS Wavetable Synth 0", "Focusrite USB MIDI 1", "GP-5 Open FW 2"], ["Focusrite USB MIDI 0", "GP-5 Open FW 1"],
              "GP-5 Open FW 2", "GP-5 Open FW 1"),
             (["Microsoft GS Wavetable Synth 0", "GP-5 2"], ["GP-5 1"], "GP-5 2", "GP-5 1"),
+            (["Midi Through:Midi Through Port-0 14:0", "OpenGP5:OpenGP5 MIDI 1 16:0"],) * 2 + ("OpenGP5:OpenGP5 MIDI 1 16:0",) * 2,
+            (["OpenGP5"], ["OpenGP5"], "OpenGP5", "OpenGP5"),
+            (["Microsoft GS Wavetable Synth 0", "OpenGP5 2"], ["Focusrite USB MIDI 0", "OpenGP5 1"], "OpenGP5 2", "OpenGP5 1"),
         ]
         for outs, ins, want_out, want_in in cases:
             ports = gp5tool.MidiPorts.__new__(gp5tool.MidiPorts); ports.mido = Mido(outs, ins)
-            mine = [n for n in ports.names() if "GP-5" in n]
+            mine = [n for n in ports.names() if "GP-5" in n or gp5tool.is_open_port(n)]
             self.assertEqual(mine, [want_out])
             link = ports.open(want_out)
             self.assertEqual((link.out, link.inp), (("out", want_out), ("in", want_in)))
@@ -462,6 +471,15 @@ class MidiAbortRetry(unittest.TestCase):
         self.assertEqual(rc, 134)
         self.assertNotIn("Trying again", err)
         self.assertIn("already talked to the pedal", err)
+
+
+class LinkCommands(unittest.TestCase):
+    def test_every_gp5_link_command_has_its_branch(self):   # an edit once dropped `presets` (2026-11-25)
+        import re
+        src = (Path(__file__).parent / "gp5_link.py").read_text()
+        cmds = re.findall(r'"([\w-]+)"', re.search(r'if a\[0\] not in \(([^)]*)\)', src).group(1))
+        for c in cmds:
+            if c != "raw": self.assertRegex(src, r'a\[0\] == "%s"' % c, c)
 
 
 if __name__ == "__main__":

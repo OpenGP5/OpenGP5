@@ -25,4 +25,5 @@ and the steps to return to Valeton's firmware.
 ## Next steps
 
 - Load your own NAM captures: [Tones in Launchpad](../launchpad/tones/).
+- Record the pedal on a computer: [USB audio](usb-audio/).
 - Write an effect in C: [Build a firmware](../platform/).

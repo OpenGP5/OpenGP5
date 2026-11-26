@@ -12,7 +12,7 @@ export class FakePedal {
   }
   async names() {
     if (!this.present) return [];
-    return [this.mode === F.MODE_OPEN ? "GP-5 Open FW:GP-5 Open FW MIDI 1 16:0" : "GP-5:GP-5 MIDI 1 16:0"];
+    return [this.mode === F.MODE_OPEN ? "OpenGP5:OpenGP5 MIDI 1 16:0" : "GP-5:GP-5 MIDI 1 16:0"];
   }
   async open(name) {
     check((await this.names()).includes(name), "no such port");

@@ -35,13 +35,17 @@ void gp5_spis_init(void)
     W(CH(CH_RX) + 0x10) = 0x00010000u;
     W(CH(CH_RX) + 0x14) = SPIS_RXD;
     W(CH(CH_RX) + 0x18) = 0;
-    W(CH(CH_RX) + 0x1C) = 0x100u;                    /* clear done */
+    /* clear all three flags (8: done, 9: threshold, 10: error; the vendor's DMA_InterruptFlagClear). Clearing only
+     * "done" left a latched error on the receive channel (status 5), and the channel never ran again: every restart
+     * of the link failed (seen 2026-11-23 on Passthrough after a flash and on NAM Loader with Bluetooth at every start;
+     * clearing 0x700 by hand brought the link back at once). The error bit also comes up while the link runs, harmlessly. */
+    W(CH(CH_RX) + 0x1C) = 0x700u;
     W(CH(CH_TX) + 0x00) = 0x00401021u;               /* memory -> peripheral */
     W(CH(CH_TX) + 0x04) = 0; W(CH(CH_TX) + 0x08) = 0; W(CH(CH_TX) + 0x0C) = 0;
     W(CH(CH_TX) + 0x10) = 0x00010000u;
     W(CH(CH_TX) + 0x14) = 0;
     W(CH(CH_TX) + 0x18) = SPIS_TXD;
-    W(CH(CH_TX) + 0x1C) = 0x100u;
+    W(CH(CH_TX) + 0x1C) = 0x700u;
     W(SPIS_CLR) |= 0xFu;
     W(DMA_EN) |= (1u << CH_RX) | (1u << CH_TX);
 }
@@ -61,6 +65,15 @@ void gp5_spis_start(const void *tx, void *rx, uint32_t n)
     W(DMA_EN) |= 1u << CH_RX;
     W(SPIS_CTRL) |= 0x40u;                           /* slave DMA requests on */
     W(SPIS_CTRL) |= 0x20u;
+}
+
+/* clear the channels' flags without touching anything else (they keep running): a link whose receive channel stopped
+ * with done + error starts again from this, where re-arming it from scratch ran straight back into done + error
+ * (2026-11-23, NAM Loader with Bluetooth: clearing these from the computer brought the link back every time) */
+void gp5_spis_clear_flags(void)
+{
+    W(CH(CH_RX) + 0x1C) = 0x700u;
+    W(CH(CH_TX) + 0x1C) = 0x700u;
 }
 
 int gp5_spis_done(void)

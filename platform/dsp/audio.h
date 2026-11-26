@@ -135,15 +135,22 @@ static uint32_t dsp_quiet;
 #ifndef GP5_LINK_WORDS                   /* a firmware may ask for more (build.py passes its #define) */
 #define GP5_LINK_WORDS 128u
 #endif
-#define LINK_N      (4u + GP5_LINK_WORDS * 4u + LINK_PAD)   /* bytes per exchange (0x224 for 128 words) */
-#if GP5_LINK_WORDS > 128u
+/* The words in one exchange: the firmware's GP5_LINK_WORDS, plus USB audio's 64 (manifest.py: GP5_LINK_TOTAL, with
+ * GP5_USB_PLAY_AT / GP5_USB_REC_AT where they are). A firmware without the link of its own gets one for USB audio. */
+#ifdef GP5_LINK_TOTAL
+#define LINK_T      GP5_LINK_TOTAL
+#else
+#define LINK_T      GP5_LINK_WORDS
+#endif
+#define LINK_N      (4u + LINK_T * 4u + LINK_PAD)   /* bytes per exchange (0x224 for 128 words) */
+#if LINK_T > 128u
 /* More words than fit the platform's 3 KB at 0x1001E800: the four buffers go into the large block instead. */
 #define LINK_NW     ((LINK_N + 31u) / 32u * 8u)
-static uint32_t link_buf[2u * LINK_NW + 2u * GP5_LINK_WORDS] __attribute__((section(".large"), aligned(32)));
+static uint32_t link_buf[2u * LINK_NW + 2u * LINK_T] __attribute__((section(".large"), aligned(32)));
 #define RAW_RX      ((uint32_t)&link_buf[0])
 #define LINK_IN     ((uint32_t)&link_buf[LINK_NW])
-#define RAW_TX      ((uint32_t)&link_buf[LINK_NW + GP5_LINK_WORDS])
-#define LINK_OUT_AT ((uint32_t)&link_buf[2u * LINK_NW + GP5_LINK_WORDS])
+#define RAW_TX      ((uint32_t)&link_buf[LINK_NW + LINK_T])
+#define LINK_OUT_AT ((uint32_t)&link_buf[2u * LINK_NW + LINK_T])
 #else
 #define RAW_RX      0x1001E800u          /* as received */
 #define LINK_IN     0x1001EA40u          /* the words after the sync word, for fw_process() */
@@ -195,13 +202,13 @@ static void spi1_take(void) {                             /* before fw_process()
         if (r[o] == (uint8_t)LINK_SYNC_N && r[o + 1] == (uint8_t)(LINK_SYNC_N >> 8) &&
             r[o + 2] == (uint8_t)(LINK_SYNC_N >> 16) && r[o + 3] == (uint8_t)(LINK_SYNC_N >> 24)) break;
     if (o > LINK_PAD) {
-        for (uint32_t i = 0; i < GP5_LINK_WORDS; i++) REG(LINK_IN + 4u * i) = 0;
+        for (uint32_t i = 0; i < LINK_T; i++) REG(LINK_IN + 4u * i) = 0;
         link_lag = 0xFFFFFFFFu; ST[23]++;                 /* exchanges without the sync word */
         return;
     }
     link_lag = o;
-    if (!(o & 3u)) for (uint32_t i = 0; i < GP5_LINK_WORDS; i++) REG(LINK_IN + 4u * i) = REG(RAW_RX + o + 4u + 4u * i);
-    else for (uint32_t i = 0; i < GP5_LINK_WORDS * 4u; i++) d[i] = r[o + 4u + i];
+    if (!(o & 3u)) for (uint32_t i = 0; i < LINK_T; i++) REG(LINK_IN + 4u * i) = REG(RAW_RX + o + 4u + 4u * i);
+    else for (uint32_t i = 0; i < LINK_T * 4u; i++) d[i] = r[o + 4u + i];
 }
 /* Before a hand-over (0x7F05): SPI-1 back to the state of a firmware without the link (control 0x21000, as measured)
  * and its two DMA channels off, so the wires to the control processor are as the factory loader expects them. */
@@ -225,6 +232,43 @@ static void spi1_block(void) {
     REG(DMA0 + 0x120) = 0x80020091u;
     REG(DMA0 + 0x28) = 0xFFu;                             /* clear done flags (polled design) */
     ST[21]++;
+}
+#endif
+
+#if defined(GP5_USB_AUDIO) && defined(AUDIO_SPI1) && defined(GP5_FIRMWARE)
+/* USB audio (OpenGP5 1.0): the platform's 64 words of the link, one stereo 16-bit frame each (left in the low half),
+ * as on the USB wire. Recording (unless the firmware records on the control processor): the firmware's finished
+ * output, before the computer's playback is mixed in (no echo in a recording) and before the output level (the
+ * volume knob is for listening). Playback: the computer's sound from the control processor, added to the outputs
+ * before the output level, saturated. Full scale is +-2^31 on this side. */
+/* The pedal's own sound at the outputs (command 0x7F06, from the control processor): off while the computer plays
+ * it back (a DAW monitoring its input would otherwise be heard twice). Recording is unchanged. Glides over a block. */
+static volatile uint8_t usb_direct_off;
+static int32_t usb_direct_g = 65536;                           /* Q16, the level applied */
+static void usb_audio_block(int32_t *bl, int32_t *br) {
+    const volatile uint32_t *play = (const volatile uint32_t *)(LINK_IN + 4u * GP5_USB_PLAY_AT);
+#ifndef GP5_USB_RECORD_CONTROL
+    int32_t *rec = gp5_link_out() + GP5_USB_REC_AT;
+    for (int i = 0; i < 64; i++)
+        rec[i] = (int32_t)(((uint32_t)bl[i] >> 16) | ((uint32_t)br[i] & 0xFFFF0000u));
+#endif
+    {
+        int32_t g0 = usb_direct_g, d = (usb_direct_off ? 0 : 65536) - g0;
+        if (g0 != 65536 || d) {
+            for (int i = 0; i < 64; i++) {
+                int32_t gi = g0 + (d * (i + 1)) / 64;
+                bl[i] = (int32_t)(((int64_t)bl[i] * gi) >> 16);
+                br[i] = (int32_t)(((int64_t)br[i] * gi) >> 16);
+            }
+            usb_direct_g = g0 + d;
+        }
+    }
+    for (int i = 0; i < 64; i++) {
+        uint32_t w = play[i];
+        int64_t l = (int64_t)bl[i] + (int64_t)(int32_t)(w << 16), r = (int64_t)br[i] + (int64_t)(int32_t)(w & 0xFFFF0000u);
+        bl[i] = l > 0x7FFFFFFF ? 0x7FFFFFFF : l < -0x7FFFFFFF - 1 ? -0x7FFFFFFF - 1 : (int32_t)l;
+        br[i] = r > 0x7FFFFFFF ? 0x7FFFFFFF : r < -0x7FFFFFFF - 1 ? -0x7FFFFFFF - 1 : (int32_t)r;
+    }
 }
 #endif
 
@@ -276,11 +320,14 @@ static int audio_poll(void) {
             spi1_take();
 #ifdef GP5_LINK_EARLY
             fw_link_early(blk, (int32_t *)LINK_OUT);
-            for (uint32_t i = 0; i < GP5_LINK_WORDS; i++) REG(RAW_TX + 4u + 4u * i) = REG(LINK_OUT + 4u * i);
+            for (uint32_t i = 0; i < LINK_T; i++) REG(RAW_TX + 4u + 4u * i) = REG(LINK_OUT + 4u * i);
             spi1_block();
 #endif
 #endif
             fw_process(blk, bl, br);
+#if defined(GP5_USB_AUDIO) && defined(AUDIO_SPI1)
+            usb_audio_block(bl, br);
+#endif
         }
         /* The level glides to the one the NDS32 sent, at most LEVEL_GLIDE per block (full scale in 16 blocks, 23 ms):
          * the sound fades in when it comes on after start-up, and a change makes no click. */

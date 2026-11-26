@@ -1,0 +1,32 @@
+The built-in capture (default_capture.inc, shown as "NAM A2 demo")
+===================================================================
+
+Source: example_models/A2.nam in NeuralAmpModelerCore (https://github.com/sdatkinson/NeuralAmpModelerCore,
+commit b5a68c3e, "Add example A2 model"): an A2 capture (A2-Full + A2-Lite), 48 kHz, calibrated
+(input_level_dbu 14.76). Its A2-Lite part is converted with tools/a2r_export.py (synth calibration
+signal, headroom 4). sha256 of A2.nam:
+2d2d744516dc0197737a2c5001010429692d4cb20d72b08264781de626fcf4ca
+
+NeuralAmpModelerCore is distributed under the MIT License:
+
+MIT License
+
+Copyright (c) 2023 Steven Atkinson
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

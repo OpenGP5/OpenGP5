@@ -6,7 +6,9 @@
  *   click PARA     adjust the row picked (turn to change; click again when done). On PRESET, turning loads presets
  *   hold PARA      save the sound into the preset shown
  *   foot switch    tremolo on / off (LED mint / dim red; the values turn grey while it is off)
- *   volume knob    output level (the platform's default) */
+ *   volume knob    output level (the platform's default)
+ *   MIDI           over USB or Bluetooth (firmware.json "bluetooth": true): Program Change 0..3 loads presets 1..4,
+ *                  controllers 20..23 set RATE, DEPTH, SHAPE and on / off (params.h's order), value 0..127 */
 #include "gp5_firmware.h"
 #include "gp5_params.h"
 #include "gp5_ui.h"
@@ -35,6 +37,22 @@ void fw_para_hold(void)
     m[7] = (char)('1' + n);
     gp5_ui_page_message(&page, m, 1500);
 }
+/* MIDI, on any channel: Program Change n loads preset n + 1 (an empty one is ignored); controller 20 + k sets
+ * parameter k of params.h (MIDI's undefined controllers 20..31), its value 0..127 over the parameter's whole range */
+void fw_midi(const uint8_t *m, unsigned n)
+{
+    unsigned st = m[0] & 0xF0u;
+    if (st == 0xC0u && n >= 2u) {
+        if (m[1] < gp5_preset_count() && gp5_preset_load(m[1])) page.preset_pick = m[1];   /* the PRESET row follows */
+    } else if (st == 0xB0u && n >= 3u && m[1] >= 20u && m[1] < 20u + GP5_NPARAMS) {
+        unsigned id = m[1] - 20u;
+        const gp5_param_desc_t *d = &gp5_param_table[id];
+        if (d->flags & GP5_P_READONLY) return;
+        gp5_param_set(id, d->min + ((int32_t)m[2] * (d->max - d->min) + 63) / 127);
+        if (id == GP5_P_ON) show_on();
+    }
+}
+
 int fw_draw(int force) { return gp5_ui_page_draw(&page, force); }
 
 /* "5.00 Hz" for RATE, here and on a computer */

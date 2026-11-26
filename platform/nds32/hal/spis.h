@@ -7,6 +7,7 @@
 #define GP5_IRQ_SPIS_DMA 13                                  /* DMA channel 4 (receive) done */
 void gp5_spis_init(void);                                    /* pins, slave, both DMA channels, flags cleared */
 void gp5_spis_start(const void *tx, void *rx, uint32_t n);   /* arm one exchange of n bytes each way */
+void gp5_spis_clear_flags(void);                             /* both channels' DMA flags, nothing else */
 int  gp5_spis_done(void);                                    /* both channels finished: 1 (and the slave's DMA requests off) */
 void gp5_spis_release(void);                 /* stop; pins A20..A23 back as they were */
 void gp5_spis_rearm(const void *tx, void *rx, uint32_t n);   /* clear the flags and arm the next exchange */

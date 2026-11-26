@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>OpenGP5 Remote</title>
+<meta name="description" content="Change the settings and presets of a GP-5 running an OpenGP5 firmware, from your phone, over Bluetooth.">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#090705" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f3eff6" media="(prefers-color-scheme: light)">
+<style>
+  /* A stage remote: one hand, a dark room. OpenGP5's palette (docs/platform/palette.md); the connected firmware's
+   * colour (--world) for what's live: Dreamcatcher violet, NAM Loader gold, OpenGP5 teal for the rest. Dark follows
+   * the phone. Touch targets of 48 px and more. Fonts: Atkinson Hyperlegible Next and Mono (SIL OFL, fonts/). */
+  @font-face { font-family: "Atkinson Hyperlegible Next"; src: url(fonts/AtkinsonHyperlegibleNext.woff2) format("woff2"); font-weight: 200 800; font-display: swap; }
+  @font-face { font-family: "Atkinson Hyperlegible Mono"; src: url(fonts/AtkinsonHyperlegibleMono.woff2) format("woff2"); font-weight: 200 800; font-display: swap; }
+  :root {
+    --font: "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: "Atkinson Hyperlegible Mono", ui-monospace, Menlo, monospace;
+    --r-sm: 10px; --r-md: 14px; --r-lg: 20px; --r-pill: 999px;
+    /* light */
+    --canvas: #f3eff6; --surface: #ffffff; --surface-2: #f6f3f8; --surface-3: #e6e0ec; --line: #e6e0ec; --line-strong: #cfc7d8;
+    --text: #17151b; --text-2: #5d5966; --text-3: #6f6a78; --focus: #247475;
+    --good: #2e8a4f; --warn: #936509; --bad: #c2413a; --brand: #247475;
+    --screen: #0f0f1a; --screen-ink: #f4f2ee; --screen-dim: #a7a3b3;
+    --world: #247475; --world-ink: #ffffff; --world-soft: #c8e7e6; --world-glow: rgba(36, 116, 117, .28);
+  }
+  :root[data-fw="dreamcatcher"] { --world: #7a5ae8; --world-ink: #ffffff; --world-soft: #e6ddff; --world-glow: rgba(122, 90, 232, .3); }
+  :root[data-fw="nam"] { --world: #93700d; --world-ink: #ffffff; --world-soft: #f6df8a; --world-glow: rgba(147, 112, 13, .3); }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --canvas: #090705; --surface: #141318; --surface-2: #1f1e25; --surface-3: #2e2d35; --line: #24232a; --line-strong: #3a3942;
+      --text: #f4f2ee; --text-2: #b5b1ab; --text-3: #8f8a96; --focus: #8adadb;
+      --good: #8fd6a4; --warn: #f2c25b; --bad: #f08b84; --brand: #3cc0c1;
+      --screen: #0f0f1a; --screen-ink: #f4f2ee; --screen-dim: #8f8a9e;
+      --world: #3cc0c1; --world-ink: #062223; --world-soft: #123e3f; --world-glow: rgba(60, 192, 193, .35);
+    }
+    :root[data-fw="dreamcatcher"] { --world: #b9a6ff; --world-ink: #1b1238; --world-soft: #2c2350; --world-glow: rgba(185, 166, 255, .32); }
+    :root[data-fw="nam"] { --world: #f6df8a; --world-ink: #2a2005; --world-soft: #3a3010; --world-glow: rgba(246, 223, 138, .28); }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; min-height: 100vh; min-height: 100dvh; background: var(--canvas); color: var(--text); font: 16px/1.5 var(--font);
+         -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
+  main { max-width: 520px; margin: 0 auto; padding: 0 16px calc(40px + env(safe-area-inset-bottom)); }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  h1, h2, h3 { margin: 0; line-height: 1.2; }
+  p { margin: 0; }
+  button { font: inherit; color: inherit; }
+  .icon { flex: none; vertical-align: middle; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  [hidden] { display: none !important; }
+  .muted { color: var(--text-2); }
+
+  /* the bar: the name, where the connection stands, disconnect */
+  .bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 12px; margin: 0 -16px;
+         padding: max(10px, env(safe-area-inset-top)) 16px 10px; background: color-mix(in srgb, var(--canvas) 86%, transparent);
+         backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+  .mark { font-size: 19px; font-weight: 800; letter-spacing: -0.01em; }
+  .mark b { color: var(--brand); font-weight: 800; }
+  .state { margin-left: auto; display: flex; align-items: center; gap: 7px; font-size: 14px; color: var(--text-2); min-width: 0;
+           white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); flex: none; }
+  .dot.on { background: var(--world); box-shadow: 0 0 0 4px var(--world-glow); }
+  .dot.busy { background: var(--warn); }
+  .iconbtn { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex: none;
+             border-radius: var(--r-pill); border: 1px solid var(--line-strong); background: transparent; cursor: pointer; }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 0 22px;
+         border-radius: var(--r-pill); border: 1px solid transparent; font-weight: 700; font-size: 17px; cursor: pointer;
+         background: var(--world); color: var(--world-ink); touch-action: manipulation; }
+  .btn.ghost { background: transparent; color: var(--text); border-color: var(--line-strong); }
+  .btn.small { min-height: 44px; padding: 0 16px; font-size: 15px; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn:not(:disabled):active, .iconbtn:active { transform: translateY(1px); }
+
+  .note { border-radius: var(--r-md); padding: 14px 16px; margin: 12px 0; display: flex; gap: 10px; align-items: flex-start; font-size: 15px; }
+  .note.bad { background: color-mix(in srgb, var(--bad) 14%, var(--surface)); border: 1px solid color-mix(in srgb, var(--bad) 45%, transparent); }
+  .note.info { display: block; background: var(--surface-2); color: var(--text-2); text-align: center; text-wrap: balance; }
+  .note.info .icon { margin: 0 4px 0 0; vertical-align: -3px; }
+  .note .icon { margin-top: 2px; }
+
+  /* the start */
+  .start { min-height: calc(100dvh - 150px); display: flex; flex-direction: column; align-items: center; justify-content: center;
+           text-align: center; padding: 24px 0; }
+  .start .glyph { width: 84px; height: 84px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+                  color: var(--brand); background: color-mix(in srgb, var(--brand) 14%, transparent); margin-bottom: 22px; }
+  .start h2 { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; text-wrap: balance; max-width: 15ch; }
+  .start .lead { margin-top: 12px; color: var(--text-2); max-width: 32ch; text-wrap: pretty; }
+  .start .btn { margin-top: 26px; width: 100%; max-width: 320px; }
+  .steps { list-style: none; counter-reset: s; margin: 30px 0 0; padding: 0; display: grid; gap: 12px; text-align: left; max-width: 340px; width: 100%; }
+  .steps li { counter-increment: s; display: grid; grid-template-columns: 28px 1fr; gap: 10px; color: var(--text-2); font-size: 15px; }
+  .steps li::before { content: counter(s); font: 700 14px/28px var(--mono); text-align: center; width: 28px; height: 28px;
+                      border-radius: 50%; border: 1px solid var(--line-strong); color: var(--text); }
+
+  /* now playing: the pedal's screen, the one bold thing on the page */
+  .now { margin-top: 8px; border-radius: var(--r-lg); background: var(--screen); color: var(--screen-ink); padding: 18px 10px 18px;
+         display: grid; grid-template-columns: 52px 1fr 52px; align-items: center; gap: 4px;
+         box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), 0 0 0 1px rgba(0,0,0,.2); }
+  .now .fw { grid-column: 1 / -1; text-align: center; font-size: 13px; color: var(--screen-dim); margin-bottom: 2px; }
+  .now .mid { text-align: center; min-width: 0; }
+  .now .num { font: 700 64px/1 var(--mono); letter-spacing: -0.04em; color: var(--world); text-shadow: 0 0 24px var(--world-glow); }
+  :root[data-fw] .now .num { color: color-mix(in srgb, var(--world) 70%, #fff); }
+  .now .name { margin-top: 6px; font-size: 20px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .now .sub { margin-top: 2px; font-size: 14px; color: var(--screen-dim); min-height: 21px; }
+  .now .sub.changed { color: #f2c25b; }
+  .now .step { width: 52px; height: 72px; border-radius: var(--r-md); border: 0; background: rgba(255,255,255,.06); color: var(--screen-ink);
+               display: flex; align-items: center; justify-content: center; cursor: pointer; touch-action: manipulation; }
+  .now .step:disabled { opacity: .3; cursor: default; }
+  .now .rename { margin-left: 6px; background: none; border: 0; color: var(--screen-dim); cursor: pointer; padding: 4px; vertical-align: 2px; }
+
+  /* pads: the presets, like footswitches */
+  .pads { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+  .pad { aspect-ratio: 1; border-radius: var(--r-md); border: 1px solid var(--line-strong); background: var(--surface);
+         display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px;
+         cursor: pointer; touch-action: manipulation; min-width: 0; transition: background .12s, box-shadow .12s; }
+  .pad .pn { font: 700 20px/1 var(--mono); }
+  .pad .pl { font-size: 12px; color: var(--text-2); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pad.empty { background: transparent; border-style: dashed; color: var(--text-3); }
+  .pad.empty .pl { color: var(--text-3); }
+  .pad.on { background: var(--world); color: var(--world-ink); border-color: var(--world); box-shadow: 0 0 0 4px var(--world-glow); }
+  .pad.on .pl { color: inherit; opacity: .85; }
+  .pad:disabled { cursor: default; }
+  .picking .pad { border-color: var(--world); border-style: solid; }
+  .picking .pad:disabled { opacity: 1; cursor: pointer; }
+  .acts { display: flex; gap: 10px; margin-top: 14px; }
+  .acts .btn { flex: 1; }
+  .pickhint { margin-top: 12px; text-align: center; font-size: 15px; color: var(--world); font-weight: 650; }
+
+  /* settings: panels of knobs */
+  .panel { margin-top: 18px; border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--line); }
+  .panel > summary { list-style: none; display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 0 16px; cursor: pointer; }
+  .panel > summary::-webkit-details-marker { display: none; }
+  .panel > summary h2 { font-size: 17px; font-weight: 750; }
+  .panel > summary .chev { margin-left: auto; color: var(--text-3); transition: transform .15s; }
+  .panel[open] > summary .chev { transform: rotate(90deg); }
+  .ctrls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 6px; padding: 4px 10px 18px; }
+  .ctl { display: flex; flex-direction: column; align-items: center; text-align: center; min-width: 0; }
+  .ctl .nm { font-size: 13px; color: var(--text-2); margin-top: 2px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ctl .v { font: 600 14px/1.3 var(--mono); margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .knob { width: 76px; height: 76px; border-radius: 50%; cursor: ns-resize; touch-action: none; outline-offset: 0; }
+  .knob svg { width: 100%; height: 100%; display: block; }
+  .knob .trk { fill: none; stroke: var(--surface-3); stroke-width: 5; stroke-linecap: round; }
+  .knob .val { fill: none; stroke: var(--world); stroke-width: 5; stroke-linecap: round; }
+  .knob .cap { fill: var(--surface-2); stroke: var(--line-strong); stroke-width: 1; }
+  .knob .ptr { stroke: var(--text); stroke-width: 3; stroke-linecap: round; }
+  .knob.turning .cap { fill: var(--world-soft); }
+  .ctl.wide { grid-column: 1 / -1; align-items: stretch; }
+  .ctl.wide .nm { text-align: left; margin: 0 0 6px 2px; font-size: 14px; }
+  .seg { display: flex; gap: 4px; padding: 4px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--line); }
+  .seg button { flex: 1 1 0; min-width: 0; min-height: 44px; border: 0; border-radius: var(--r-sm); background: transparent;
+                font-size: 15px; font-weight: 650; color: var(--text-2); cursor: pointer; touch-action: manipulation; }
+  .seg button[aria-checked=true] { background: var(--world); color: var(--world-ink); }
+  select { width: 100%; min-height: 48px; padding: 0 12px; border-radius: var(--r-md); border: 1px solid var(--line-strong);
+           background: var(--surface-2); color: var(--text); font: inherit; font-weight: 600; }
+  .ro .v { font-size: 16px; margin-top: 14px; }
+  .empty-note { padding: 18px 16px; color: var(--text-2); }
+
+  dialog { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); color: var(--text); padding: 22px;
+           width: min(92vw, 400px); box-shadow: 0 20px 60px rgba(0,0,0,.45); }
+  dialog::backdrop { background: rgba(0,0,0,.55); }
+  dialog h2 { font-size: 19px; margin-bottom: 8px; }
+  dialog .actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; flex-wrap: wrap; }
+  dialog input[type=text] { width: 100%; min-height: 48px; margin-top: 14px; padding: 0 12px; border-radius: var(--r-sm);
+                            border: 1px solid var(--line-strong); background: var(--surface-2); color: var(--text); font: inherit; }
+  .toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 10;
+           background: var(--text); color: var(--canvas); padding: 11px 18px; border-radius: var(--r-pill); font-size: 15px; font-weight: 650;
+           max-width: calc(100vw - 32px); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+  .foot { text-align: center; font-size: 13px; color: var(--text-3); margin-top: 28px; }
+  .foot a { color: inherit; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<main>
+  <header class="bar">
+    <h1 class="mark">Open<b>GP5</b><span class="sr"> Remote</span></h1>
+    <div class="state" aria-live="polite"><span class="dot" id="dot"></span><span id="state">Not connected</span></div>
+    <button class="iconbtn" id="disconnect" aria-label="Disconnect" hidden></button>
+  </header>
+
+  <div id="unsupported" class="note bad" role="alert" hidden></div>
+  <div id="error" class="note bad" role="alert" hidden></div>
+
+  <section id="start" class="start" aria-labelledby="start-h">
+    <div class="glyph" id="start-icon"></div>
+    <h2 id="start-h">Control your pedal over Bluetooth</h2>
+    <p class="lead">Switch presets and turn settings on a GP-5 running an OpenGP5 firmware with Bluetooth.</p>
+    <button class="btn" id="connect">Connect</button>
+    <ol class="steps">
+      <li>Plug the pedal in and switch it on.</li>
+      <li>If a computer or another phone is connected to it over Bluetooth, disconnect it there: the pedal takes one connection at a time.</li>
+      <li>Tap Connect and pick OpenGP5.</li>
+    </ol>
+  </section>
+
+  <div id="pedal" hidden></div>
+
+  <p class="foot">Settings change live; Save writes a preset to the pedal. <a href="https://opengp5.github.io/docs/get-started/phone/">Help</a></p>
+</main>
+
+<dialog id="dlg" aria-labelledby="dlg-h">
+  <form method="dialog">
+    <h2 id="dlg-h"></h2>
+    <p id="dlg-p" class="muted"></p>
+    <input type="text" id="dlg-in" maxlength="12" autocomplete="off" spellcheck="false" hidden>
+    <div class="actions">
+      <button type="button" class="btn ghost small" id="dlg-cancel">Cancel</button>
+      <button class="btn small" value="ok" id="dlg-ok">OK</button>
+    </div>
+  </form>
+</dialog>
+<div id="live" class="sr" aria-live="polite"></div>
+<div id="toast" class="toast" hidden></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

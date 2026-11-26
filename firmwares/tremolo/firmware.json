@@ -1,11 +1,12 @@
 {
   "id": "tremolo",
   "name": "Tremolo",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": "OpenGP5",
   "url": "https://github.com/OpenGP5/OpenGP5",
   "licence": "MIT",
   "description": "The volume rises and falls: the example firmware (parameters, presets, screen, controls).",
-  "platform": "0.8",
-  "presets": 4
+  "platform": "1.0",
+  "presets": 4,
+  "bluetooth": true
 }

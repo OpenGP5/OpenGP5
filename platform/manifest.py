@@ -18,11 +18,15 @@ MAGIC = b"GP5META1"
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,30}$")
 VER_RE = re.compile(r"^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$")
 FIELDS = {"id": str, "name": str, "version": str, "author": str, "url": str, "licence": str, "description": str,
-          "platform": str, "audio": dict, "control": dict, "presets": int, "legacy_tag": str}
+          "platform": str, "audio": dict, "control": dict, "presets": int, "legacy_tag": str, "bluetooth": bool,
+          "usb_audio": (bool, dict)}
 REQUIRED = ("id", "name", "version")
 AUDIO = {"sample_rate": (44100, 48000), "link_words": None, "link_early": (False, True), "link": (False, True)}
 CONTROL = {"mhz": (288, 320)}
 LINK_WORDS_MAX = 264                                     # the most measured to run reliably (48 kHz, 2026-11-16)
+USB_WORDS = 64                                           # USB audio's share of the link per direction (64 frames, stereo 16-bit)
+USB_FW_MAX = LINK_WORDS_MAX - USB_WORDS                  # a firmware's own words in a direction the platform shares: 200
+RECORD_FROM = ("dsp", "control")
 
 
 class ManifestError(Exception):
@@ -50,7 +54,7 @@ def load(folder):
         raise ManifestError(f"{p}: unknown field(s) {', '.join(bad)} (known: {', '.join(FIELDS)})")
     for k, t in FIELDS.items():
         if k in m and not isinstance(m[k], t) or (t is int and isinstance(m.get(k), bool)):
-            raise ManifestError(f"{p}: '{k}' must be a {t.__name__}")
+            raise ManifestError(f"{p}: '{k}' must be a {' or a '.join(x.__name__ for x in (t if isinstance(t, tuple) else (t,)))}")
     for k in REQUIRED:
         if not m.get(k):
             raise ManifestError(f"{p}: '{k}' is required")
@@ -75,6 +79,35 @@ def load(folder):
                                 "in a block reliably: measured at 48 kHz, 296 dropped out now and then)")
         a.setdefault("link", True)
     a.setdefault("link", bool(a.get("link_early")))
+    # USB audio (OpenGP5 1.0, decided 2026-11-22): on by default for a firmware written for platform 1.0 or later
+    # ("platform": "1.0"); off for older ones and ones that don't say, unless they ask ("usb_audio": true or {...}):
+    # a 0.x firmware may use more link words than leave room for it (NAM Loader 1.3.1: 264), and 1.0 breaks nothing
+    # (decided 2026-11-24). The platform keeps 64 link words
+    # control processor -> DSP (playback) and, recording from the DSP (the default), 64 words the other way too.
+    # "usb_audio": {"record_from": "control"}: the firmware finishes its sound on the control processor and hands it
+    # over there (gp5_usb_audio_record()), so no words come back for it. Stored as false or {"record_from": ...}.
+    want = m.get("platform")
+    major = int(want.split(".")[0]) if isinstance(want, str) and re.match(r"^\d+\.\d+$", want) else 0
+    u = m.get("usb_audio", major >= 1)
+    if u is True:
+        u = {}
+    if u is not False:
+        bad = [k for k in u if k != "record_from"]
+        if bad:
+            raise ManifestError(f"{p}: usb_audio.{bad[0]} is not known (known: record_from)")
+        u = {"record_from": u.get("record_from", "dsp")}
+        if u["record_from"] not in RECORD_FROM:
+            raise ManifestError(f"{p}: usb_audio.record_from = {u['record_from']!r}: one of {RECORD_FROM}")
+        w = a.get("link_words", 128) if a["link"] else 0
+        if u["record_from"] == "dsp" and w > USB_FW_MAX:
+            raise ManifestError(f"{p}: audio.link_words = {w}: with USB audio recording from the DSP a firmware has "
+                                f"{USB_FW_MAX} words (the link carries {LINK_WORDS_MAX}, USB audio keeps {USB_WORDS} each way). "
+                                'Use fewer, or "usb_audio": {"record_from": "control"} if the sound is finished on the '
+                                'control processor, or "usb_audio": false')
+        if u["record_from"] == "control" and not a["link"]:
+            raise ManifestError(f'{p}: usb_audio.record_from "control" is for firmwares that finish their sound on the control '
+                                'processor: that needs the audio link ("audio": {"link": true})')
+    m["usb_audio"] = u
     c = m.setdefault("control", {})
     for k, v in c.items():
         if k not in CONTROL:
@@ -89,7 +122,11 @@ def load(folder):
         have = platform_version().split(".")[:2]
         if not re.match(r"^\d+\.\d+$", want):
             raise ManifestError(f"{p}: platform '{want}': the API version it was written for, like 1.0")
-        if want.split(".")[0] != have[0] or int(want.split(".")[1]) > int(have[1]):
+        # 0.7 and 0.8 introduced the 1.0 API and count as 1.0 (they build on any 1.x); before 0.7, another API
+        wm, wn, hm, hn = int(want.split(".")[0]), int(want.split(".")[1]), int(have[0]), int(have[1])
+        if wm == 0 and wn >= 7 and hm == 1:
+            wm, wn = 1, 0
+        if wm != hm or wn > hn:
             raise ManifestError(f"{p}: written for platform {want}; this is {'.'.join(have)}")
     return m
 
@@ -103,8 +140,16 @@ def flags(m, folder=None):
         if a.get("link_early"):
             f.append("-DGP5_LINK_EARLY")
         f.append(f'-DGP5_LINK_WORDS={a.get("link_words", 128)}u')
+    u = m.get("usb_audio", False)
+    if u:
+        w = a.get("link_words", 128) if a["link"] else 0
+        play_at = min(w, USB_FW_MAX)                  # after the firmware's words; never past 200 (264 - 64)
+        f += ["-DGP5_USB_AUDIO", f"-DGP5_LINK_TOTAL={max(w, play_at + USB_WORDS)}u", f"-DGP5_USB_PLAY_AT={play_at}u"]
+        f.append(f"-DGP5_USB_REC_AT={w}u" if u["record_from"] == "dsp" else "-DGP5_USB_RECORD_CONTROL")
     if m["presets"]:
         f.append(f'-DGP5_PRESETS={m["presets"]}u')
+    if m.get("bluetooth"):
+        f.append("-DGP5_BLUETOOTH")                   # BLE-MIDI: the platform's bt/ (OpenGP5 1.0)
     if folder is not None and (Path(folder) / "params.h").exists():
         f.append("-DGP5_HAS_PARAMS")                  # the firmware declares parameters (gp5_params.h)
     return f
@@ -159,6 +204,7 @@ def main(argv):
         a = m["audio"]
         print(f'{m["name"]} {m["version"]} (id {m["id"]}): {a["sample_rate"]} Hz, control processor {m["control"]["mhz"]} MHz, '
               f'{"audio link " + str(a.get("link_words", 128)) + " words" if a["link"] else "no audio link"}'
+              f'{", USB audio (recording from the " + m["usb_audio"]["record_from"] + ")" if m["usb_audio"] else ", no USB audio"}'
               f'{", " + str(m["presets"]) + " presets" if m["presets"] else ""}')
     elif argv[1] == "--flags":
         print(" ".join(flags(m, argv[0])))

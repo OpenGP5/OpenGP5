@@ -18,6 +18,10 @@ extern uint32_t dsp_ctl_naks;   /* commands that were not acknowledged (sync and
  * at most 300 ms). */
 void dsp_ctl_poll(int dsp_ready, unsigned level);
 
+/* USB audio (1.0): 1 = the DSP leaves the pedal's own sound out of the outputs (command 0x7F06). Set by the main loop;
+ * dsp_ctl_poll() sends it after start-up and whenever it changes. */
+extern volatile uint8_t dsp_ctl_direct_off;
+
 /* Builders (no hardware; also used by the host-side test). Each returns the payload length. */
 unsigned dsp_ctl_step_payload(unsigned step, unsigned level, uint8_t *p);
 uint32_t dsp_ctl_level_bits(unsigned level);      /* IEEE-754 bits of level/255, without float code */

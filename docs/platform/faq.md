@@ -11,9 +11,17 @@ The factory loader remains available for USB recovery. Some pedals also have a D
 including Valeton's updates. Those pedals may need a debug adapter wired inside the case.
 If a stalled flash leaves the pedal starting in update mode, `gp5tool.py unstick` gets it running again over USB,
 without opening it: see [Pedal stuck in update mode](j7-recovery.md#pedal-stuck-in-update-mode).
-Read [Known limits](known-limits.md) and [J7 recovery](j7-recovery.md) before deciding to flash alpha software.
+Read [Known limits](known-limits.md) and [J7 recovery](j7-recovery.md) before you flash.
 
 **Does OpenGP5 use Valeton's models or presets?** No. The firmware contains no code or data from Valeton or the chip vendor.
+
+**Does Bluetooth work?** You can choose to add Bluetooth MIDI to a build.
+It sends MIDI messages to the effect over the radio. It does not send audio.
+Use USB to flash firmware. See [Bluetooth](api.md#bluetooth).
+
+**Can the pedal be an audio interface?** Yes. A firmware built for 1.0 is a USB audio interface with 2 inputs and 2
+outputs, unless it turns it off. The computer records the firmware's finished sound and can play through the pedal.
+See [USB audio](api.md#usb-audio).
 
 **Does my data survive a change of firmware?** A different firmware ID starts with empty storage.
 Back up before switching. Launchpad offers a backup if it can read the installed build.
@@ -30,8 +38,8 @@ Those builds carry *Not reviewed*: file checks do not include a source-code revi
 The [template](https://github.com/OpenGP5/firmware-template) can build in GitHub Codespaces, in your browser.
 You need a pedal to check timing and hardware behavior.
 
-**Which platform version should I use?** These docs target platform 0.8.0-alpha.
-The planned 1.0 API began in 0.7, so a guide's “1.0 API” label does not mean a 1.0 platform release exists.
+**Which platform version should I use?** 1.0, the version these docs target. Firmwares written for 0.7 or 0.8 build
+on it unchanged.
 See [Versions](api.md#versions).
 
 **What language can I use?** The build uses C99 on both chips, with no standard C library.

@@ -47,6 +47,13 @@
 #define BOOT_FLAGS 0x4000100C
 
 volatile uint32_t proto_frames, proto_bad;
+uint8_t proto_port;                              /* where the request being handled came from: 0 USB, 1 the second port */
+
+/* A second MIDI port (optional; Bluetooth): events in the USB-MIDI shape, 4 bytes each. Without one, nothing. */
+__attribute__((weak)) unsigned gp5_midi_port_read(uint8_t *ev, unsigned max) { (void)ev; (void)max; return 0; }
+__attribute__((weak)) int gp5_midi_port_write(const uint8_t *ev, unsigned n) { (void)ev; (void)n; return 0; }
+
+static int port_write(uint8_t *ev, unsigned n) { return proto_port ? gp5_midi_port_write(ev, n) : usb_midi_write(ev, n); }
 uint8_t proto_req[PROTO_REQ_MAX];
 unsigned proto_req_len;
 
@@ -65,7 +72,7 @@ static uint8_t crc8(uint8_t c, const uint8_t *d, unsigned n)
 }
 
 /* Send one framed message (payload up to PROTO_REPLY_MAX bytes) as USB-MIDI SysEx packets, 64 bytes
- * (16 events) per bulk write. */
+ * (16 events) per bulk write, to the port the request came from (proto_port). */
 void proto_reply(uint8_t cls, uint8_t index, const uint8_t *pl, unsigned len)
 {
     static uint8_t body[4 + PROTO_REPLY_MAX], wire[2 + 2 * sizeof body];
@@ -88,9 +95,9 @@ void proto_reply(uint8_t cls, uint8_t index, const uint8_t *pl, unsigned len)
         pkt[n + 2] = left > 1 ? wire[i + 1] : 0;
         pkt[n + 3] = left > 2 ? wire[i + 2] : 0;
         n += 4;
-        if (n == sizeof pkt) { if (!usb_midi_write(pkt, n)) return; n = 0; }
+        if (n == sizeof pkt) { if (!port_write(pkt, n)) return; n = 0; }
     }
-    if (n) usb_midi_write(pkt, n);
+    if (n) port_write(pkt, n);
 }
 
 static int frame_done(void)

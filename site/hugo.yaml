@@ -17,6 +17,7 @@ module:
     - { source: ../CODE_OF_CONDUCT.md, target: content/docs/help/code-of-conduct.md }
     - { source: ../docs/assets, target: static/assets }
     - { source: ../docs/flasher, target: static/flasher }
+    - { source: ../docs/remote, target: static/remote, files: ["! /test/**", "! /package.json", "! /sync.mjs"] }
     - { source: ../docs/catalog.json, target: static/catalog.json }
     - { source: static, target: static }
     - { source: assets, target: assets }
@@ -63,4 +64,5 @@ menu:
   main:
     - { name: Docs, url: /docs/, weight: 10 }
     - { name: Web flasher, url: /flasher/, weight: 20 }
+    - { name: Phone remote, url: /remote/, weight: 25 }
     - { name: GitHub, url: https://github.com/OpenGP5, weight: 30, pre: <i class='fab fa-github'></i> }

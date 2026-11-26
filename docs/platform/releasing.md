@@ -30,8 +30,8 @@ Update `version` in `firmware.json`:
 ### 2. Pin the platform
 
 Use the OpenGP5 release you tested. Check it out in the `opengp5` folder, for example
-`git -C opengp5 checkout v0.8.0-alpha`. Set `platform` in your manifest to the release's major and minor number,
-such as `"0.8"`. Commit the pinned copy with your changes.
+`git -C opengp5 checkout v1.0.0`. Set `platform` in your manifest to the release's major and minor number,
+such as `"1.0"`. Commit the pinned copy with your changes.
 
 ### 3. Test the build
 

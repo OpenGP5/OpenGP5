@@ -121,7 +121,7 @@ cascade:
 Write an effect in C, test it on your computer, then flash it over USB.
 You need basic C knowledge and the tools in the setup guide. You can start without a pedal.
 
-These guides target **platform 0.8.0-alpha** and the planned **1.0 API** introduced in 0.7.
+These guides target **platform 1.0.0**.
 See [API versions](api/#versions) for what each number means.
 
 ## Learn

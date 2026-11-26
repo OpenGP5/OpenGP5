@@ -1,9 +1,49 @@
 # Changelog
 
 This changelog tracks the OpenGP5 platform. NAM Loader and Dreamcatcher have their own release notes.
-Versions before 1.0 are alpha. The planned 1.0 API may change before its final release.
+From 1.0, no 1.x release breaks a firmware written for 1.0 (see Versions in the API reference).
 
 Each entry says what changed in that release. Use the current guides to set up the tools or fix a failed flash.
+
+## 1.0.0: USB audio, Bluetooth MIDI, a stable API
+
+Set `"platform": "1.0"` in `firmware.json`. Firmwares written for 0.7 or 0.8 build unchanged; they get USB audio
+only with `"usb_audio": true`.
+
+### New
+
+- **The pedal is a USB audio interface.** Class-compliant, two channels each way, 16-bit, at the firmware's sample
+  rate, next to USB-MIDI; no driver on macOS or Windows (Linux should need none either: not yet tested). The computer records the firmware's finished output
+  and can play through the pedal's outputs. On by default for firmwares written for 1.0; `"usb_audio": false` turns
+  it off. A firmware that finishes its sound on the control processor (NAM Loader) uses
+  `"usb_audio": {"record_from": "control"}` and `gp5_usb_audio_record()`. See USB audio in the API reference.
+- **Direct sound off while the computer plays.** A DAW monitoring the pedal would otherwise be heard twice: once
+  straight from the pedal, once back from the DAW. Launchpad's pedal panel, `gp5_link.py direct off`, or the
+  firmware (`gp5_usb_audio_set_direct()`) leave the pedal's own sound out of the outputs while the computer plays into
+  the pedal. Recording doesn't change; with nothing playing, the pedal is always heard; back on after a restart.
+- **Bluetooth MIDI, per firmware.** With `"bluetooth": true` the pedal advertises as OpenGP5 with the BLE-MIDI
+  service. Notes, controllers, program changes and real-time messages (MIDI clock, start, stop) reach the new
+  `fw_midi()` hook, from USB as well. Launchpad, the phone remote and `gp5_link.py` work over it; flashing needs USB.
+  The radio and BLE code are OpenGP5's own.
+- **More room for firmwares.** The platform's own buffers moved to RAM the platform didn't use before, so a firmware
+  now has 264,160 bytes of control-processor RAM (was 258,016), promised for all of 1.x.
+- **Pedals whose updates stall.** `gp5tool.py tickfix` applies the 4-byte fix to the DSP updater;
+  `gp5tool.py unstick` gets a pedal out of update mode without J7; `tools/j7_nudge.py` and the J7 recovery guide
+  get the first OpenGP5 firmware onto such a pedal.
+
+### Changed
+
+- **The pedal is called OpenGP5** over USB (was GP-5 Open FW), for the MIDI port and the audio device, and over
+  Bluetooth (was GP-5). Launchpad 0.4, the web flasher and `gp5tool.py` find both names. Older versions of those tools don't see a pedal running a 1.0
+  firmware, except in update mode, which is still called GP-5.
+
+### Fixed
+
+- **The audio link recovers from more stalls.** Restarting it now clears every DMA flag, not only "done"; a latched
+  error had kept some links dead through every restart.
+- **The crash record survives a watchdog restart.** It was in memory that read as noise on most firmwares.
+- **`gp5_ms()` keeps time on heavy firmwares.** It lost milliseconds while an audio-link handler ran for over 1 ms
+  (up to 23 % slow on NAM Loader); it now catches up from the cycle counter.
 
 ## 0.8.0-alpha: the UI kit, the simulator, the template
 

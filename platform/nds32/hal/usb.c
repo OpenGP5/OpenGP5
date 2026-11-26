@@ -1,4 +1,5 @@
-/* GP-5 open platform: the BP1048's USB device controller, polled (no USB interrupt).
+/* GP-5 open platform: the BP1048's USB device controller. Control and bulk endpoints are polled from the main
+ * loop; isochronous endpoints (USB audio) are served from the USB interrupt (line 20), one packet a millisecond.
  *
  * The controller sits at 0x40000300 with an indexed endpoint register file:
  *   +0x00 function address        +0x01 power / mode           +0x0A bus events (bit 2 = reset)
@@ -15,6 +16,7 @@
 #include <stdint.h>
 #include "usb.h"
 #include "tick.h"
+#include <nds32_intrinsic.h>
 #include "../start/irq.h"
 
 #define R32(a) (*(volatile uint32_t *)(a))
@@ -33,6 +35,12 @@
 #define RXCSR8    R8(USB + 0x16)
 #define RXCSR16   R16(USB + 0x16)
 #define COUNT     R8(USB + 0x18)
+#define COUNT16   R16(USB + 0x18)
+#define INTRTX    R8(USB + 0x02)       /* endpoint interrupt flags (cleared by reading): TX = IN endpoints */
+#define INTRRX    R8(USB + 0x04)       /*                                                RX = OUT endpoints */
+#define INTRTXE   R8(USB + 0x06)       /* which endpoints may raise the interrupt line */
+#define INTRRXE   R8(USB + 0x08)
+#define INTRUSBE  R8(USB + 0x0B)       /* bus events that may raise it (none) */
 #define FIFO_ADDR(ep) (USB + 0x20 + 4u * (ep))
 
 #define PHY       0x40030004u          /* USB pad / PHY control */
@@ -239,4 +247,166 @@ int gp5_usb_bulk_receive(unsigned ep, uint8_t *buf, unsigned len, unsigned *got,
     }
     *got = total;
     return total ? GP5_USB_OK : GP5_USB_NONE;
+}
+
+/* ---- isochronous endpoints, served from the USB interrupt ----
+ * The controller is a Mentor-style one (indexed CSRs, clear-on-read interrupt flags). Settings as the vendor's
+ * OTG_DeviceEndpointReset / OTG_DeviceISOSend / OTG_DeviceISOReceive / UsbInterrupt (libDriver.a, read from the
+ * disassembly, work/usb-audio/re): IN TXCSR 0x6048 (TX mode, iso, clear toggle, flush), OUT RXCSR 0x4090 (iso,
+ * clear toggle, flush). Endpoints 4 and 5 have the FIFOs for 192-byte packets (the vendor's DEVICE_FS_ISO_*). */
+static gp5_usb_iso_fn iso_fn[8];
+static uint8_t iso_mask;               /* endpoints whose interrupt is on (one bit per endpoint number, IN or OUT) */
+
+static void irq_mask_apply(void)
+{
+    INTRTXE = iso_mask;
+    INTRRXE = iso_mask;
+    INTRUSBE = 0;
+}
+
+/* Setting an iso endpoint up flushes it, and a flush of a waiting packet raises the endpoint's interrupt flag
+ * (latched even while the interrupt is off). That stale flag is read away here, so it can't fire later with a new
+ * packet waiting (2026-11-23: it did, see gp5_usb_iso_send). Only the one direction's flags are read: reading the
+ * other would also take away a playback packet's flag while playback runs. */
+void gp5_usb_iso_in_setup(unsigned ep, unsigned maxp)
+{
+    unsigned on = gp5_irq_global_state();
+    gp5_irq_global(0);
+    {   uint8_t idx = INDEX;
+        INDEX = (uint8_t)(ep & 0xFu);
+        CSR16 = 0x6048;
+        TXMAXP16 = (uint16_t)maxp;
+        (void)INTRTX;                               /* the flush's flag (and endpoint 0's, which nothing uses) */
+        INDEX = idx;
+    }
+    if (on) gp5_irq_global(1);
+}
+
+void gp5_usb_iso_out_setup(unsigned ep, unsigned maxp)
+{
+    unsigned on = gp5_irq_global_state();
+    gp5_irq_global(0);
+    {   uint8_t idx = INDEX;
+        INDEX = (uint8_t)(ep & 0xFu);
+        CSR16 = 0;
+        RXCSR16 = 0x4090;
+        RXMAXP16 = (uint16_t)maxp;
+        (void)INTRRX;                               /* (bulk OUT is polled through its CSR: its flag isn't needed) */
+        INDEX = idx;
+    }
+    if (on) gp5_irq_global(1);
+}
+
+/* Queue one IN packet (len bytes, 0 = an empty packet). From the endpoint's interrupt callback, or with
+ * interrupts off. Returns 0, and queues nothing, while the last packet is still waiting for the host: flushing
+ * it would raise the endpoint's interrupt again at once, and the callback would flush again, for ever (the storm
+ * of 2026-11-23, which froze the pedal). Normally the interrupt comes when the packet is gone. */
+int gp5_usb_iso_send(unsigned ep, const uint32_t *words, unsigned len)
+{
+    volatile uint32_t *f32 = (volatile uint32_t *)FIFO_ADDR(ep & 0xFu);
+    uint8_t idx = INDEX;
+    unsigned i, n = len >> 2;
+
+    INDEX = (uint8_t)(ep & 0xFu);
+    if (CSR16 & 0x3u) { INDEX = idx; return 0; }   /* a packet is still waiting (ready, or in the FIFO) */
+    for (i = 0; i < n; i++) *f32 = words[i];
+    CSR16 = 0x6041;                                 /* packet ready (as the vendor's OTG_DeviceISOSend) */
+    INDEX = idx;
+    return 1;
+}
+
+/* The OUT packet waiting at an iso endpoint, read into words[] (whole words, at most max bytes). Returns its
+ * length in bytes (0 if none). From the endpoint's interrupt callback. */
+unsigned gp5_usb_iso_receive(unsigned ep, uint32_t *words, unsigned max)
+{
+    volatile uint32_t *f32 = (volatile uint32_t *)FIFO_ADDR(ep & 0xFu);
+    uint8_t idx = INDEX;
+    unsigned len = 0, i;
+
+    INDEX = (uint8_t)(ep & 0xFu);
+    if (RXCSR8 & 0x1u) {
+        len = COUNT16;
+        if (len > max) len = max;
+        for (i = 0; i < (len >> 2); i++) words[i] = *f32;
+        RXCSR16 &= ~0x1u;                           /* packet taken */
+        RXCSR8 = 0x80;                              /* (as the vendor: errors cleared) */
+    }
+    INDEX = idx;
+    return len;
+}
+
+/* fn(ep) runs from the USB interrupt when endpoint ep (its number, IN or OUT) finished a packet; 0 = off. */
+void gp5_usb_iso_irq(unsigned ep, gp5_usb_iso_fn fn)
+{
+    unsigned on = gp5_irq_global_state();
+    ep &= 7u;
+    gp5_irq_global(0);
+    iso_fn[ep] = fn;
+    if (fn) iso_mask |= (uint8_t)(1u << ep); else iso_mask &= (uint8_t)~(1u << ep);
+    irq_mask_apply();
+    if (on) gp5_irq_global(1);
+    if (iso_mask) { gp5_irq_priority(GP5_IRQ_USB, 0); gp5_irq_enable(GP5_IRQ_USB); }
+    else gp5_irq_disable(GP5_IRQ_USB);
+}
+
+volatile uint32_t gp5_usb_irq_cycles, gp5_usb_irq_count, gp5_usb_irq_worst;   /* its cost (performance counter 0) */
+volatile uint32_t gp5_usb_irq_storms;  /* times the guard below switched the interrupt off */
+
+#ifdef GP5_USB_TRACE
+/* Trace builds (GP5_USB_TRACE=1): the last 16 interrupts, in .noinit RAM (kept across a restart), frozen at the first storm (below):
+ * per entry [ms << 16 | INTRRX << 8 | INTRTX] [TXCSR of endpoint 4 | RXCSR of endpoint 5 << 16]
+ * [iso_mask | INTRTXE << 8 | INTRRXE << 16 | INTRUSBE << 24] [INT_PEND2]. pos = entries written. */
+struct gp5_usb_trace { uint32_t magic, pos, frozen, e[16][4]; };   /* (16: debug builds of big firmwares must fit) */
+volatile struct gp5_usb_trace gp5_usb_trace __attribute__((section(".noinit"), aligned(4)));
+static void trace(unsigned tx, unsigned rx)
+{
+    uint32_t k;
+    if (gp5_usb_trace.magic != 0x55534255u) { gp5_usb_trace.magic = 0x55534255u; gp5_usb_trace.pos = 0; gp5_usb_trace.frozen = 0; }
+    if (gp5_usb_trace.frozen) return;
+    k = gp5_usb_trace.pos & 15u;
+    gp5_usb_trace.e[k][0] = (gp5_ms() & 0xFFFFu) << 16 | (rx & 0xFFu) << 8 | (tx & 0xFFu);
+    INDEX = 4; gp5_usb_trace.e[k][1] = CSR16;
+    INDEX = 5; gp5_usb_trace.e[k][1] |= (uint32_t)RXCSR16 << 16;
+    gp5_usb_trace.e[k][2] = iso_mask | (uint32_t)INTRTXE << 8 | (uint32_t)INTRRXE << 16 | (uint32_t)INTRUSBE << 24;
+    gp5_usb_trace.e[k][3] = __nds32__mfsr(NDS32_SR_INT_PEND2);
+    gp5_usb_trace.pos++;
+}
+#define trace_freeze() (gp5_usb_trace.frozen = 1)
+#else
+#define trace(tx, rx) ((void)0)
+#define trace_freeze() ((void)0)
+#endif
+volatile uint32_t gp5_usb_irq_empty;   /* calls that found no flag of ours */
+
+/* The USB interrupt (start/irq.c, line 20). Saves and restores the endpoint index: the main loop's polled
+ * control and bulk transfers select endpoints through the same register.
+ * Guard: more than 20 calls within one tick of the 1 ms clock (two are normal) switch the interrupt off for good
+ * (counted in gp5_usb_irq_storms): a source that never clears must not take the processor over. The tick may
+ * itself be held up while this runs, so the count is per tick seen, not per real millisecond. */
+void gp5_usb_irq(void)
+{
+    static uint32_t last_ms, calls;
+    uint32_t c0 = __nds32__mfsr(NDS32_SR_PFMC0), c, now = gp5_ms();
+    uint8_t idx = INDEX;
+    unsigned tx = INTRTX, rx = INTRRX, flags = (tx | rx) & iso_mask, ep;
+
+    trace(tx, rx);
+    if (now != last_ms) { last_ms = now; calls = 0; }
+    if (++calls > 20u) {
+        iso_mask = 0;
+        irq_mask_apply();
+        gp5_irq_disable(GP5_IRQ_USB);
+        gp5_usb_irq_storms++;
+        trace_freeze();
+        INDEX = idx;
+        return;
+    }
+ if (!flags) gp5_usb_irq_empty++;
+    for (ep = 0; flags; ep++, flags >>= 1)
+        if ((flags & 1u) && iso_fn[ep]) iso_fn[ep](ep);
+    INDEX = idx;
+    c = __nds32__mfsr(NDS32_SR_PFMC0) - c0;
+    gp5_usb_irq_cycles += c;
+    gp5_usb_irq_count++;
+    if (c > gp5_usb_irq_worst) gp5_usb_irq_worst = c;
 }

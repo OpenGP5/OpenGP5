@@ -51,7 +51,7 @@ def main():
             sys.path.insert(0, str(HERE.parent)); import manifest
             m = manifest.load(inc.parent)                   # firmware.json: the settings come from it
             assert m, f"no {inc.parent}/firmware.json: OpenGP5 1.0 firmwares describe themselves there (docs/platform/api.md)"
-            fw += manifest.flags(m, inc.parent) + [f"-I{inc.parent}"] + (["-DAUDIO_SPI1"] if m["audio"]["link"] else [])
+            fw += manifest.flags(m, inc.parent) + [f"-I{inc.parent}"] + (["-DAUDIO_SPI1"] if m["audio"]["link"] or m.get("usb_audio") else [])
         srcs = [str(HERE / a.src)] + ([str(HERE / "gp5_math.c")] if a.src == "responder.c" else [])
         subprocess.run([tool("arm-none-eabi-gcc"), *CFLAGS, f"-I{HERE}", *fw, *[f"-D{x}" for x in a.defines],
                         f"-Wl,-T,{HERE/'link.ld'}", "-Wl,--gc-sections", *srcs, *LIBS, "-o", str(elf)], check=True)

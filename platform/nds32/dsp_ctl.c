@@ -11,6 +11,7 @@
 #include "dsp_ctl.h"
 
 uint8_t dsp_ctl_step;
+volatile uint8_t dsp_ctl_direct_off;
 uint32_t dsp_ctl_naks;
 
 static void put16(uint8_t *p, unsigned v) { p[0] = (uint8_t)v; p[1] = (uint8_t)(v >> 8); }
@@ -71,5 +72,18 @@ void dsp_ctl_poll(int dsp_ready, unsigned level)
         if (send_step(0, level)) sent_level = level;               /* else tried again in 20 ms: the sound coming on
                                                                       after start-up must not be lost */
         next = gp5_ms() + 20;
+        return;
+    }
+    {
+        static uint8_t sent_direct;                                /* the DSP starts with the pedal's sound on */
+        uint8_t want = dsp_ctl_direct_off;
+        if (want != sent_direct) {
+            static uint8_t buf[0x0C];
+            uint8_t rep[8], st;
+            put16(buf, 0x7F06); put16(buf + 2, 0x0C); put32(buf + 4, want); put32(buf + 8, 0);
+            dsp_link_raw(buf, 0x0C, rep, sizeof rep, 40, &st);
+            if (st == 0x14) sent_direct = want; else dsp_ctl_naks++;
+            next = gp5_ms() + 20;
+        }
     }
 }

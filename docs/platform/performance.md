@@ -57,6 +57,9 @@ Test with the settings that use the most time so the spare time covers changes i
   ```
 
   This code shares the 19,712-byte variable area. Use it for loops that run often and cost the most time.
+  Measured 2026-11-25 (cycles per float multiply-add): a small loop takes 13 from flash and 24 with `GP5_FAST`; 5 KB
+  of straight-line code takes 10 from flash and 12 with `GP5_FAST`. So keep small loops in flash, and use
+  `GP5_FAST` for large loops with branches, which miss the flash cache.
   The build may then warn about a "LOAD segment with RWX permissions" because the section holds code in writable RAM.
 - **`float`, never `double`.** The float unit is single precision; `double` runs in software and is many times
   slower. Write `0.5f`, not `0.5` (the build warns about doubles).

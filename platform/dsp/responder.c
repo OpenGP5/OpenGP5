@@ -252,6 +252,12 @@ static void handle(const uint8_t *p, uint32_t n) {
     (void)arg;
 #endif
     switch (cmd) {
+#if defined(GP5_USB_AUDIO) && defined(AUDIO_SPI1) && defined(GP5_FIRMWARE) && defined(AUDIO_LEVEL)
+    case 0x7F06:                      /* USB audio (1.0): [cmd][12][1 = the pedal's own sound off at the outputs] */
+        if (n >= 8) usb_direct_off = get32(p + 4) != 0;
+        send_ack();
+        return;
+#endif
 #ifdef GP5_FIRMWARE
 #ifdef AUDIO_PASSTHROUGH
     case 0x7F05:                      /* the control processor is about to hand over to its loader: go quiet */
@@ -261,6 +267,19 @@ static void handle(const uint8_t *p, uint32_t n) {
 #endif
         send_ack();
         break;
+#endif
+#ifdef AUDIO_SPI1
+    case 0x7F0E: {                    /* the audio link, for a look (gp5_link.py raw 0e7f0000): [cmd][68] blocks,
+                                         exchanges started, busy skips, no sync, lag, SPI-1 +0..+0x10, DMA0 +0, +4, +0x20,
+                                         +0x100, +0x104, +0x114, +0x120, +0x124 */
+        uint8_t r[4 + 64] = { 0x0E, 0x7F, 68, 0 };
+        uint32_t v[16] = { ST[13], ST[21], ST[22], ST[23], link_lag, REG(SPI1), REG(SPI1 + 4), REG(SPI1 + 8), REG(SPI1 + 0x10),
+                           REG(DMA0), REG(DMA0 + 4), REG(DMA0 + 0x20), REG(DMA0 + 0x100), REG(DMA0 + 0x104), REG(DMA0 + 0x114),
+                           REG(DMA0 + 0x120) };
+        for (uint32_t i = 0; i < 64; i++) r[4 + i] = (uint8_t)(v[i / 4] >> (8 * (i % 4)));
+        send_frame(r, sizeof r);
+        break;
+    }
 #endif
     case 0x7F04: {                    /* DSP load: [cmd][28][cycles last block][worst since boot][late blocks]
                                          [variables in use, bytes][GP5_LARGE in use, bytes] (1.0: the last two) */

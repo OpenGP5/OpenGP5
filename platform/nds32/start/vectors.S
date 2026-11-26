@@ -79,6 +79,13 @@ gp5_fault:
     mfsr    $r2, $IPC
     swi     $r2, [$r1 + 8]
     swi     $sp, [$r1 + 12]
+#if defined(GP5_USB_AUDIO) && defined(GP5_DEBUG_PEEK)
+    /* debug USB-audio builds: restart (the record is in .noinit and survives; main.c logs it) */
+    sethi   $r1, hi20(0x40022008)
+    ori     $r1, $r1, lo12(0x40022008)
+    movi    $r2, 1
+    swi     $r2, [$r1 + 0]
+#endif
 3:  j       3b
 
 /* ---- interrupts ---- */

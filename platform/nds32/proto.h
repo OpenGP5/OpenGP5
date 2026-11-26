@@ -17,6 +17,10 @@ void proto_reply(uint8_t cls, uint8_t index, const uint8_t *pl, unsigned len);
 void loader_handover(void);     /* does not return */
 
 extern volatile uint32_t proto_frames, proto_bad;
+extern uint8_t proto_port;               /* 0: USB; 1: the second MIDI port (Bluetooth), while its request is handled */
+/* the second MIDI port (weak; a firmware with Bluetooth defines them): USB-MIDI-shaped events, 4 bytes each */
+unsigned gp5_midi_port_read(uint8_t *ev, unsigned max);
+int      gp5_midi_port_write(const uint8_t *ev, unsigned n);
 #define PROTO_REQ_MAX 64        /* longest `7E xx` request payload */
 extern uint8_t proto_req[PROTO_REQ_MAX];
 extern unsigned proto_req_len;

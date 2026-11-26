@@ -29,4 +29,4 @@ Editing a name saves the new name on the pedal.
 ## For firmware authors
 
 Declare settings in `params.h` to show them here. See [Parameters and presets](../../platform/params/)
-for the save flags and [API versions](../../platform/api/#versions) for the planned 1.0 API.
+for the save flags and [API versions](../../platform/api/#versions) for the 1.0 API.

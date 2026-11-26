@@ -1,5 +1,8 @@
 #include "tick.h"
 #include "timer.h"
+#if defined(__nds32__)
+#include <nds32_intrinsic.h>
+#endif
 
 /* The counter has the vendor library's name because its chip-init object refers to it (see the end of
  * this file); everything of ours reads it through gp5_ms(). */
@@ -32,10 +35,27 @@ int gp5_timeout_expired(gp5_timeout_t *t)
  * GetSysTick1MsCnt / TimeOutSet / IsTimeOut / DelayMs / __udelay are what the vendor USB, efuse and
  * chip-init code call; they stay until our own code replaces those. With all of them (and gSysTick)
  * defined here, the vendor library's own tick object is not linked. */
+/* Milliseconds from the core's cycle counter once it runs (main.c starts it): a tick that comes late (a link handler
+ * over 1 ms, NAM Loader's, held it while a second one fell due) catches up instead of losing a millisecond. Counted
+ * plainly, gp5_ms() ran up to 23 % slow there (2026-11-25). Before the counter runs: one per tick. */
 void SystickInterrupt(void)
 {
     gp5_timer_int_clear(1);
+#if defined(__nds32__) && defined(GP5_CTL_MHZ)
+    {
+        static uint32_t last, acc;
+        static uint8_t on;
+        const uint32_t per = GP5_CTL_MHZ * 1000u;          /* cycles a millisecond */
+        uint32_t c;
+        if (!(__nds32__mfsr(NDS32_SR_PFM_CTL) & 1u)) { ms_count++; on = 0; return; }
+        c = __nds32__mfsr(NDS32_SR_PFMC0);
+        if (!on) { on = 1; last = c; acc = 0; ms_count++; return; }
+        acc += c - last; last = c;                          /* (the counter wraps every 13 s: ticks come far sooner) */
+        ms_count += acc / per; acc %= per;
+    }
+#else
     ms_count++;
+#endif
 }
 
 uint32_t GetSysTick1MsCnt(void) { return ms_count; }

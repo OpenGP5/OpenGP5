@@ -12,7 +12,14 @@
 
 #define LOG_SIZE 4096u                               /* a power of two */
 #define LINE_MAX 128u
-static char ring[LOG_SIZE];
+/* in the low RAM (app.ld .lowram: 0x20000000..0x20003000, the vendor SDK's flash-driver area, unused by this platform;
+ * not cleared at start-up): platform buffers there leave the firmware's RAM alone */
+#if defined(__nds32__)
+#define LOWRAM __attribute__((section(".lowram")))
+#else
+#define LOWRAM                                 /* the computer (tests, simulator): ordinary memory */
+#endif
+static LOWRAM char ring[LOG_SIZE];
 static volatile uint32_t log_w;                      /* bytes written since start (the ring holds the last LOG_SIZE) */
 
 /* one finished line into the ring (with its newline) */

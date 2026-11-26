@@ -195,6 +195,9 @@ unsigned gp5_file_each(uint32_t firm, void (*fn)(const char *, const uint8_t *, 
 static void (*link_cb)(const int32_t *in, int32_t *out);
 volatile uint32_t gp5_link_blocks;
 void gp5_link_start(void (*on_block)(const int32_t *in, int32_t *out)) { link_cb = on_block; }
+#ifdef GP5_USB_RECORD_CONTROL
+void gp5_usb_audio_record(const int32_t *left, const int32_t *right) { (void)left; (void)right; }   /* (no USB here) */
+#endif
 
 /* ---- the DSP half ---- */
 static void (*dsp_init)(const uint32_t *);

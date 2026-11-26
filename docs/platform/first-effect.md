@@ -8,8 +8,8 @@ Complete the [setup guide](setup.md) first. Run commands from the OpenGP5 folder
 The sound and control code below totals about 90 lines. The full `firmwares/tremolo` example adds presets,
 more wave shapes and smooth text.
 
-See the [API reference](api.md) for all calls. These docs target platform 0.8.0-alpha.
-The planned 1.0 API began in 0.7; the `platform` field below targets 0.8.
+See the [API reference](api.md) for all calls. These docs target platform 1.0.0.
+The `platform` field below targets 1.0.
 
 ## 1. Copy the passthrough
 
@@ -25,7 +25,7 @@ Then give it its own identity in `firmwares/my-tremolo/firmware.json`:
   "name": "My Tremolo",
   "version": "0.1.0",
   "author": "you",
-  "platform": "0.8"
+  "platform": "1.0"
 }
 ```
 

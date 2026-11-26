@@ -20,7 +20,14 @@
 #endif
 
 static uint32_t buf[(HDR + GP5_STORE_MAX) / 4];     /* the record being written: programming reads RAM words */
-static uint32_t keep[GP5_FLASH_SECTOR / 4];          /* other firmwares' newest records, copied across a sector switch */
+/* in the low RAM (app.ld .lowram: 0x20000000..0x20003000, the vendor SDK's flash-driver area, unused by this platform;
+ * not cleared at start-up): platform buffers there leave the firmware's RAM alone */
+#if defined(__nds32__)
+#define LOWRAM __attribute__((section(".lowram")))
+#else
+#define LOWRAM                                 /* the computer (tests, simulator): ordinary memory */
+#endif
+static LOWRAM uint32_t keep[GP5_FLASH_SECTOR / 4];          /* other firmwares' newest records, copied across a sector switch */
 #define KEEP_IDS 16
 
 static uint16_t crc16_at(unsigned off, const uint8_t *ram, unsigned n)   /* of the store at off, or of ram */

@@ -6,6 +6,7 @@
   "url": "https://github.com/OpenGP5/OpenGP5",
   "licence": "MIT",
   "description": "The volume rises and falls: the example firmware (parameters, presets, screen, controls).",
-  "platform": "0.7",
-  "presets": 4
+  "platform": "1.0",
+  "presets": 4,
+  "bluetooth": true
 }

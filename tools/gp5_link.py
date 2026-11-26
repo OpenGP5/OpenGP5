@@ -12,6 +12,9 @@
   gp5_link.py info                 what the pedal runs: the firmware's name, version and author (OpenGP5 1.0)
   gp5_link.py params               the firmware's parameters (1.0): name, group, value, range
   gp5_link.py set <name|id> <value> set a parameter (a choice by its name too: set SHAPE Ramp)
+  gp5_link.py direct [on|off]      USB audio (1.0): the playback and recording counters, and whether the pedal's own sound reaches its outputs while the
+                                   computer plays into the pedal. Off when a DAW monitors the pedal, so it isn't
+                                   heard twice; with nothing playing, the pedal is always heard. Not kept over a restart
   gp5_link.py presets              the presets: which hold a sound, their names, the one loaded
   gp5_link.py preset load|save <n>    /    preset name <n> <new name>
   gp5_link.py flash-read <addr> <length> [out.bin]
@@ -28,7 +31,7 @@ A firmware's own DSP commands start at 0x7F11 (platform/dsp/gp5_dsp.h; 0x7F10 ca
 `gp5_link.py raw <payload>` sends one and prints the reply. Nothing here writes the pedal's flash.
 Needs `pip install mido python-rtmidi`.
 """
-import struct, sys
+import os, struct, sys
 import gp5tool
 from gp5tool import MidiPorts, ask as _ask
 
@@ -75,7 +78,9 @@ def ask(link, payload, timeout=1.0):
 
 def open_link():
     ports = MidiPorts()
-    names = [n for n in ports.names() if gp5tool.OPEN_PORT in n]
+    want = os.environ.get("GP5_PORT")                      # e.g. GP5_PORT="OpenGP5 Bluetooth" for the pedal over Bluetooth
+    names = [n for n in ports.names()
+             if ((want in n and (want != "GP-5" or not gp5tool.is_open_port(n))) if want else gp5tool.is_open_port(n))]
     if not names: sys.exit("no GP-5 running the open firmware found on USB")
     return ports.open(names[0])
 
@@ -122,7 +127,8 @@ def flash_read(link, addr, length):
 
 def main():
     a = sys.argv[1:] or ["stats"]
-    if a[0] not in ("version", "stats", "raw", "load", "flash-read", "info", "params", "set", "presets", "preset", "log", "status"): sys.exit(__doc__)
+    if a[0] not in ("version", "stats", "raw", "load", "flash-read", "info", "params", "set", "presets", "preset", "log", "status", "direct"): sys.exit(__doc__)
+    if a[0] == "direct" and a[1:] not in ([], ["on"], ["off"]): sys.exit(__doc__)
     link = open_link()
     if a[0] == "version":
         pl = ask(link, [0x7E, 0x00])
@@ -197,6 +203,17 @@ def main():
         pl = ask(link, [0x7E, 0x10, p["id"] & 0xFF, p["id"] >> 8, *struct.pack("<i", v)])
         p["value"] = params(link)[p["id"]]["value"]
         print(f"{p['name']} = {text(link, p)}" if pl and pl[2] == 1 else f"refused (read-only?)")
+    elif a[0] == "direct":
+        pl = ask(link, [0x7E, 0x19] + ([1 if a[1] == "on" else 0] if a[1:] else []))
+        if not pl or len(pl) < 5 or pl[2] != 1: print("no USB audio in this firmware (or one built before OpenGP5 1.0)")
+        else:
+            print("the pedal's own sound at its outputs while the computer plays: %s (the computer is %s)"
+                  % ("on" if pl[3] else "off", "playing" if pl[4] else "not playing: the pedal is heard"))
+            if len(pl) >= 24:                    # 1.0: playback and recording counters since start-up
+                under, over, ppm, fill, rover = struct.unpack_from("<IIiHI", pl, 5)
+                print("playback: ran dry %d times, overflowed %d; clock correction %+d ppm (limit 2000); %d frames waiting"
+                      % (under, over, ppm, fill))
+                print("recording: %s, overflowed %d times" % ("on" if pl[23] else "off", rover))
     elif a[0] == "presets":
         pl = ask(link, [0x7E, 0x17, 0])
         if not pl or pl[2] != 1: print("no presets"); return

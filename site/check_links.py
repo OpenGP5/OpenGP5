@@ -3,7 +3,7 @@
 
   python3 site/check_links.py site/public [/base/]
 
-Links to other sites aren't fetched. The web flasher (flasher/) is its own app and is skipped.
+Links to other sites aren't fetched. The web flasher (flasher/) and the phone remote (remote/) are their own apps and are skipped.
 """
 import os, sys
 from html.parser import HTMLParser
@@ -25,7 +25,7 @@ class Page(HTMLParser):
 
 
 for f in root.rglob("*.html"):
-    if f.relative_to(root).parts[0] == "flasher": continue
+    if f.relative_to(root).parts[0] in ("flasher", "remote"): continue
     p = Page(f); p.feed(f.read_text(errors="ignore")); pages[f] = p.ids
 
 bad = []

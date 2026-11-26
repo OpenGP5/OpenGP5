@@ -42,22 +42,26 @@ The control chip runs the screen, controls, USB and storage. It can share sound 
 | DSP variables and fast code | 19,712 bytes shared with `GP5_FAST` code |
 | DSP large buffers | 122,880 bytes through `GP5_LARGE` |
 | DSP code and constants | 38,920 bytes |
-| Control-processor RAM | 258,016 bytes |
+| Control-processor RAM | 264,160 bytes |
 | Control-processor code and constants | About 1.4 MB |
 | Storage | About 300 KB; store records up to 1 KB, files and up to 64 presets |
 | Parameters | Signed whole numbers, −32,768 to 32,767; about 250 in one saved set |
-| Audio link | Up to 264 32-bit words each way per block; round trip of three blocks |
+| Audio link | Up to 264 32-bit words each way per block (200 while USB audio records from the DSP); round trip of three blocks |
 | Screen | 160 × 80 pixels |
 
 A round trip takes about 4.4 ms at 44.1 kHz or 4 ms at 48 kHz.
 A saved parameter set uses four bytes per entry in a 1 KB record.
-The [1.x memory promise](api.md#versions) is part of the planned 1.0 API; `tools/check_budget.py` checks the budgets.
+The [1.x memory promise](api.md#versions) holds for all of 1.x; `tools/check_budget.py` checks the budgets.
 
 A different firmware starts with no saved data. Back up before you switch.
 The code does not use Valeton's amp models or presets.
 
 ### Features and processor limits
 
+- **USB audio is 16-bit, 2 in and 2 out, at the firmware's sample rate.** It costs about 4 % of the control
+  processor and 64 words of the audio link each way. See [USB audio](api.md#usb-audio).
+- **A build can use Bluetooth MIDI.** Set `"bluetooth": true` in the manifest to turn on the radio.
+  The radio code is OpenGP5's own. Use USB to flash firmware. See [Bluetooth](api.md#bluetooth).
 - **The control chip's fused multiply-add instruction hangs the chip.** The platform build does not use it.
   Its float unit needs about five cycles per operation. See [Performance](performance.md).
 - **Screen tools cover text and pixels.** The UI kit adds settings pages and menus.

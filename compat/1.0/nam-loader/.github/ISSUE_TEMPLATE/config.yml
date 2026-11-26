@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: A question, an idea, or show what you made
+    url: https://github.com/OpenGP5/OpenGP5/discussions
+    about: OpenGP5's Discussions are the place for questions and conversation.
+  - name: My pedal won't start after flashing
+    url: https://opengp5.github.io/docs/get-started/recovery/
+    about: "Usually fixable: unplug, hold the foot switch and press PARA in, plug in, flash again. Read this first."
+  - name: Flashing, recovery or the platform itself
+    url: https://github.com/OpenGP5/OpenGP5/issues/new/choose
+    about: Problems that aren't this firmware's go to OpenGP5.

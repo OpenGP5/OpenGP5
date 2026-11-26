@@ -51,6 +51,11 @@ extern void SystickInterrupt(void);     /* hal/tick.c: 1 ms tick (timer 1) */
 extern void UART0_Interrupt(void);      /* dsp_link.c: DSP link receive */
 extern void Timer2Interrupt(void);      /* led.c: LED brightness */
 extern void gp5_link_irq(void);         /* audio_link.c: audio link exchange done (DMA channel 4) */
+extern void gp5_usb_irq(void);          /* hal/usb.c: isochronous endpoints (USB audio) */
+
+/* Bluetooth (optional): a firmware that uses the radio defines these; without them the lines act as stray ones. */
+__attribute__((weak)) void gp5_bt_irq(void) { stray(18); }    /* classic core: its fine timer */
+__attribute__((weak)) void gp5_ble_irq(void) { stray(19); }   /* BLE core: event end, receive, errors */
 
 typedef void (*gp5_irq_fn)(unsigned line);
 #define H(f) ((gp5_irq_fn)(void (*)(void))(f))
@@ -61,6 +66,9 @@ const gp5_irq_fn gp5_irq_table[GP5_IRQ_COUNT] = {
     [GP5_IRQ_UART0] = H(UART0_Interrupt),
     [GP5_IRQ_TIMER2] = H(Timer2Interrupt),
     [13] = H(gp5_link_irq),
+    [GP5_IRQ_USB] = H(gp5_usb_irq),
+    [18] = H(gp5_bt_irq),
+    [19] = H(gp5_ble_irq),
 };
 
 /* Names the vendor objects that are still linked (USB) call. */

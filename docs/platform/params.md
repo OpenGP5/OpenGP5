@@ -7,7 +7,7 @@ Declare your firmware's settings in `params.h`. The platform uses that list to:
 - keep named presets if the manifest defines slots;
 - let a computer read and change values.
 
-Launchpad uses the list to build its Live editor. Parameter support began in platform 0.7 as part of the planned 1.0 API.
+Launchpad uses the list to build its Live editor. Parameter support began in platform 0.7, with the 1.0 API.
 
 Your control code can read and set these values. The [UI kit](ui.md) supplies a settings page
 that lets users select and edit them with PARA.

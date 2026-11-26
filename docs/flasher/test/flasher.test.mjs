@@ -128,5 +128,7 @@ test("flash: staying in update mode afterwards, and a silent app afterwards, are
 test("ports: input and output names pair up across systems", () => {
   assert.equal(F.portBase("GP-5 Open FW:GP-5 Open FW MIDI 1 16:0"), "GP-5 Open FW");
   assert.equal(F.portBase("GP-5 Open FW 2"), "GP-5 Open FW");
+  assert.equal(F.portBase("OpenGP5:OpenGP5 MIDI 1 16:0"), "OpenGP5");
+  assert.equal(F.portBase("OpenGP5 2"), "OpenGP5");
   assert.equal(F.portBase("GP-5"), "GP-5");
 });

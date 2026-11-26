@@ -39,6 +39,5 @@ a backup holds the 100 presets; export SnapTones and user IRs in Valeton Suite.
 controls and storage. Your code defines the sound and interface.
 
 > [!NOTE]
-> OpenGP5 is in **alpha**. These docs target **platform 0.8.0-alpha**. These docs also describe the planned
-> **1.0 API**, which began in 0.7. The API is the set of functions and commands firmware can use; it may change
-> before 1.0 final. See [Beta testing](help/beta-testing/) to report how your pedal works.
+> These docs target **platform 1.0.0**. Its API, the set of functions and commands firmware can use, doesn't change
+> in a way that breaks a firmware for all of 1.x. See [Beta testing](help/beta-testing/) to report how your pedal works.

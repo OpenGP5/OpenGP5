@@ -6,6 +6,6 @@
   "url": "https://github.com/you/my-effect",
   "licence": "MIT",
   "description": "An overdrive: drive, tone and level, four presets.",
-  "platform": "0.7",
+  "platform": "1.0",
   "presets": 4
 }

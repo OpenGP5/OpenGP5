@@ -16,13 +16,23 @@ O=$APP/out; mkdir -p "$O/gen"; cd "$O"; rm -f ./*.o app.elf app.bin app.dis app.
 INC="-I$APP -I$FW -I$FW/.. -I$APP/../dsp"   # $FW/..: the firmware's params.h (1.0)     # last: gp5_math.h / gp5_math.c, the maths both processors can use
 CF="-std=gnu99 -DUI_PANEL -mcpu=d1088-spu -mext-dsp -mext-zol -mcmodel=medium -Os -g -Wall -fmessage-length=0 -fsingle-precision-constant -ffunction-sections -fdata-sections $INC"
 if [ -n "${GP5_DEBUG_PEEK:-}" ]; then CF="$CF -DGP5_DEBUG_PEEK"; fi     # debug builds: 7E 0A / 7E 0B read registers over USB
+if [ -n "${GP5_BT_TRACE:-}" ]; then CF="$CF -DGP5_BT_TRACE"; fi
+if [ -n "${GP5_USB_TRACE:-}" ]; then CF="$CF -DGP5_USB_TRACE"; fi
+if [ -n "${GP5_USB_DIAG:-}" ]; then CF="$CF -DGP5_USB_DIAG"; fi          # test builds: a log line about USB playback every 5 s        # trace builds: USB interrupts and SETUP packets in RAM (work/usb-audio/usb_audio_trace.py)
+if [ -n "${GP5_USB_REC_RAMP:-}" ]; then CF="$CF -DGP5_USB_REC_RAMP"; fi   # test builds: USB recording = a frame counter       # debug builds: the Bluetooth trace and tallies in RAM (work/bluetooth/tools/bt_trace.py)
 GEN=$O/gen                          # firmware.json -> flags + metadata block (platform/manifest.py, run by build_firmware.sh)
 [ -f "$GEN/manifest.flags" ] || { echo "no $GEN/manifest.flags: build with platform/build_firmware.sh (it reads firmware.json)"; exit 1; }
 CF="$CF $(cat "$GEN/manifest.flags")"; META="$GEN/gp5_meta.c"
 # (No fused multiply-adds, -mext-fpu-fma: this processor's float unit hangs on them, measured 2026-11-16.)
 
+USB_SRC=()                          # USB audio (firmware.json "usb_audio", on unless false): usb_audio.c
+case " $CF " in *" -DGP5_USB_AUDIO "*) USB_SRC=("$APP/usb_audio.c") ;; esac
+BT_SRC=()                           # Bluetooth (firmware.json "bluetooth": true): the radio, BLE, BLE-MIDI
+case " $CF " in *" -DGP5_BLUETOOTH "*) BT_SRC=("$APP/bt/radio.c" "$APP/bt/ble.c" "$APP/bt/gp5_bt.c") ;; esac
+
 # Platform (start-up, drivers in hal/, USB-MIDI, DSP link, LEDs, screen) + the firmware's own code.
 for f in "$APP/main.c" "$APP/led.c" "$APP/usb_midi.c" "$APP/proto.c" "$APP/dsp_link.c" "$APP/dsp_ctl.c" "$APP/hal/gpio.c" "$APP/hal/wdg.c" "$APP/hal/spim.c" "$APP/hal/adc.c" "$APP/hal/uart0.c" "$APP/hal/timer.c" "$APP/hal/tick.c" "$APP/hal/backlight.c" "$APP/hal/clock.c" "$APP/hal/usb.c" "$APP/hal/flash.c" "$APP/hal/spis.c" "$APP/audio_link.c" "$APP/text.c" "$APP/gp5_store.c" "$APP/gp5_files.c" "$APP/gp5_params.c" "$APP/gp5_ui.c" "$APP/gp5_log.c" ${META:+"$META"} "$FW"/*.c \
+         ${BT_SRC[@]+"${BT_SRC[@]}"} ${USB_SRC[@]+"${USB_SRC[@]}"} \
          "$APP/start/vectors.S" "$APP/start/startup.c" "$APP/start/irq.c" "$APP/start/cache.c"; do
   b=$(basename "$f"); X=
   [ "$b" = cache.c ] && X=-mno-ext-zol      # no hardware-loop registers touched on the way to the factory loader

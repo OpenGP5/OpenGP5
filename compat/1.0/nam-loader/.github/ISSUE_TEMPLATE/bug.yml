@@ -1,0 +1,45 @@
+name: Bug
+description: Something in NAM Loader doesn't work or sound as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. If the pedal doesn't start after a flash, try [recovery](https://opengp5.github.io/docs/get-started/recovery/) first. Problems with Launchpad's Tones page are welcome here too.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen again
+      placeholder: "1. Load a capture in slot 3\n2. Choose IR 5\n3. ..."
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: NAM Loader version, and Launchpad's if you used it
+      placeholder: "NAM Loader 1.3.1, Launchpad 0.3.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      multiple: true
+      options: [The sound, A capture (converting or loading), A cab IR, Gate or EQ, The screen or controls, Launchpad's Tones page, Building]
+  - type: input
+    id: system
+    attributes:
+      label: Your computer's system
+      placeholder: macOS 15, Windows 11, Ubuntu 24.04 ...
+  - type: textarea
+    id: log
+    attributes:
+      label: Output, log or screenshots
+      description: "Name the capture (and where it's from, if it's public) for a sound problem. Launchpad's **Developer** page has the pedal's log (**Save the log**), or a photo of the screen."
+      render: text

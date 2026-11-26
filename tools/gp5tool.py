@@ -46,7 +46,9 @@ MODE_OPEN, MODE_STOCK, MODE_LOADER = "open firmware", "stock firmware", "update 
 # A GP-5 port that does not answer the state query. Seen on hardware when Valeton's app runs with a DSP
 # firmware it does not know: its screen stays dark, but it still obeys the restart-into-update command.
 MODE_SILENT = "firmware that does not answer"
-OPEN_PORT, ANY_PORT = "GP-5 Open FW", "GP-5"
+OPEN_PORT, ANY_PORT = "OpenGP5", "GP-5"            # the open firmware's port from 1.0 ("OpenGP5"); Valeton's and the loader's
+OPEN_PORTS = ("OpenGP5", "GP-5 Open FW")             # ... and before 1.0
+def is_open_port(n): return "Bluetooth" not in n and any(p in n for p in OPEN_PORTS)   # USB: "OpenGP5 Bluetooth" isn't
 RECOVERY = ("Recovery: unplug the pedal, hold the foot switch and the PARA knob, plug it back in: the screen shows a\n"
             "red warning, \"When updating Please don't shut down!\" (update mode). Then run the flash again. The factory\n"
             "loader is never overwritten.")
@@ -199,7 +201,7 @@ class Timing:
 
 def port_base(name):
     """The device part of a MIDI port name, the same for a device's input and output on every system:
-    Linux 'GP-5:GP-5 MIDI 1 16:0', macOS 'GP-5 Open FW', Windows 'GP-5 Open FW 2' (output) / '... 1' (input)."""
+    Linux 'OpenGP5:OpenGP5 MIDI 1 16:0', macOS 'OpenGP5', Windows 'OpenGP5 2' (output) / '... 1' (input)."""
     return re.sub(r"\s+\d+$", "", name.split(":")[0]).strip()
 
 
@@ -330,7 +332,7 @@ def find(ports):
         names = ports.names()
     except Exception:
         return None, None
-    name = next((n for n in names if OPEN_PORT in n), None)
+    name = next((n for n in names if is_open_port(n)), None)
     if name: return name, MODE_OPEN
     name = next((n for n in names if ANY_PORT in n), None)
     if not name: return None, None

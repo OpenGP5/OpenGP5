@@ -15,15 +15,26 @@
 /* Framing (the DSP side, platform/dsp/audio.h, has the same): each side sends [sync word][GP5_LINK_WORDS words]
  * [PAD zero bytes]. This side's SPI slave keeps a few bytes queued from one exchange to the next, so the DSP finds
  * the sync word a few bytes in and copies from there; here the DSP's words are looked for the same way. */
+#ifdef GP5_USB_AUDIO
+#include "usb_audio.h"
+#endif
+/* The words in one exchange: the firmware's GP5_LINK_WORDS, plus USB audio's 64 (GP5_LINK_TOTAL from manifest.py; a
+ * firmware without a link of its own gets one for USB audio). */
+#ifdef GP5_LINK_TOTAL
+#define LINK_T GP5_LINK_TOTAL
+#else
+#define LINK_T GP5_LINK_WORDS
+#endif
 #define SYNC_D 0xC0DE5A17u                         /* DSP -> here */
 #define SYNC_N 0xC0DE5A71u                         /* here -> DSP */
 #define PAD    32u
-#define BYTES  (4u + GP5_LINK_WORDS * 4u + PAD)
+#define BYTES  (4u + LINK_T * 4u + PAD)
 #define BUFW   (((BYTES + 31u) / 32u) * 8u + 8u)    /* whole cache lines, + slack for the search */
 static int32_t rx[2][BUFW] __attribute__((aligned(32)));
 static int32_t tx[2][BUFW] __attribute__((aligned(32)));
-static int32_t in_copy[GP5_LINK_WORDS];
+static int32_t in_copy[LINK_T];
 static unsigned cur, waiting, started, resync;   /* resync: the last frame had no sync word: arm in the gap */
+volatile uint32_t gp5_link_t_in, gp5_link_t_out;     /* cycle counter at the handler's last start / end (bt/ble.c) */
 volatile uint32_t gp5_link_cycles, gp5_link_worst;   /* the firmware's on_block: cycles last block, worst (7E 14) */
 static void (*on_block)(const int32_t *in, int32_t *out);
 volatile uint32_t gp5_link_blocks, gp5_link_early, gp5_link_failed, gp5_link_lost, gp5_link_lag;
@@ -39,7 +50,7 @@ static const int32_t *find_words(const int32_t *raw)       /* the words after th
     if (o > PAD) return 0;
     gp5_link_lag = o;
     if (!(o & 3u)) return raw + o / 4u + 1u;
-    for (i = 0; i < GP5_LINK_WORDS * 4u; i++) d[i] = r[o + 4u + i];
+    for (i = 0; i < LINK_T * 4u; i++) d[i] = r[o + 4u + i];
     return in_copy;
 }
 
@@ -58,6 +69,10 @@ static void wait_gap(void)
 void gp5_link_irq(void)
 {
     unsigned k = cur;
+    gp5_link_t_in = __nds32__mfsr(NDS32_SR_PFMC0);
+#ifdef GP5_USB_AUDIO
+    uint32_t t0 = __nds32__mfsr(NDS32_SR_PFMC0);             /* a fixed time after the DSP's block: USB audio's clock */
+#endif
     if (!gp5_spis_done()) {                                   /* receive done before send: comes again */
         gp5_link_early++;
         /* never finishing would keep this interrupt firing and starve everything else (USB too): give up */
@@ -75,19 +90,28 @@ void gp5_link_irq(void)
     if (resync) wait_gap();
     gp5_spis_rearm(tx[cur], rx[cur], BYTES);
     LINES(rx[k], NDS32_CCTL_L1D_VA_INVAL);
+#ifdef GP5_USB_AUDIO
+    if (1) {                                                  /* USB audio needs the words even without on_block */
+#else
     if (on_block) {
+#endif
         const int32_t *in = find_words(rx[k]);
         unsigned i;
         resync = !in;
-        if (!in) { for (i = 0; i < GP5_LINK_WORDS; i++) in_copy[i] = 0; in = in_copy; gp5_link_lost++; }
-        {   uint32_t c0 = __nds32__mfsr(NDS32_SR_PFMC0);          /* its cycles, for the load report (7E 14) */
+        if (!in) { for (i = 0; i < LINK_T; i++) in_copy[i] = 0; in = in_copy; gp5_link_lost++; }
+        if (on_block) {
+            uint32_t c0 = __nds32__mfsr(NDS32_SR_PFMC0);          /* its cycles, for the load report (7E 14) */
             on_block(in, tx[k] + 1);
             gp5_link_cycles = __nds32__mfsr(NDS32_SR_PFMC0) - c0;
             if (gp5_link_cycles > gp5_link_worst && gp5_link_blocks > 100u) gp5_link_worst = gp5_link_cycles;
         }
+#ifdef GP5_USB_AUDIO
+        usb_audio_link_block(in, tx[k] + 1, t0);              /* after the firmware: its recorded block is in */
+#endif
     }
     LINES(tx[k], NDS32_CCTL_L1D_VA_WB);
     gp5_link_blocks++;
+    gp5_link_t_out = __nds32__mfsr(NDS32_SR_PFMC0);
 }
 
 static void link_arm(void)                         /* (re)start the exchanges from a clean state */
@@ -133,7 +157,14 @@ void gp5_link_check(void)
     if (b != seen || !since) { seen = b; since = now ? now : 1u; return; }
     if (now - since < LINK_STALL_MS) return;
     gp5_link_restarts++;
-    if (gp5_link_restarts <= 5u)
+    if (gp5_link_restarts & 1u) {                   /* first: clear the DMA flags and let the channels run on (a channel
+                                                     * stopped with done + error comes back from this; arming afresh
+                                                     * ran into the same state again, 2026-11-23) */
+        gp5_spis_clear_flags();
+        seen = gp5_link_blocks; since = gp5_ms() ? gp5_ms() : 1u;
+        return;
+    }
+    if (gp5_link_restarts <= 10u)
         gp5_log("audio link: no exchange for %u ms (%u so far, %s, %u waits, %u lost): starting it again",
                 (unsigned)(now - since), (unsigned)b, gp5_link_failed ? "handler gave up" : "no interrupt",
                 (unsigned)gp5_link_early, (unsigned)gp5_link_lost);

@@ -2,17 +2,17 @@
  {
   "file": "GP-5_tremolo.bin",
   "title": "Tremolo (example)",
-  "description": "The volume rises and falls. The example firmware: turn PARA to pick rate, depth, shape or preset, click to adjust, hold to save; the foot switch turns it on and off.",
-  "version": "v1.1.0 (OpenGP5 0.8.0)",
-  "sha256": "dcfe01f19e45064c05b3c1e993ec1b123560fd3d3b6a3180d3d86f9881395f8e",
+  "description": "The volume rises and falls. The example firmware: turn PARA to pick rate, depth, shape or preset, click to adjust, hold to save; the foot switch turns it on and off. Bluetooth MIDI, USB audio.",
+  "version": "v1.2.0 (OpenGP5 1.0.0)",
+  "sha256": "a46b8c70be90bd1937647a7bc5f496bacb106753deedd2a6a6b4e7c1ca568ecd",
   "id": "tremolo"
  },
  {
   "file": "GP-5_dreamcatcher.bin",
   "title": "Dreamcatcher",
-  "description": "Ambient looper, glitch delay with grains and pitch shifting, and reverb, free or in time with a tempo. 8 presets. Source: github.com/OpenGP5/Dreamcatcher.",
-  "version": "v1.4.0 (OpenGP5 0.8.0)",
-  "sha256": "caba2a3b43cefc05008f38dd2bd1824e22a81933388a11a88c612efc264d09ab",
+  "description": "Ambient looper, glitch delay with grains and pitch shifting, and reverb, free or in time with a tempo. 8 presets, Bluetooth MIDI, USB audio. Source: github.com/OpenGP5/Dreamcatcher.",
+  "version": "v1.5.0 (OpenGP5 1.0.0)",
+  "sha256": "2e1cfcfa395d5016839a567acbbe1cf3b483665dd0c351f3d2ea71d0c62895c9",
   "id": "dreamcatcher"
  }
 ]

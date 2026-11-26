@@ -19,11 +19,55 @@ def bad(obj, what):
 
 base = {"id": "my-delay", "name": "My delay", "version": "0.1.0"}
 m = M.load(with_json(base))
-check(m["audio"] == {"sample_rate": 44100, "link": False} and m["control"] == {"mhz": 288} and m["presets"] == 0, "defaults")
-check(M.flags(m) == ["-DGP5_API1", '-DGP5_FW_ID="my-delay"', "-DGP5_SAMPLE_RATE=44100u", "-DGP5_CTL_MHZ=288u"], "flags, no link")
-m2 = M.load(with_json(dict(base, audio={"sample_rate": 48000, "link_words": 264, "link_early": True}, control={"mhz": 320}, presets=8)))
+check(m["audio"] == {"sample_rate": 44100, "link": False} and m["control"] == {"mhz": 288} and m["presets"] == 0
+      and m["usb_audio"] is False, "defaults (no platform given: USB audio off)")
+mu = M.load(with_json(dict(base, usb_audio=True)))
+check(M.flags(mu) == ["-DGP5_API1", '-DGP5_FW_ID="my-delay"', "-DGP5_SAMPLE_RATE=44100u", "-DGP5_CTL_MHZ=288u", "-DGP5_USB_AUDIO",
+                     "-DGP5_LINK_TOTAL=64u", "-DGP5_USB_PLAY_AT=0u", "-DGP5_USB_REC_AT=0u"], "flags, no link: USB audio's own")
+m0 = M.load(with_json(dict(base, usb_audio=False)))
+check(M.flags(m0) == ["-DGP5_API1", '-DGP5_FW_ID="my-delay"', "-DGP5_SAMPLE_RATE=44100u", "-DGP5_CTL_MHZ=288u"], "flags, no USB audio")
+m2 = M.load(with_json(dict(base, audio={"sample_rate": 48000, "link_words": 264, "link_early": True}, control={"mhz": 320}, presets=8,
+                           usb_audio=False)))
 check(M.flags(m2) == ["-DGP5_API1", '-DGP5_FW_ID="my-delay"', "-DGP5_SAMPLE_RATE=48000u", "-DGP5_CTL_MHZ=320u", "-DGP5_AUDIO_LINK",
                       "-DGP5_LINK_EARLY", "-DGP5_LINK_WORDS=264u", "-DGP5_PRESETS=8u"], "flags, link + presets")
+m3 = M.load(with_json(dict(base, audio={"link_words": 136}, usb_audio=True)))
+check(M.flags(m3)[4:] == ["-DGP5_AUDIO_LINK", "-DGP5_LINK_WORDS=136u", "-DGP5_USB_AUDIO", "-DGP5_LINK_TOTAL=200u",
+                          "-DGP5_USB_PLAY_AT=136u", "-DGP5_USB_REC_AT=136u"], "flags, link + USB audio from the DSP")
+m4 = M.load(with_json(dict(base, audio={"link_words": 248}, usb_audio={"record_from": "control"})))
+check(M.flags(m4)[4:] == ["-DGP5_AUDIO_LINK", "-DGP5_LINK_WORDS=248u", "-DGP5_USB_AUDIO", "-DGP5_LINK_TOTAL=264u",
+                          "-DGP5_USB_PLAY_AT=200u", "-DGP5_USB_RECORD_CONTROL"], "flags, USB audio recorded on the control processor")
+bad(dict(base, audio={"link_words": 208}, usb_audio=True), "USB audio from the DSP with more than 200 words")
+# USB audio's default (decided 2026-11-24): on for firmwares written for platform 1.0 or later, off for older ones
+m8 = M.load(with_json(dict(base, platform="0.8", audio={"link_words": 264})))
+check(m8["usb_audio"] is False, "a 0.8 firmware with 264 link words still builds, without USB audio (NAM Loader 1.3.1)")
+# 0.7 and 0.8 introduced the 1.0 API: they build on any 1.x; before 0.7 (another API) and 2.x don't
+real = M.platform_version
+M.platform_version = lambda: "1.3.0"
+try:
+    M.load(with_json(dict(base, platform="0.7"))); M.load(with_json(dict(base, platform="0.8")))
+    M.load(with_json(dict(base, platform="1.3")))
+    check(True, "")
+finally:
+    M.platform_version = real
+M.platform_version = lambda: "1.3.0"
+try:
+    bad(dict(base, platform="0.6"), "a 0.6 firmware on 1.x")
+    bad(dict(base, platform="1.4"), "a newer minor")
+    bad(dict(base, platform="2.0"), "another major")
+finally:
+    M.platform_version = real
+real = M.platform_version
+M.platform_version = lambda: "1.0.0"
+try:
+    check(M.load(with_json(dict(base, platform="1.0")))["usb_audio"] == {"record_from": "dsp"}, "a 1.0 firmware: USB audio on")
+    check(M.load(with_json(dict(base, platform="1.0", usb_audio=False)))["usb_audio"] is False, "a 1.0 firmware can turn it off")
+    bad(dict(base, platform="1.0", audio={"link_words": 264}), "a 1.0 firmware: 264 words don't leave room for USB audio")
+finally:
+    M.platform_version = real
+bad(dict(base, usb_audio={"record_from": "control"}), "record_from control without a link")
+bad(dict(base, usb_audio={"record_from": "dac"}), "record_from unknown")
+bad(dict(base, usb_audio={"channels": 4}), "usb_audio field unknown")
+bad(dict(base, usb_audio="yes"), "usb_audio not a boolean or an object")
 check(M.load(tempfile.mkdtemp()) is None, "no manifest: None")
 bad("{not json", "broken JSON")
 bad([1], "not an object")

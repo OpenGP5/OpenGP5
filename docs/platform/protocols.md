@@ -27,8 +27,8 @@ Square brackets mark parts you can leave out. In frame diagrams, brackets group 
 | NAK | Reply that rejects a message or asks for a retry |
 | Nibble | Four bits, or half a byte |
 
-The **1.0** notes name the planned API that began in platform 0.7.
-These docs target platform 0.8.0-alpha. See [Versions](api.md#versions).
+Commands marked **1.0** belong to the API that began in platform 0.7.
+These docs target platform 1.0.0. See [Versions](api.md#versions).
 
 ## 1. USB-MIDI framing
 
@@ -90,6 +90,7 @@ The pedal replies to update frames with `14 08 00`. A non-zero third byte asks f
 | `7E 0D` | `7E 0D 1 <major> <minor> <patch> <name…> 0` | which firmware this is (platform 0.2.2 and later): the platform's version and the firmware's name (1.0: the manifest's `id`; before: `fw_name()`) |
 | `7E 16 <offset u16>` | `7E 16 1 <total u16> <up to 48 bytes>` | the firmware's metadata block from `offset` (1.0; `7E 16 0` for a firmware without a manifest). Format: `"GP5META1"`, length u32, the manifest as JSON, NUL, padding to 4, CRC-32 of the JSON (`platform/manifest.py`) |
 | `7E 14 [1]` | `7E 14 1 <15 values, u32 each>` | load and memory (1.0). Control processor: cycles per block, audio-link handler last and worst, main loop's longest pass (cycles), RAM used, RAM total. DSP: answered (0/1), cycles per block, last block, worst, late blocks, variables used and total, `GP5_LARGE` used and total. With `1`: clear peak readings |
+| `7E 19 [on]` | `7E 19 1 <direct> <playing> <dry u32> <too much u32> <ppm i32> <waiting u16> <rec too much u32> <recording>` | USB audio (1.0): with `on`, 0 leaves the pedal's own sound out of the outputs while the computer plays into the pedal (1 puts it back; [USB audio](api.md#usb-audio)). The reply: the setting, whether the computer is playing now, then counters since start-up: playback ran dry, playback frames dropped for want of room, the resampler's clock correction (ppm), playback frames waiting, recording frames dropped, recording on. `7E 19 0` for a firmware without USB audio |
 | `7E 18 <from u32>` | `7E 18 1 <at u32> <end u32> <n> <n bytes>` | the log (1.0, `gp5_log`), from byte `from`. `at` = where the bytes start (the oldest kept, if `from` was overwritten), `end` = bytes written since start-up; ask again from `at + n` |
 
 `tools/gp5_link.py` wraps `7E 00`, `7E 01`, `7E 03` / `7E 04`, `7E 05` (`flash-read`) and the 1.0 commands
@@ -103,7 +104,7 @@ The state query `12 30` gets a reply from Valeton's app or the factory loader:
 | Update mode | `11 30 01 01` |
 | OpenGP5 app | No reply to this query |
 
-`gp5tool.py status` uses those replies and the USB port name **GP-5 Open FW** to tell the states apart.
+`gp5tool.py status` uses those replies and the USB port name (**OpenGP5** from 1.0, **GP-5 Open FW** before, **GP-5** for Valeton's firmware and the loader) to tell the states apart.
 
 **Reply rules from 1.0:** add new fields at the end. Keep old fields in place with the same meaning.
 Keep command numbers fixed. A reader must use the fields it knows and skip extra bytes.
@@ -180,6 +181,7 @@ Commands the platform uses:
 | `0x4001` | DSP | a 24-byte status frame about every 43 ms (zeros today); not answered |
 | `0x7F01` / `0x7F02` | control | DSP flash tick patch: status / apply (see `platform/dsp/tickpatch.h`) |
 | `0x7F04` | control | DSP load: `[cmd][8]` or `[cmd][12][1 u32]` (clear peak readings) → `[cmd][24][cycles last block][worst since start-up][late blocks][variables in use, bytes][GP5_LARGE in use, bytes]` (1.0: the last two) |
+| `0x7F06` | control | USB audio (1.0): `[cmd][12][off u32][0 u32]` → ACK. 1 = leave the firmware's sound out of the outputs (the computer's playback stays); glides over a block |
 | `0x7F10` | control | a parameter (1.0): `[cmd][12][id u32][value u32]` → ACK; the DSP keeps it and calls `fw_param()` |
 | `0x4F10` | DSP | a log line (1.0, `gp5_log`): `[cmd][len][text]`, not answered; the control chip adds it to its log as `dsp: …` |
 | `0x7F11` … `0x7FFF` | control | the firmware's own commands, handed to `fw_command()` (`platform/dsp/gp5_dsp.h`; from `0x7F10` for a firmware without parameters) |

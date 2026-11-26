@@ -6,7 +6,7 @@ and read the result on the digital signal processor (DSP).
 
 The control chip can suit code that needs more time or memory:
 
-- it has a 258,016-byte firmware RAM budget, compared with the DSP's 19,712 bytes plus 122,880 bytes;
+- it has a 264,160-byte firmware RAM budget, compared with the DSP's 19,712 bytes plus 122,880 bytes;
 - it ran the same float code about 1.7 times faster;
 - with its integer DSP instructions, fixed-point code is much faster again ([performance](performance.md)).
 
@@ -22,7 +22,7 @@ The guitar goes to the control chip, gets a soft clip there, and comes back.
 `firmware.json`: ask for the link and how many words each way:
 
 ```json
-{ "id": "link-demo", "name": "Link demo", "version": "0.1.0", "platform": "0.8",
+{ "id": "link-demo", "name": "Link demo", "version": "0.1.0", "platform": "1.0",
   "audio": { "link_words": 64 } }
 ```
 

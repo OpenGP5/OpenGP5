@@ -17,6 +17,7 @@ run "log"                             sh -c "$CC -I platform/nds32/test/include 
 run "printf (gp5_fmt)"                sh -c "$CC -I platform/dsp platform/dsp/test/fmt_test.c -o $T/fmt && $T/fmt"
 run "parameters and presets"          platform/nds32/test/params_test.sh
 run "UI kit"                          platform/nds32/test/ui_test.sh
+run "USB audio (clocks, resampler)"   platform/nds32/test/usb_audio_test.sh
 run "manifest"                        python3 tools/test_manifest.py
 run "gp5tool"                         python3 tools/test_gp5tool.py
 run "J7 nudge (simulated DSP)"        python3 tools/test_j7_nudge.py
@@ -29,5 +30,7 @@ run "tremolo screens"                 firmwares/tremolo/test/screen.sh
 run "1.0 firmwares still build and run" tools/test_compat.sh
 FL=$( [ -d docs/flasher/test ] && echo docs/flasher || echo web/flasher )
 if command -v node >/dev/null; then run "web flasher" sh -c "cd $FL && node --test test/flasher.test.mjs test/catalog.test.mjs"; else echo "skip web flasher (no node)"; fi
+RM=$( [ -d docs/remote/test ] && echo docs/remote || echo web/remote )
+if command -v node >/dev/null; then run "phone remote (Bluetooth)" sh -c "cd $RM && node --test test/"; fi
 [ $fails = 0 ] && echo "ALL OK" || echo "$fails FAILED"
 exit $((fails > 0))

@@ -15,10 +15,10 @@ controls, USB and storage. It can also process audio through the audio link.
 | Main task | Mono guitar input, stereo output | Screen, knobs, foot switch, LEDs, USB and storage |
 | Your code | `dsp/firmware.h` | `nds32/*.c` |
 | Calls | `fw_process()` for each 64-sample block | Control callbacks and `fw_tick()` every 10 ms |
-| Firmware RAM budget | 19,712 bytes for variables; 122,880 for buffers | 258,016 bytes for data; code runs from flash |
+| Firmware RAM budget | 19,712 bytes for variables; 122,880 for buffers | 264,160 bytes for data; code runs from flash |
 
 A block lasts 1.45 ms at 44.1 kHz or 1.33 ms at 48 kHz.
-The [API version notes](api.md#versions) explain the planned memory guarantee for 1.x.
+The [API version notes](api.md#versions) explain the memory guarantee for 1.x.
 
 ## The platform
 
@@ -67,6 +67,15 @@ The result returns three blocks later: about 4.4 ms at 44.1 kHz or 4 ms at 48 kH
 
 NAM Loader and Dreamcatcher share sound work this way. The control chip has more memory and can run
 some sound code faster. See [The audio link](audio-link.md).
+
+## USB audio and Bluetooth
+
+A firmware built for 1.0 is also a USB audio interface: the computer records its finished sound and can play
+through the pedal. It uses 64 words of the audio link each way, which the platform keeps for it. Set
+`"usb_audio": false` in `firmware.json` to turn it off and get them back. See [USB audio](api.md#usb-audio).
+
+With `"bluetooth": true`, the pedal also takes MIDI over Bluetooth: Launchpad and the phone remote can change
+settings and presets without a cable. See [Bluetooth](api.md#bluetooth).
 
 ## Storage
 

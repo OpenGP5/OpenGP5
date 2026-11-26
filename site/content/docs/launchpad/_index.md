@@ -23,7 +23,7 @@ It also loads cabinet impulse responses (cab IRs) for the sound of a speaker cab
 | **Settings** | Choose a theme; control update checks; read recovery steps | All connections |
 
 NAM Loader and Dreamcatcher have their own pages, so the app hides Live for those builds.
-See [API versions](../platform/api/#versions) for the planned 1.0 API and the alpha builds that use it.
+See [API versions](../platform/api/#versions) for the 1.0 API.
 
 ## Install
 
@@ -56,6 +56,10 @@ Use these steps to open it:
 ## Connect
 
 Plug the pedal into the computer and open Launchpad. **Home** shows which firmware it runs.
+
+The pedal panel on the right shows the firmware, its version and platform, and the USB name. With a firmware built
+on OpenGP5 1.0, it also has **Pedal sound while the computer plays**. Untick it when your DAW monitors the pedal,
+so you don't hear it twice (see [USB audio](../get-started/usb-audio/#monitoring-in-a-daw)).
 
 If the app cannot access MIDI, click **Restart Launchpad** in the banner.
 Your MIDI service may not be ready when the app starts.

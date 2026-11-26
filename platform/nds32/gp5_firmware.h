@@ -11,10 +11,10 @@
 #define GP5_FIRMWARE_H
 #include <stdint.h>
 
-#define GP5_VERSION_MAJOR 0           /* the platform's version (shown at start-up, told to the computer by 7E 0D) */
-#define GP5_VERSION_MINOR 8
+#define GP5_VERSION_MAJOR 1           /* the platform's version (shown at start-up, told to the computer by 7E 0D) */
+#define GP5_VERSION_MINOR 0
 #define GP5_VERSION_PATCH 0
-#define GP5_VERSION_TEXT "0.8.0"
+#define GP5_VERSION_TEXT "1.0.0"
 
 /* Something the platform will retire (in a later major version only): using it warns when you build, with what to use
  * instead. 1.x keeps it working; a deprecation warns for at least one whole minor release before 2.0 removes it. */
@@ -33,6 +33,11 @@ int fw_draw(int force);                   /* draw (part of) the screen; return n
 void fw_tick(void);                       /* every 10 ms: the clock for timing things (gp5_ms(), gp5_knob()) */
 void fw_foot_down(void);                  /* the foot switch pressed / let go (debounced by the platform, 30 ms) */
 void fw_foot_up(void);
+/* MIDI from the computer (USB) or over Bluetooth (firmware.json "bluetooth": true), 1.0: one message at a time, its
+ * status byte first, from the main loop. A note, controller, program change, pressure or pitch bend (n = 2 or 3), or a
+ * real-time byte (n = 1): clock 0xF8 (24 a beat), start 0xFA, continue 0xFB, stop 0xFC, active sensing 0xFE, reset
+ * 0xFF. Optional. SysEx is the platform's (its command protocol). */
+void fw_midi(const uint8_t *msg, unsigned n);
 void fw_para_down(void);                  /* the PARA knob pushed / let go */
 void fw_para_up(void);
 void fw_para_click(void);                 /* ... a push let go before 0.6 s (called just before fw_para_up) */
@@ -128,4 +133,20 @@ int gp5_store_save(uint32_t id, const void *src, unsigned len);    /* 0 = saved 
 #define GP5_BLOCK 64u                     /* samples in one audio block (as on the DSP) */
 void gp5_link_start(void (*on_block)(const int32_t *in, int32_t *out));
 extern volatile uint32_t gp5_link_blocks;
+/* USB audio (OpenGP5 1.0): the pedal is a 2-in / 2-out USB audio device unless firmware.json says "usb_audio": false.
+ * The computer's playback is mixed into the outputs on the DSP; it records the firmware's finished output. With
+ * "usb_audio": {"record_from": "control"} (a firmware that finishes its sound here) the firmware hands that output over
+ * from its on_block(), once a block: 64 samples each side, full scale +-2^31 (a block it doesn't hand over is
+ * recorded as silence). The platform's 64 link words follow the
+ * firmware's own (GP5_LINK_WORDS): a firmware has at most 200 words in a direction it shares with USB audio. */
+#ifdef GP5_USB_RECORD_CONTROL
+void gp5_usb_audio_record(const int32_t *left, const int32_t *right);
+#endif
+#ifdef GP5_USB_AUDIO
+/* The pedal's own sound at its outputs while the computer plays into the pedal: on (1, the default) or off (0), so a DAW
+ * that monitors the pedal isn't heard twice. Recording is unchanged; with nothing playing, the pedal is always heard.
+ * The computer sets it too (7E 19); it isn't kept over a restart unless the firmware stores it. */
+void gp5_usb_audio_set_direct(int on);
+int gp5_usb_audio_direct(void);
+#endif
 #endif

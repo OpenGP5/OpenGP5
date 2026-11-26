@@ -34,6 +34,7 @@ int gp5_link_running(void);
 #define HANDOVER_MAGIC 0x4C445231u                   /* "LDR1" */
 #include "dsp_link.h"
 #include "dsp_ctl.h"
+#include "usb_audio.h"
 #include "gp5_firmware.h"
 #include "gp5_params.h"
 #ifdef GP5_HAS_PARAMS                                         /* gp5_params.c: the firmware's parameters (1.0) */
@@ -524,6 +525,22 @@ static void host_dsp_cmd(void)
         pl[2] = 1; n = 3;
         for (k = 0; k < 15; k++) for (i = 0; i < 4; i++) pl[n++] = (uint8_t)(v[k] >> (8 * i));
         if (reset) { gp5_link_worst = 0; loop_worst = 0; }
+    } else if (proto_req[1] == 0x19 && (proto_req_len == 2 || proto_req_len == 3)) {
+        /* USB audio (1.0): 7E 19 [0 = the pedal's own sound off while the computer plays, 1 = on] -> 7E 19 1 <direct
+         * 0/1> <computer playing 0/1> <playback: ran dry u32> <overflowed u32> <clock correction, ppm i32>
+         * <frames waiting u16> <recording: overflowed u32> <recording on 0/1>; 7E 19 0 without USB audio */
+#ifdef GP5_USB_AUDIO
+        if (proto_req_len == 3) gp5_usb_audio_set_direct(proto_req[2] != 0);
+        pl[2] = 1; pl[3] = (uint8_t)gp5_usb_audio_direct(); pl[4] = (uint8_t)usb_audio_get_interface(USB_AUDIO_IF_PLAY); n = 5;
+        {   uint32_t w[3] = { usb_audio_p_under, usb_audio_p_over, (uint32_t)usb_audio_ppm }, k;
+            for (k = 0; k < 3; k++) for (i = 0; i < 4; i++) pl[n++] = (uint8_t)(w[k] >> (8 * i));
+            pl[n++] = (uint8_t)usb_audio_p_fill; pl[n++] = (uint8_t)(usb_audio_p_fill >> 8);
+            for (i = 0; i < 4; i++) pl[n++] = (uint8_t)(usb_audio_r_over >> (8 * i));
+            pl[n++] = (uint8_t)usb_audio_get_interface(USB_AUDIO_IF_REC);
+        }
+#else
+        pl[2] = 0; n = 3;
+#endif
     } else if (proto_req[1] == 0x18 && proto_req_len == 6) {
         /* the log (1.0, gp5_log.c): 7E 18 <from u32> -> 7E 18 1 <at u32> <end u32> <n> <n bytes from `at`>; `at` is
          * `from`, or the oldest byte still kept if `from` was overwritten; `end` = bytes written since start */
@@ -593,6 +610,10 @@ __attribute__((weak)) void fw_para_hold(void) {}
 __attribute__((weak)) void fw_para_turn(int detents) { (void)detents; }
 __attribute__((weak)) void fw_storage_changed(void) {}
 __attribute__((weak)) void fw_dsp_ready(void) {}
+__attribute__((weak)) void fw_midi(const uint8_t *msg, unsigned n) { (void)msg; (void)n; }
+#ifdef GP5_BLUETOOTH
+void gp5_bt_start(void);                         /* bt/gp5_bt.c */
+#endif
 __attribute__((weak)) int fw_take(uint32_t *id, uint32_t *value) { (void)id; (void)value; return 0; }
 __attribute__((weak)) unsigned fw_setting_count(void) { return 0; }
 #define PARA_HOLD_MS 600u
@@ -678,6 +699,8 @@ static void monitor(void)
     uint32_t foot_quiet = 0, para_quiet = 0;
     unsigned ab, n, i;
     static uint8_t mbuf[64];
+    unsigned port;
+    uint8_t asked_port = 0;
     char s[COLS + 1];
     char *p;
 
@@ -690,6 +713,13 @@ static void monitor(void)
     __nds32__isb();
     gp5_storage_claim();                             /* gp5_files.c: storage belongs to this firmware (0.5) */
     gp5_log("OpenGP5 %s, firmware %s, control processor %u MHz, %u Hz", GP5_VERSION_TEXT, fw_name(), (unsigned)GP5_CTL_MHZ, (unsigned)GP5_SAMPLE_RATE);
+#if defined(GP5_USB_AUDIO) && defined(GP5_DEBUG_PEEK)
+    {   /* debug USB-audio builds: the crash record (noise after a power cut; a crash restarts, start/vectors.S) */
+        extern volatile uint32_t gp5_crash[4];
+        gp5_log("crash record %08X %08X %08X %08X", (unsigned)gp5_crash[0], (unsigned)gp5_crash[1], (unsigned)gp5_crash[2], (unsigned)gp5_crash[3]);
+        gp5_crash[0] = 0xC1EA0000u;
+    }
+#endif
 #ifdef GP5_HAS_PARAMS
     gp5_params_init();                               /* defaults, then what was saved */
     fw_init();
@@ -698,6 +728,9 @@ static void monitor(void)
     fw_init();
     n = fw_setting_count();
     fx_all = n >= 32 ? 0xFFFFFFFFu : (1u << n) - 1u;
+#endif
+#ifdef GP5_USB_AUDIO
+    if (!gp5_link_running()) gp5_link_start(0);       /* USB audio travels in the link: a firmware without one gets it */
 #endif
 
     for (;;) {
@@ -712,11 +745,19 @@ static void monitor(void)
         ab = enc_lab;
 
         usb_midi_poll();
-        n = usb_midi_read(mbuf);
         host_asked = 0;
+        for (port = 0; port < 2u; port++) {          /* USB, then the second MIDI port (Bluetooth), if a firmware has one */
+        n = port ? gp5_midi_port_read(mbuf, sizeof mbuf) : usb_midi_read(mbuf);
+        proto_port = (uint8_t)port;
         for (i = 0; i + 4 <= n; i += 4) {
             int r;
             if (mbuf[i] & 0x0F) rx = ((uint32_t)mbuf[i + 1] << 16) | ((uint32_t)mbuf[i + 2] << 8) | mbuf[i + 3];
+            {   /* notes, controllers, program changes (USB-MIDI code index 8..E), and real-time bytes (clock, start,
+                 * continue, stop: code index F, one byte from 0xF8): to the firmware (1.0) */
+                unsigned cin = mbuf[i] & 0x0Fu;
+                if (cin >= 0x8u && cin <= 0xEu) fw_midi(mbuf + i + 1, cin == 0xCu || cin == 0xDu ? 2u : 3u);
+                else if (cin == 0xFu && mbuf[i + 1] >= 0xF8u) fw_midi(mbuf + i + 1, 1u);
+            }
             r = proto_feed(mbuf + i);
             if (r == PROTO_TO_LOADER) {
                 put_line(4, "TO LOADER", yellow, black);
@@ -739,10 +780,12 @@ static void monitor(void)
                 for (;;) ;
             }
             if (r == PROTO_DSP) {
-                if (proto_req[1] == 0x00) host_asked = 1;
+                if (proto_req[1] == 0x00) { host_asked = 1; asked_port = (uint8_t)port; }
                 else host_dsp_cmd();
             }
         }
+        }
+        proto_port = 0;
 
         dsp_link_poll();
         gp5_link_check();                            /* the audio link restarts itself if it stalls */
@@ -759,7 +802,9 @@ static void monitor(void)
                 uint8_t pl[7];
                 pl[0] = 0x7E; pl[1] = 0x00; pl[2] = v ? 1 : 0;
                 pl[3] = (uint8_t)v; pl[4] = (uint8_t)(v >> 8); pl[5] = (uint8_t)(v >> 16); pl[6] = (uint8_t)(v >> 24);
+                proto_port = asked_port;
                 proto_reply(0x01, 0, pl, 7);
+                proto_port = 0;
             }
         }
         /* volume knob every 10 ms; start-up sync, then knob changes, to the DSP */
@@ -770,6 +815,9 @@ static void monitor(void)
             /* the first readings ramp up from 0 (filter start): not a turn of the knob */
             if (knob_reads < 60) knob_reads++; else api_tick(knob);
         }
+#ifdef GP5_USB_AUDIO
+        usb_audio_poll();
+#endif
         dsp_ctl_poll(dsp_ver != 0, audio_on ? api_level_now() : 0u);
         if (dsp_ctl_step != lstep) {
             lstep = dsp_ctl_step; dsp_show = 1;
@@ -912,12 +960,25 @@ int main(void)
     }
     gp5_stage = 7;
 
+#ifndef GP5_BLUETOOTH
     delay_ms(900);                               /* 1.5 s in all, as before */
+#endif
 
     __nds32__mtsr(0, NDS32_SR_INT_MASK2);        /* nothing enabled but what we enable below, whatever the loader left */
     gp5_tick_setup();                            /* timer 1, 1 ms (hal/tick.c) */
     GIE_ENABLE();
     NVIC_EnableIRQ(0);                           /* the timer-1 interrupt line */
+#ifdef GP5_BLUETOOTH
+    /* Bluetooth's start-up (system registers, the radio's calibration: ~1.1 s) while the logo shows, before the DSP
+     * link and the audio link exist. Started after 'sound on' (as until 2026-11-23) it sometimes stopped the audio
+     * link for good: its writes to the 0x400300xx system registers while an SPI-slave/DMA exchange ran (16c, 16d:
+     * the link stopped right then, its restart couldn't bring it back; other starts were fine). */
+    {
+        uint32_t t = gp5_ms();
+        gp5_bt_start();
+        while (gp5_ms() - t < 900u) { }          /* the logo's 1.5 s in all, as without Bluetooth */
+    }
+#endif
     gp5_stage = 8;
     usb_midi_init();                             /* attaches to the host (D+ pull-up) */
     dsp_link_init();

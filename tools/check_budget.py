@@ -10,7 +10,7 @@ leaves about 13 KB of control-processor RAM free).
   python3 tools/check_budget.py LOG        check the output of an earlier platform/build_firmware.sh compat/1.0/passthrough
   python3 tools/check_budget.py --show     build and print what the platform takes now
 """
-import json, pathlib, re, subprocess, sys, tempfile
+import json, pathlib, re, shutil, subprocess, sys, tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 BUDGET = ROOT / "compat/1.0/budget.json"
@@ -33,8 +33,15 @@ def measure(log):
 
 
 def build():
+    """The passthrough with everything the platform can add switched on (USB audio, Bluetooth): the platform's
+    largest share, which is what a firmware must still have room beside."""
     with tempfile.TemporaryDirectory() as d:
-        r = subprocess.run(["platform/build_firmware.sh", "compat/1.0/passthrough", f"{d}/pt.bin"], cwd=ROOT,
+        fw = pathlib.Path(d) / "passthrough"
+        shutil.copytree(ROOT / "compat/1.0/passthrough", fw)
+        m = json.loads((fw / "firmware.json").read_text())
+        m["usb_audio"] = True; m["bluetooth"] = True
+        (fw / "firmware.json").write_text(json.dumps(m, indent=2))
+        r = subprocess.run(["platform/build_firmware.sh", str(fw), f"{d}/pt.bin"], cwd=ROOT,
                            capture_output=True, text=True)
         if r.returncode: sys.exit(r.stdout + r.stderr + "\ncheck_budget: the build failed")
         return r.stdout

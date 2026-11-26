@@ -1,11 +1,14 @@
 /* GP-5 open platform: memory layout of the control processor's app.
  * Flash: the app slot starts at 0x10000 (below it is the factory loader, never written).
- * RAM: 0x20000000..0x20048000; the stack is below 0x20004000, data and zeroed data above it. */
+ * RAM: 0x20000000..0x20048000. 0x20000000..0x20003000: the platform's own buffers (.lowram: the vendor SDK kept its
+ * flash driver here; ours runs from .ramfunc), not cleared at start-up; the stack below 0x20004000; data and zeroed
+ * data above it (the firmware's RAM, the 1.x memory promise). */
 ENTRY(_start)
 
 MEMORY
 {
     APP (rx)  : ORIGIN = 0x00010000, LENGTH = 0x168000
+    LOW (rw)  : ORIGIN = 0x20000000, LENGTH = 0x3000
     RAM (rwx) : ORIGIN = 0x20004000, LENGTH = 0x44000 - 0x20   /* the top 32 bytes: the hand-over mark (main.c) */
 }
 
@@ -56,6 +59,16 @@ SECTIONS
         *(.bss .bss.* .gnu.linkonce.b.*) *(COMMON)
         . = ALIGN(4);
         _end = .;
+    } > RAM
+    .lowram (NOLOAD) : {                  /* platform buffers (LOWRAM): log, store sector, USB audio */
+        . = ALIGN(4);
+        *(.lowram .lowram.*)
+        . = ALIGN(4);
+    } > LOW
+    .noinit (NOLOAD) : {                  /* never cleared at start-up: kept across a watchdog restart (not a power cut) */
+        . = ALIGN(4);
+        *(.noinit .noinit.*)
+        . = ALIGN(4);
     } > RAM
 
     /DISCARD/ : { *(.eh_frame) *(.eh_frame_hdr) *(.note.nds32) *(.note.nds32.*) *(.comment) }
