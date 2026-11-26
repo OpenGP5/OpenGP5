@@ -3,7 +3,15 @@
   "name": "NAM Loader",
   "author": "OpenGP5",
   "repo": "https://github.com/OpenGP5/NAM-Loader",
-  "description": "Plays NAM A2 captures at 48 kHz with a noise gate and EQ each, and any of 12 cab IRs. 30 slots, filled from Launchpad.",
+  "description": "Plays NAM A2 captures at 48 kHz with an input and output level, a noise gate and EQ each, and any of 12 cab IRs; USB audio. 30 slots, filled from Launchpad.",
   "licence": "MIT",
-  "releases": []
+  "releases": [
+    {
+      "version": "1.4.0",
+      "platform": "1.0",
+      "url": "https://github.com/OpenGP5/NAM-Loader/releases/download/v1.4.0/GP-5_nam-loader.bin",
+      "sha256": "7e9099c008e69680d42acbdf02067235362375880d82db95df67e11d9f85db60",
+      "size": 146576
+    }
+  ]
 }
