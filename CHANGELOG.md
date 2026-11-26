@@ -37,6 +37,13 @@ only with `"usb_audio": true`.
   Bluetooth (was GP-5). Launchpad 0.4, the web flasher and `gp5tool.py` find both names. Older versions of those tools don't see a pedal running a 1.0
   firmware, except in update mode, which is still called GP-5.
 
+### Documentation
+
+- **A documentation website, [opengp5.github.io](https://opengp5.github.io/):** getting started, Launchpad, each
+  firmware, building your own, help; the web flasher moved to [/flasher/](https://opengp5.github.io/flasher/) (the
+  old address still works). New pages: USB audio, the phone remote, J7 recovery, the DSP updater fault (help wanted:
+  a USB-only route to its fix), the colour palette.
+
 ### Fixed
 
 - **The audio link recovers from more stalls.** Restarting it now clears every DMA flag, not only "done"; a latched

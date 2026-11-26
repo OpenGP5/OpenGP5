@@ -8,7 +8,6 @@
   <a href="https://github.com/OpenGP5/OpenGP5/releases"><img alt="Version 1.0.0" src="https://img.shields.io/badge/version-1.0.0-3cc0c1?style=flat-square"></a>
   <img alt="Builds on macOS, Linux and Windows" src="https://img.shields.io/badge/builds%20on-macOS%20%7C%20Linux%20%7C%20Windows-5b6b7b?style=flat-square">
   <a href="LICENSE"><img alt="Licence: MIT" src="https://img.shields.io/badge/licence-MIT-3ee8b5?style=flat-square"></a>
-  <img alt="Status: alpha" src="https://img.shields.io/badge/status-alpha-e8590c?style=flat-square">
 </p>
 
 <p align="center">
@@ -26,8 +25,9 @@ a small framework for writing your own: your sound, your screen, your controls, 
 comes from Valeton or the chip vendor, and you can always go back to Valeton's firmware.
 
 > [!NOTE]
-> **Alpha.** OpenGP5 has run on several GP-5s, with no problem reported. Expect rough edges, and expect interfaces
-> to change before 1.0. Read [Before you flash](https://opengp5.github.io/docs/get-started/safety/) first.
+> **Before you flash.** OpenGP5 has run on several GP-5s. Some pedals have a fault in the DSP's updater that can stop a
+> flash and needs a debug adapter to fix. Read [Before you flash](https://opengp5.github.io/docs/get-started/safety/)
+> first.
 
 ## Try it
 

@@ -79,7 +79,7 @@ static void fw_process(const int32_t *in,
 
 <section class="og-note">
   <div class="og-wrap">
-    <p><strong>OpenGP5 is in alpha.</strong> A known DSP update fault can block a USB flash and may need a debug adapter wired inside the pedal.
+    <p><strong>Before you flash:</strong> a known DSP update fault can block a USB flash and may need a debug adapter wired inside the pedal.
     Read <a href="docs/get-started/safety/">Before you flash</a> for the risks and backup steps.</p>
     <p class="og-note__small">Valeton does not make or endorse OpenGP5. "Valeton" and "GP-5" are its trademarks.
     We use those names to show which pedal runs this code. MIT licence.</p>

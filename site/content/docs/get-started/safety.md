@@ -6,7 +6,7 @@ weight: 10
 ---
 
 > [!WARNING]
-> OpenGP5 is alpha software. A flash can fail. Valeton does not make or endorse this project.
+> A flash can fail. Valeton does not make or endorse this project.
 
 ## What can go wrong
 
